@@ -753,12 +753,15 @@ namespace FEXCore::Context {
     if (IRList == nullptr) {
       return {};
     }
+
+    auto BlockInfo = Thread->FrontendDecoder->GetDecodedBlockInfo();
+
     // Attempt to get the CPU backend to compile this code
     return {
       // FEX currently throws away the CPUBackend::CompiledCode object other than the entrypoint
       // In the future with code caching getting wired up, we will pass the rest of the data forward.
       // TODO: Pass the data forward when code caching is wired up to this.
-      .CompiledCode = Thread->CPUBackend->CompileCode(GuestRIP, IRList, DebugData, RAData.get()).BlockEntry,
+      .CompiledCode = Thread->CPUBackend->CompileCode(GuestRIP, reinterpret_cast<const void*>(BlockInfo), IRList, DebugData, RAData.get()).BlockEntry,
       .IRData = IRList,
       .DebugData = DebugData,
       .RAData = std::move(RAData),

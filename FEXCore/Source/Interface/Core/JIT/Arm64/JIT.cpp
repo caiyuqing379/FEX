@@ -15,6 +15,8 @@ $end_info$
 #include "Interface/Context/Context.h"
 #include "Interface/Core/ArchHelpers/CodeEmitter/Emitter.h"
 #include "Interface/Core/LookupCache.h"
+#include "Interface/Core/Frontend.h"
+#include "Interface/Core/PatternDbt/rule-translate.h"
 
 #include "Interface/Core/Dispatcher/Dispatcher.h"
 #include "Interface/Core/JIT/Arm64/JITClass.h"
@@ -687,6 +689,7 @@ bool Arm64JITCore::IsGPRPair(IR::NodeID Node) const {
 }
 
 CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
+                                const void *BlockInfo,
                                 FEXCore::IR::IRListView const *IR,
                                 FEXCore::Core::DebugData *DebugData,
                                 FEXCore::IR::RegisterAllocationData *RAData) {
@@ -769,6 +772,31 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
   PendingTargetLabel = nullptr;
 
+      auto   *tBlockInfo = static_cast<const FEXCore::Frontend::Decoder::DecodedBlockInformation*>(BlockInfo);
+      auto   CodeBlocks = &tBlockInfo->Blocks;
+      auto   Block = CodeBlocks->at(0);
+
+      if(CodeBlocks->size() <= 1)
+		    match_translation_rule(&Block);
+      else
+        LogMan::Msg::IFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
+
+      uint32_t cur_ins_pc = IR->GetHeader()->OriginalRIP;
+      uint32_t reg_liveness[100] = {0};
+
+      /* See if we can use rules to do translation */
+      if (cur_ins_pc && instr_is_match(cur_ins_pc)) {
+        auto RTBStartHostCode = GetCursorAddress<uint8_t *>();
+        do_rule_translation(&Block, get_translation_rule(cur_ins_pc), reg_liveness);
+        if (DebugData) {
+          DebugData->Subblocks.push_back({
+            static_cast<uint32_t>(RTBStartHostCode - CodeData.BlockEntry),
+            static_cast<uint32_t>(GetCursorAddress<uint8_t *>() - RTBStartHostCode)
+          });
+        }
+        goto next;
+      }
+
   for (auto [BlockNode, BlockHeader] : IR->GetBlocks()) {
     using namespace FEXCore::IR;
 #if defined(ASSERTIONS_ENABLED) && ASSERTIONS_ENABLED
@@ -815,6 +843,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
     }
   }
 
+  next:
   // Make sure last branch is generated. It certainly can't be eliminated here.
   if (PendingTargetLabel)
   {

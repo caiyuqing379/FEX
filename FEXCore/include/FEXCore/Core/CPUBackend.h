@@ -134,6 +134,7 @@ namespace CPU {
      * @return Information about the compiled code block.
      */
     [[nodiscard]] virtual CompiledCode CompileCode(uint64_t Entry,
+                                            const void *BlockInfo,
                                             FEXCore::IR::IRListView const *IR,
                                             FEXCore::Core::DebugData *DebugData,
                                             FEXCore::IR::RegisterAllocationData *RAData) = 0;

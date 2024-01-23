@@ -24,6 +24,7 @@ $end_info$
 #include <FEXCore/Config/Config.h>
 #include <FEXCore/Core/Context.h>
 #include <FEXCore/Core/CoreState.h>
+#include "../../../FEXCore/Source/Interface/Core/PatternDbt/parse.h"
 #include <FEXCore/Utils/Allocator.h>
 #include <FEXCore/Utils/FileLoading.h>
 #include <FEXCore/Utils/LogManager.h>
@@ -531,6 +532,8 @@ int main(int argc, char **argv, char **const envp) {
       }
     });
   }
+
+  parse_translation_rules();
 
   if (AOTIRGenerate()) {
     for(auto &Section: Loader.Sections) {

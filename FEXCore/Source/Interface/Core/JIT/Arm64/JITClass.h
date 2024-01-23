@@ -10,6 +10,9 @@ $end_info$
 #include "Interface/Core/ArchHelpers/Arm64Emitter.h"
 #include "Interface/Core/ArchHelpers/CodeEmitter/Emitter.h"
 #include "Interface/Core/Dispatcher/Dispatcher.h"
+#include "Interface/Core/Frontend.h"
+#include "Interface/Core/PatternDbt/arm-instr.h"
+#include "Interface/Core/PatternDbt/rule-translate.h"
 
 #include <aarch64/assembler-aarch64.h>
 #include <aarch64/disasm-aarch64.h>
@@ -42,6 +45,7 @@ public:
   [[nodiscard]] fextl::string GetName() override { return "JIT"; }
 
   [[nodiscard]] CPUBackend::CompiledCode CompileCode(uint64_t Entry,
+                                  const void *BlockInfo,
                                   FEXCore::IR::IRListView const *IR,
                                   FEXCore::Core::DebugData *DebugData,
                                   FEXCore::IR::RegisterAllocationData *RAData) override;
@@ -251,6 +255,33 @@ private:
 #define IROP_DISPATCH_DEFS
 #include <FEXCore/IR/IRDefines_Dispatch.inc>
 #undef DEF_OP
+
+  void do_rule_translation(FEXCore::Frontend::Decoder::DecodedBlocks const *tb, RuleRecord *rule_r, uint32_t *reg_liveness);
+  void assemble_arm_instruction(FEXCore::Frontend::Decoder::DecodedBlocks const *tb, ARMInstruction *instr,
+                              uint32_t *reg_liveness, RuleRecord *rrule);
+
+#define DEF_OPC(x) void Opc_##x(FEXCore::Frontend::Decoder::DecodedBlocks const *tb, ARMInstruction *instr, \
+                                uint32_t *reg_liveness, RuleRecord *rrule)
+  DEF_OPC(LDR);
+  DEF_OPC(STR);
+  DEF_OPC(MOV);
+  DEF_OPC(MVN);
+  DEF_OPC(AND);
+  DEF_OPC(ORR);
+  DEF_OPC(EOR);
+  DEF_OPC(BIC);
+  DEF_OPC(Shift);
+  DEF_OPC(ADD);
+  DEF_OPC(ADC);
+  DEF_OPC(SUB);
+  DEF_OPC(SBC);
+  DEF_OPC(MUL);
+  DEF_OPC(CLZ);
+  DEF_OPC(TST);
+  DEF_OPC(COMPARE);
+  DEF_OPC(B);
+  DEF_OPC(BL);
+#undef DEF_OPC
 };
 
 } // namespace FEXCore::CPU
