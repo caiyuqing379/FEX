@@ -7,7 +7,6 @@
 #include <cstring>
 
 #include "rule-translate.h"
-#include "arm-asm.h"
 
 #define MAX_RULE_RECORD_BUF_LEN 800
 #define MAX_GUEST_INSTR_LEN 800
@@ -862,7 +861,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                 /* Check target_pc for this rule */
                 for (j = 1; j < i; j++)
                     temp = temp->next;
-                if (!temp->next && !x86_instr_test_branch(temp))
+                if (!temp->next && x86_instr_test_branch(temp))
                     target_pc = temp->pc + temp->InstSize;
 
                 X86Instruction *p_rule_instr = cur_rule->x86_guest;
@@ -944,7 +943,7 @@ void remove_guest_instruction(FEXCore::Frontend::Decoder::DecodedBlocks *tb, uin
 }
 
 static ARMInstruction *arm_host;
-void FEXCore::CPU::Arm64JITCore::do_rule_translation(FEXCore::Frontend::Decoder::DecodedBlocks const *tb, RuleRecord *rule_r, uint32_t *reg_liveness)
+void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_t *reg_liveness)
 {
     TranslationRule *rule;
 
@@ -969,17 +968,17 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(FEXCore::Frontend::Decoder:
             arm_code->opc = X862ARM[rule_r->para_opc[i]];
             ++i;
             // LogMan::Msg::IFmt( "{}\n", arm_code->opc);
-            assemble_arm_instruction(tb, arm_code, reg_liveness, rule_r);
+            assemble_arm_instruction(arm_code, reg_liveness, rule_r);
             arm_code->opc = temp;
         }
         else
-            assemble_arm_instruction(tb, arm_code, reg_liveness, rule_r);
+            assemble_arm_instruction(arm_code, reg_liveness, rule_r);
         arm_code = arm_code->next;
     }
 
     if (rule_r->target_pc != 0) {
-        LogMan::Msg::IFmt( "--------- tb->pc: {:x}, target_pc: %lx\n", tb->guest_instr->pc, rule_r->target_pc);
-        // assemble_x86_exit_tb(s, rule_r->target_pc);
+        LogMan::Msg::IFmt( "--------- pc: {:x}, target_pc: {:x}\n", rule_r->pc, rule_r->target_pc);
+        assemble_arm_exit_tb(rule_r->target_pc);
     }
 
     /* sync and dead registers to keep consistency with TCG */

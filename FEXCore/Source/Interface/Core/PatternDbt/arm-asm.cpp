@@ -7,11 +7,13 @@
 #include <FEXCore/Utils/LogManager.h>
 #include <FEXCore/Utils/MathUtils.h>
 
-#include "arm-asm.h"
+#include "Interface/Core/Frontend.h"
+#include "Interface/Core/PatternDbt/arm-instr.h"
+#include "Interface/Core/PatternDbt/rule-translate.h"
 
 using namespace FEXCore;
 
-#define DEF_OPC(x) void FEXCore::CPU::Arm64JITCore::Opc_##x(FEXCore::Frontend::Decoder::DecodedBlocks const *tb, ARMInstruction *instr, \
+#define DEF_OPC(x) void FEXCore::CPU::Arm64JITCore::Opc_##x(ARMInstruction *instr, \
                                 uint32_t *reg_liveness, RuleRecord *rrule)
 
 static ARMEmitter::Condition MapBranchCC(ARMConditionCode Cond)
@@ -751,10 +753,27 @@ DEF_OPC(COMPARE) {
         LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
 }
 
+IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
+{
+  FEXCore::IR::IRListView const *IR = this->IR;
+  for (auto [BlockNode, BlockHeader] : IR->GetBlocks()) {
+    using namespace FEXCore::IR;
+
+    for (auto [CodeNode, IROp] : IR->GetCode(BlockNode)) {
+
+      if (IROp->Op == tIROp) {
+        return IROp;
+      }
+
+    }
+  }
+  return nullptr;
+}
+
 DEF_OPC(B) {
     ARMOperand *opd = &instr->opd[0];
     ARMConditionCode cond = instr->cc;
-    ARMEmitter::BiDirectionalLabel *Label = nullptr;
+    ARMEmitter::BiDirectionalLabel Label;
     int64_t TargetOffset;
     uint64_t InstRIP;
     uint64_t TargetRIP;
@@ -763,14 +782,14 @@ DEF_OPC(B) {
 
     TargetRIP = InstRIP + TargetOffset;
 
-    *(Label->Backward.Location) = TargetRIP;
+    Bind(&Label);
 
-    b(MapBranchCC(cond), Label);
+    b(MapBranchCC(cond), &Label);
 }
 
 DEF_OPC(BL) {
     ARMOperand *opd = &instr->opd[0];
-    ARMEmitter::BiDirectionalLabel *Label = nullptr;
+    ARMEmitter::BiDirectionalLabel Label;
     int64_t TargetOffset;
     uint64_t InstRIP;
     uint64_t TargetRIP;
@@ -779,9 +798,9 @@ DEF_OPC(BL) {
 
     TargetRIP = InstRIP + TargetOffset;
 
-    *(Label->Backward.Location) = TargetRIP;
+    Bind(&Label);
 
-    bl(Label);
+    bl(&Label);
 }
 
 DEF_OPC(CBNZ) {
@@ -795,24 +814,23 @@ DEF_OPC(CBNZ) {
 
     auto Src = GetARMReg(opd0->content.reg.num);
 
-    ARMEmitter::BackwardLabel *Label = nullptr;
+    ARMEmitter::BackwardLabel Label;
     int64_t TargetOffset;
     uint64_t InstRIP;
     uint64_t TargetRIP;
 
     get_label_map(opd1->content.imm.content.sym, &TargetOffset, &InstRIP);
 
-    LogMan::Msg::IFmt( "Get label target: {:x} rip: {:x} targetrip: {:x}\n", TargetOffset, InstRIP, TargetRIP);
-
     TargetRIP = InstRIP + TargetOffset;
 
-    *(Label->Backward.Location) = TargetRIP;
+    LogMan::Msg::IFmt( "Get label target: {:x} rip: {:x} targetrip: {:x}\n", TargetOffset, InstRIP, TargetRIP);
 
-    cbnz(EmitSize, Src, Label);
+    Label.Location = GetCursorAddress<uint8_t*>() - 0xc;
+
+    cbnz(EmitSize, Src, &Label);
 }
 
-void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(FEXCore::Frontend::Decoder::DecodedBlocks const *tb, ARMInstruction *instr,
-                              uint32_t *reg_liveness, RuleRecord *rrule)
+void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, uint32_t *reg_liveness, RuleRecord *rrule)
 {
     print_arm_instr(instr);
 
@@ -822,82 +840,104 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(FEXCore::Frontend::Dec
         case ARM_OPC_LDRH:
         case ARM_OPC_LDRSH:
         case ARM_OPC_LDR:
-            Opc_LDR(tb, instr, reg_liveness, rrule);
+            Opc_LDR(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_STR:
         case ARM_OPC_STRB:
         case ARM_OPC_STRH:
-            Opc_STR(tb, instr, reg_liveness, rrule);
+            Opc_STR(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_MOV:
-            Opc_MOV(tb, instr, reg_liveness, rrule);
+            Opc_MOV(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_MVN:
-            Opc_MVN(tb, instr, reg_liveness, rrule);
+            Opc_MVN(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_AND:
         case ARM_OPC_ANDS:
-            Opc_AND(tb, instr, reg_liveness, rrule);
+            Opc_AND(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_ORR:
-            Opc_ORR(tb, instr, reg_liveness, rrule);
+            Opc_ORR(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_EOR:
-            Opc_EOR(tb, instr, reg_liveness, rrule);
+            Opc_EOR(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_BIC:
         case ARM_OPC_BICS:
-            Opc_BIC(tb, instr, reg_liveness, rrule);
+            Opc_BIC(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_LSL:
         case ARM_OPC_LSR:
         case ARM_OPC_ASR:
-            Opc_Shift(tb, instr, reg_liveness, rrule);
+            Opc_Shift(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_ADD:
         case ARM_OPC_ADDS:
-            Opc_ADD(tb, instr, reg_liveness, rrule);
+            Opc_ADD(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_ADC:
         case ARM_OPC_ADCS:
-            Opc_ADC(tb, instr, reg_liveness, rrule);
+            Opc_ADC(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_SUB:
         case ARM_OPC_SUBS:
-            Opc_SUB(tb, instr, reg_liveness, rrule);
+            Opc_SUB(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_SBC:
         case ARM_OPC_SBCS:
-            Opc_SBC(tb, instr, reg_liveness, rrule);
+            Opc_SBC(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_MUL:
         case ARM_OPC_UMULL:
         case ARM_OPC_SMULL:
-            Opc_MUL(tb, instr, reg_liveness, rrule);
+            Opc_MUL(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_CLZ:
-            Opc_CLZ(tb, instr, reg_liveness, rrule);
+            Opc_CLZ(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_TST:
-            Opc_TST(tb, instr, reg_liveness, rrule);
+            Opc_TST(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_CMP:
         case ARM_OPC_CMN:
-            Opc_COMPARE(tb, instr, reg_liveness, rrule);
+            Opc_COMPARE(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_B:
-            Opc_B(tb, instr, reg_liveness, rrule);
+            Opc_B(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_BL:
-            Opc_BL(tb, instr, reg_liveness, rrule);
+            Opc_BL(instr, reg_liveness, rrule);
             break;
         case ARM_OPC_CBNZ:
-            Opc_CBNZ(tb, instr, reg_liveness, rrule);
+            Opc_CBNZ(instr, reg_liveness, rrule);
             break;
         default:
             LogMan::Msg::IFmt( "Unsupported x86 instruction in the assembler: {}, rule index: {}.\n",
                     get_arm_instr_opc(instr->opc), rrule->rule->index);
     }
+}
+
+void FEXCore::CPU::Arm64JITCore::assemble_arm_exit_tb(uint64_t target_pc)
+{
+  IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_INLINEENTRYPOINTOFFSET);
+
+  auto Op = IROp->C<IR::IROp_ExitFunction>();
+
+  ResetStack();
+
+  uint64_t NewRIP;
+
+  if (IsInlineConstant(Op->NewRIP, &NewRIP) || IsInlineEntrypointOffset(Op->NewRIP, &NewRIP)) {
+    ARMEmitter::SingleUseForwardLabel l_BranchHost;
+
+    ldr(TMP1, &l_BranchHost);
+    blr(TMP1);
+
+    Bind(&l_BranchHost);
+    dc64(ThreadState->CurrentFrame->Pointers.Common.ExitFunctionLinker);
+    dc64(NewRIP);
+  }
 }
 
 #undef DEF_OP

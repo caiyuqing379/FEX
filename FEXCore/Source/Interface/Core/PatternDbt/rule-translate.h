@@ -3,6 +3,10 @@
 
 #include "Interface/Core/Frontend.h"
 
+#include <FEXCore/IR/IR.h>
+#include <FEXCore/IR/IntrusiveIRList.h>
+#include <FEXCore/IR/RegisterAllocationData.h>
+
 #include "parse.h"
 
 typedef struct ImmMapping {
@@ -53,7 +57,7 @@ void remove_guest_instruction(FEXCore::Frontend::Decoder::DecodedBlocks *, uint6
 
 /* Try to match instructions in this tb to existing rules */
 void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *);
-void do_rule_translation(FEXCore::Frontend::Decoder::DecodedBlocks const *, RuleRecord *, uint32_t *);
+void do_rule_translation(RuleRecord *, uint32_t *);
 
 void get_label_map(char *, int64_t *, uint64_t *);
 int32_t get_imm_map(char *);

@@ -586,6 +586,11 @@ bool Decoder::NormalOp(FEXCore::X86Tables::X86InstInfo const *Info, uint16_t Op,
     DecodeInst->Src[CurrentSrc].Data.Literal.Value = Literal;
   }
 
+  LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} '{}' Had an instruction of size {} with {} remaining",
+              DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
+
+  DecodeInstToX86Inst(DecodeInst, x86_instr);
+
   LOGMAN_THROW_AA_FMT(Bytes == 0, "Inst at 0x{:x}: 0x{:04x} '{}' Had an instruction of size {} with {} remaining",
                      DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
   DecodeInst->InstSize = InstructionSize;
@@ -769,6 +774,9 @@ bool Decoder::DecodeInstruction(uint64_t PC) {
   DecodeInst = &DecodedBuffer[DecodedSize];
   memset(DecodeInst, 0, sizeof(DecodedInst));
   DecodeInst->PC = PC;
+
+	/* creat an instruction to save disasm results */
+	x86_instr = create_x86_instr(PC);
 
   for(;;) {
     if (InstructionSize >= MAX_INST_SIZE)
@@ -1107,6 +1115,8 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
   MaxCondBranchBackwards = ~0ULL;
   DecodedBuffer = PoolObject.ReownOrClaimBuffer();
 
+  x86_instr_buffer_init();
+
   // Decode operating mode from thread's CS segment.
   const auto CSSegment = Thread->CurrentFrame->State.gdt[Thread->CurrentFrame->State.cs_idx >> 3];
   BlockInfo.Is64BitMode = CSSegment.L == 1;
@@ -1153,6 +1163,9 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
     uint64_t PCOffset = 0;
     uint64_t BlockNumberOfInstructions{};
     uint64_t BlockStartOffset = DecodedSize;
+
+    CurrentBlockDecoding.guest_instr = &instr_buffer[instr_buffer_index];
+    instr_block_start = instr_buffer_index;
 
     // Do a bit of pointer math to figure out where we are in code
     InstStream = AdjustAddrForSpecialRegion(_InstStream, EntryPoint, RIPToDecode);
@@ -1217,6 +1230,12 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
         // Bypass branches if we can continue through them in some cases.
         CanContinue |= BranchTargetCanContinue(FinalInstruction);
       }
+
+      for(uint8_t k=0; k < DecodeInst->InstSize; k++){
+        uint8_t Byte = InstStream[k];
+        LogMan::Msg::IFmt("Inst at 0x{:x}: size {} with {:x}", DecodeInst->PC, k, Byte);
+      }
+      LogMan::Msg::IFmt("");
 
       if (FinalInstruction || !CanContinue) {
         break;

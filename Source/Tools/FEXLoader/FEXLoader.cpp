@@ -20,6 +20,7 @@ $end_info$
 #include "LinuxSyscalls/x64/Syscalls.h"
 #include "LinuxSyscalls/SignalDelegator.h"
 #include "Linux/Utils/ELFContainer.h"
+#include "../../../FEXCore/Source/Interface/Core/PatternDbt/parse.h"
 
 #include <FEXCore/Config/Config.h>
 #include <FEXCore/Core/Context.h>
@@ -531,6 +532,8 @@ int main(int argc, char **argv, char **const envp) {
       }
     });
   }
+
+  parse_translation_rules();
 
   if (AOTIRGenerate()) {
     for(auto &Section: Loader.Sections) {

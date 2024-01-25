@@ -117,6 +117,13 @@ set (SRCS
   Interface/Core/JIT/Arm64/MoveOps.cpp
   Interface/Core/JIT/Arm64/VectorOps.cpp
   Interface/Core/JIT/Arm64/Arm64Relocations.cpp
+  Interface/Core/PatternDbt/arm-instr.cpp
+  Interface/Core/PatternDbt/arm-parse.cpp
+  Interface/Core/PatternDbt/parse.cpp
+  Interface/Core/PatternDbt/rule-translate.cpp
+  Interface/Core/PatternDbt/arm-asm.cpp
+  Interface/Core/PatternDbt/x86-instr.cpp
+  Interface/Core/PatternDbt/x86-parse.cpp
   Interface/Core/X86Tables/BaseTables.cpp
   Interface/Core/X86Tables/DDDTables.cpp
   Interface/Core/X86Tables/EVEXTables.cpp
