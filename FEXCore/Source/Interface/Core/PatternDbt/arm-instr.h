@@ -108,6 +108,7 @@ typedef enum {
 
     ARM_OPC_B,
     ARM_OPC_BL,
+    ARM_OPC_CBNZ,
 
 // parameterized opcode
     ARM_OPC_OP1,

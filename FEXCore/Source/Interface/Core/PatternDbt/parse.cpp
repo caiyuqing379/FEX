@@ -245,7 +245,7 @@ static TranslationRule *rule_alloc(void)
     #endif
 
     for (i = 0; i < X86_CC_NUM; i++)
-        rule->x86_cc_mapping[i] = 0;
+        rule->x86_cc_mapping[i] = 1;
 
     rule->match_counter = 0;
 
@@ -309,7 +309,7 @@ TranslationRule *get_rule(void)
 
 void parse_translation_rules(void)
 {
-    const char rule_file[] = "/home/ubuntu/BINTRANS/rules4all";
+    const char rule_file[] = "/home/ubuntu/rules4all";
     TranslationRule *rule = NULL;
     int counter = 0;
     int install_counter = 0;

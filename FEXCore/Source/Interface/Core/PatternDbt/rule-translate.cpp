@@ -123,7 +123,7 @@ static int label_map_buf_index_pre = 0;
 static ImmMapping *imm_map;
 static GuestRegisterMapping *g_reg_map;
 static LabelMapping *l_map;
-static int debug = 0;
+static int debug = 1;
 static int match_insts = 0;
 static int match_counter = 10;
 
@@ -553,7 +553,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
                 if (debug){
                     fprintf(stderr, "guest->type: %d\n", p_guest_instr->opd[i].type);
                     fprintf(stderr, "rule->type: %d\n", p_rule_instr->opd[i].type);
-                    if (p_guest_instr->opd[i].type == p_rule_instr->opd[i].type){
+                    if (p_guest_instr->opd[i].type != p_rule_instr->opd[i].type){
                         LogMan::Msg::IFmt( "Unmatched operand :");
                         print_x86_instr(p_guest_instr);
                         print_x86_instr(p_rule_instr);
@@ -762,7 +762,9 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
     int i, j;
     uint64_t tbpc = guest_instr->pc;
 
-    LogMan::Msg::IFmt( "\n=====Guest Instr Match Rule Start=====\n");
+    LogMan::Msg::IFmt( "=====Guest Instr Match Rule Start=====\n");
+
+    LogMan::Msg::IFmt( "Current match pc: {:x}", tbpc);
 
     reset_buffer();
 
@@ -806,15 +808,8 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
         for(i = guest_instr_num; i > 0; i--) {
             /* calculate hash key */
             int hindex = rule_hash_key(cur_head, i);
-        #ifdef PROFILE_RULE_DEBUG
-            if (i == 1){
-                debug = 1;
-                LogMan::Msg::IFmt( "#####instr block#####\n");
-            }
-            else debug = 0;
-        #endif
 
-            if (hindex > MAX_GUEST_LEN)
+            if (hindex >= MAX_GUEST_LEN)
                 continue;
             /* check rule with length i (number of guest instructions) */
             TranslationRule *cur_rule = cache_rule_table[hindex];
@@ -825,7 +820,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                 if (cur_rule->guest_instr_num != i)
                     goto next;
 
-                LogMan::Msg::IFmt( "========starting matching internal, rule: {}=======\n", cur_rule->index);
+                // LogMan::Msg::IFmt( "========starting matching internal, rule: {}=======\n", cur_rule->index);
                 if (match_rule_internal(cur_head, cur_rule, tb)) {
                     #if 0
                     if (cur_rule->index == 9998) {
@@ -835,6 +830,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                             goto next;
                     }
                     #endif
+                    LogMan::Msg::IFmt( "##### match rule {} success! #####\n", cur_rule->index);
                     break;
                 }
                 next:
@@ -860,7 +856,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                 if (cur_rule->index == 0)
                     LogMan::Msg::IFmt( "    0x{:x},\n", tbpc);
                 if (tbpc == debug_pc)
-                    LogMan::Msg::IFmt( "== Hit a rule [{}] at tb: 0x%x instr: 0x%x, num_insns: {}, update_cc: {}\n",
+                    LogMan::Msg::IFmt( "== Hit a rule [{}] at tb: 0x{:x} instr: 0x{:x}, num_insns: {}, update_cc: {}",
                                 cur_rule->index, tbpc, cur_head->pc, i, is_update_cc(cur_head, i) ? "true" : "false");
                 #endif
                 /* Check target_pc for this rule */
@@ -868,10 +864,6 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                     temp = temp->next;
                 if (!temp->next && !x86_instr_test_branch(temp))
                     target_pc = temp->pc + temp->InstSize;
-
-                #ifdef PROFILE_PARAMETER_RULE_TRANSLATION
-                    LogMan::Msg::IFmt( "==============rule index:{}\n", cur_rule->index);
-                #endif
 
                 X86Instruction *p_rule_instr = cur_rule->x86_guest;
                 X86Instruction *p_guest_instr = cur_head;
@@ -896,26 +888,25 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                         true, is_save_cc(cur_head, i), pa_opc);
                 }
 
+                /* We get a matched rule, keep moving forward */
+                if (opd_para){
+                  for (j = 0; j < i; j++) {
+                    add_matched_para_pc(cur_head->pc);
+                    cur_head = cur_head->next;
+                    guest_instr_num--;
+                  }
+                } else {
+                  for (j = 0; j < i; j++) {
+                    add_matched_pc(cur_head->pc);
+                    cur_head = cur_head->next;
+                    guest_instr_num--;
+                  }
+                }
+
                 break;
             }
             // para_fault:
             recover_map_buf_index();
-        }
-
-        /* We get a matched rule, keep moving forward */
-        if (opd_para){
-            for (j = 0; j < i; j++) {
-                add_matched_para_pc(cur_head->pc);
-                cur_head = cur_head->next;
-                guest_instr_num--;
-            }
-        }
-        else {
-            for (j = 0; j < i; j++) {
-                add_matched_pc(cur_head->pc);
-                cur_head = cur_head->next;
-                guest_instr_num--;
-            }
         }
 
         /* No matched rule found, also keep moving forward */
@@ -926,7 +917,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
             guest_instr_num--;
         }
     }
-    LogMan::Msg::IFmt( "\n=====Guest Instr Match Rule End=======\n");
+    LogMan::Msg::IFmt( "=====Guest Instr Match Rule End=======\n");
 }
 
 void remove_guest_instruction(FEXCore::Frontend::Decoder::DecodedBlocks *tb, uint64_t pc)

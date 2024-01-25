@@ -267,18 +267,10 @@ bool parse_rule_arm_code(FILE *fp, TranslationRule *rule)
             code_tail = cur;
         }
         pc += 4; // fake value
-        rule->guest_instr_num++;
     }
 
-    #if 0
-    if (rule->index == 750)
-    {
-        LogMan::Msg::IFmt( "\n\n**** Host {} ****\n", rule->index);
-        print_arm_instr_seq(code_head);
-    }
-    #endif
-        LogMan::Msg::IFmt( "\n\n**** Host {} ****\n", rule->index);
-        print_arm_instr_seq(code_head);
+    LogMan::Msg::IFmt( "\n\n**** Host {} ****\n", rule->index);
+    print_arm_instr_seq(code_head);
 
     rule->arm_host = code_head;
 

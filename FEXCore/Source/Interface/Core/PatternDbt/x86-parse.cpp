@@ -140,7 +140,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
         while (line[idx] == ')')
             idx++;
     } else
-        LogMan::Msg::IFmt( "Error in parsing x86 operand: unknown operand type at idx {} char %c in line: {}", idx, line[idx], line);
+        LogMan::Msg::IFmt( "Error in parsing x86 operand: unknown operand type at idx {} char {} in line: {}", idx, line[idx], line);
 
     if (line[idx] == ',')
         return idx+2;
@@ -213,14 +213,9 @@ void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
     if (has_temp_register)
         ret = false;
 
-    #if 0
-    if (rule->index == 1617) {
-        LogMan::Msg::IFmt( "\n**** Guest {} ****\n", rule->index);
-        print_x86_instr_seq(code_head);
-    }
-    #endif
-        LogMan::Msg::IFmt( "\n**** Guest {} ****\n", rule->index);
-        print_x86_instr_seq(code_head);
+
+    LogMan::Msg::IFmt( "\n**** Guest {} ****\n", rule->index);
+    print_x86_instr_seq(code_head);
 
     rule->x86_guest = code_head;
 }

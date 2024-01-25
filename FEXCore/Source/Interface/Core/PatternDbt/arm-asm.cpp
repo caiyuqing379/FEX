@@ -493,7 +493,15 @@ DEF_OPC(ADD) {
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
-      if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
+      if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE){
+        auto Src2 = GetARMReg(opd2->content.reg.num);
+
+        if(instr->opc == ARM_OPC_ADD)
+          add(EmitSize, Dst, Src1, Src2);
+        else
+          adds(EmitSize, Dst, Src1, Src2);
+      }
+      else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
         auto Src2 = GetARMReg(opd2->content.reg.num);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -502,7 +510,8 @@ DEF_OPC(ADD) {
           add(EmitSize, Dst, Src1, Src2, Shift, amt);
         else
           adds(EmitSize, Dst, Src1, Src2, Shift, amt);
-      } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
+      }
+      else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
         auto Src2 = GetARMReg(opd2->content.reg.num);
         auto Option = GetExtendType(opd2->content.reg.scale.content.extend);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -512,10 +521,10 @@ DEF_OPC(ADD) {
         else
           adds(EmitSize, Dst, Src1, Src2, Option, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for add instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for add instruction.\n");
 }
 
 DEF_OPC(ADC) {
@@ -745,7 +754,7 @@ DEF_OPC(COMPARE) {
 DEF_OPC(B) {
     ARMOperand *opd = &instr->opd[0];
     ARMConditionCode cond = instr->cc;
-    ARMEmitter::BiDirectionalLabel *Label;
+    ARMEmitter::BiDirectionalLabel *Label = nullptr;
     int64_t TargetOffset;
     uint64_t InstRIP;
     uint64_t TargetRIP;
@@ -761,7 +770,7 @@ DEF_OPC(B) {
 
 DEF_OPC(BL) {
     ARMOperand *opd = &instr->opd[0];
-    ARMEmitter::BiDirectionalLabel *Label;
+    ARMEmitter::BiDirectionalLabel *Label = nullptr;
     int64_t TargetOffset;
     uint64_t InstRIP;
     uint64_t TargetRIP;
@@ -773,6 +782,33 @@ DEF_OPC(BL) {
     *(Label->Backward.Location) = TargetRIP;
 
     bl(Label);
+}
+
+DEF_OPC(CBNZ) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    uint8_t     OpSize = instr->OpdSize;
+
+    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
+
+    const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+
+    auto Src = GetARMReg(opd0->content.reg.num);
+
+    ARMEmitter::BackwardLabel *Label = nullptr;
+    int64_t TargetOffset;
+    uint64_t InstRIP;
+    uint64_t TargetRIP;
+
+    get_label_map(opd1->content.imm.content.sym, &TargetOffset, &InstRIP);
+
+    LogMan::Msg::IFmt( "Get label target: {:x} rip: {:x} targetrip: {:x}\n", TargetOffset, InstRIP, TargetRIP);
+
+    TargetRIP = InstRIP + TargetOffset;
+
+    *(Label->Backward.Location) = TargetRIP;
+
+    cbnz(EmitSize, Src, Label);
 }
 
 void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(FEXCore::Frontend::Decoder::DecodedBlocks const *tb, ARMInstruction *instr,
@@ -854,6 +890,9 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(FEXCore::Frontend::Dec
             break;
         case ARM_OPC_BL:
             Opc_BL(tb, instr, reg_liveness, rrule);
+            break;
+        case ARM_OPC_CBNZ:
+            Opc_CBNZ(tb, instr, reg_liveness, rrule);
             break;
         default:
             LogMan::Msg::IFmt( "Unsupported x86 instruction in the assembler: {}, rule index: {}.\n",

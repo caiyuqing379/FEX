@@ -96,6 +96,7 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_CMN]   = "cmn",
     [ARM_OPC_B]     = "b",
     [ARM_OPC_BL]    = "bl",
+    [ARM_OPC_CBNZ]  = "cbnz",
     [ARM_OPC_OP1]   = "op1",
     [ARM_OPC_OP2]   = "op2",
     [ARM_OPC_OP3]   = "op3",
@@ -137,17 +138,17 @@ void print_opd_scale(ARMOperandScale *scale)
         ARMImm *imm = &scale->imm;
         if (imm->type == ARM_IMM_TYPE_VAL) {
             if (imm->content.val != 0)
-                 LogMan::Msg::IFmt( ", {} {} ", arm_direct_str[scale->content.direct], imm->content.val);
+                LogMan::Msg::IFmt( ", {} {} ", arm_direct_str[scale->content.direct], imm->content.val);
         } else
-             LogMan::Msg::IFmt( ", {} {} ", arm_direct_str[scale->content.direct], imm->content.sym);
+            LogMan::Msg::IFmt( ", {} {} ", arm_direct_str[scale->content.direct], imm->content.sym);
     }
     else
-         LogMan::Msg::IFmt("none scale \n");
+        LogMan::Msg::IFmt("none scale \n");
 }
 
 void print_reg_opd(ARMRegOperand *opd)
 {
-     LogMan::Msg::IFmt( "{} ", arm_reg_str[opd->num]);
+    LogMan::Msg::IFmt( "{} ", arm_reg_str[opd->num]);
     print_opd_scale(&opd->scale);
 }
 
@@ -198,7 +199,7 @@ void print_arm_instr_seq(ARMInstruction *instr_seq)
             else if (opd->type == ARM_OPD_TYPE_MEM)
                 print_mem_opd(&opd->content.mem);
         }
-         LogMan::Msg::IFmt("\n");
+        fprintf(stderr,"\n");
 
         head = head->next;
     }
@@ -209,21 +210,21 @@ void print_arm_instr(ARMInstruction *instr_seq)
     ARMInstruction *head = instr_seq;
     int i;
 
-         LogMan::Msg::IFmt("{} ", arm_opc_str[head->opc]);
-        print_instr_cc(head);
-        for (i = 0; i < head->opd_num; i++) {
-            ARMOperand *opd = &head->opd[i];
-            if (opd->type == ARM_OPD_TYPE_INVALID)
-                continue;
+    LogMan::Msg::IFmt("{} ", arm_opc_str[head->opc]);
+    print_instr_cc(head);
+    for (i = 0; i < head->opd_num; i++) {
+        ARMOperand *opd = &head->opd[i];
+        if (opd->type == ARM_OPD_TYPE_INVALID)
+            continue;
 
-            if (opd->type == ARM_OPD_TYPE_IMM)
-                print_imm_opd(&opd->content.imm);
-            else if (opd->type == ARM_OPD_TYPE_REG)
-                print_reg_opd(&opd->content.reg);
-            else if (opd->type == ARM_OPD_TYPE_MEM)
-                print_mem_opd(&opd->content.mem);
-        }
-         LogMan::Msg::IFmt("\n");
+        if (opd->type == ARM_OPD_TYPE_IMM)
+            print_imm_opd(&opd->content.imm);
+        else if (opd->type == ARM_OPD_TYPE_REG)
+            print_reg_opd(&opd->content.reg);
+        else if (opd->type == ARM_OPD_TYPE_MEM)
+            print_mem_opd(&opd->content.mem);
+    }
+    fprintf(stderr,"\n");
 }
 
 const char *get_arm_instr_opc(ARMOpcode opc)
