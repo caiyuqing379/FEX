@@ -274,6 +274,26 @@ static ARMOperandScaleExtend get_arm_extend(char *extend_str)
     return ARM_OPD_EXTEND_NONE;
 }
 
+static ARMConditionCode get_arm_cc(char *opc_str)
+{
+    int i;
+    size_t len = strlen(opc_str);
+
+    /* Less than 2, so guess it is always executed */
+    if (len < 2)
+        return ARM_CC_AL;
+
+    for (i = ARM_CC_INVALID; i < ARM_CC_END; i++) {
+        if(!strcmp(arm_cc_str[i], &opc_str[len-2])) {
+            opc_str[len-2] = '\0';
+            return static_cast<ARMConditionCode>(i);
+        }
+    }
+
+    /* No conditional code, so always executed */
+    return ARM_CC_AL;
+}
+
 /* set condition code of this instruction */
 void set_arm_instr_cc(ARMInstruction *instr, uint32_t cond)
 {
@@ -289,21 +309,8 @@ void set_arm_instr_opc(ARMInstruction *instr, ARMOpcode opc)
 /* set the opcode of this instruction based on the given string */
 void set_arm_instr_opc_str(ARMInstruction *instr, char *opc_str)
 {
+    instr->cc = get_arm_cc(opc_str);
     instr->opc = get_arm_opcode(opc_str);
-
-    if(instr->opc == ARM_OPC_B) {
-      int i;
-      size_t len = strlen(opc_str);
-
-      for (i = ARM_CC_INVALID; i < ARM_CC_END; i++) {
-        if(!strcmp(arm_cc_str[i], &opc_str[len-2])) {
-            opc_str[len-2] = '\0';
-            instr->cc = static_cast<ARMConditionCode>(i);
-            return;
-        }
-      }
-    }
-
 }
 
 /* set the number of operands of this instruction */

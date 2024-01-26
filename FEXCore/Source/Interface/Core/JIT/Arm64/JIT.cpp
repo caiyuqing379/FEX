@@ -799,21 +799,13 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
       else
         LogMan::Msg::IFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
 
+      bool IsRuleTrans = false, IsRTDone = false;
       uint64_t cur_ins_pc = IR->GetHeader()->OriginalRIP;
       uint32_t reg_liveness[100] = {0};
 
       /* See if we can use rules to do translation */
-      if (cur_ins_pc && instr_is_match(cur_ins_pc)) {
-        auto RTBStartHostCode = GetCursorAddress<uint8_t *>();
-        do_rule_translation(get_translation_rule(cur_ins_pc), reg_liveness);
-        if (DebugData) {
-          DebugData->Subblocks.push_back({
-            static_cast<uint32_t>(RTBStartHostCode - CodeData.BlockEntry),
-            static_cast<uint32_t>(GetCursorAddress<uint8_t *>() - RTBStartHostCode)
-          });
-        }
-        goto next;
-      }
+      if (cur_ins_pc && instr_is_match(cur_ins_pc))
+        IsRuleTrans = true;
 
   for (auto [BlockNode, BlockHeader] : IR->GetBlocks()) {
     using namespace FEXCore::IR;
@@ -835,6 +827,24 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
       PendingTargetLabel = nullptr;
 
       Bind(&IsTarget->second);
+    }
+
+    if (IsRuleTrans) {
+      /* See if we can use rules to do translation */
+      if (!IsRTDone && cur_ins_pc && instr_is_match(cur_ins_pc)) {
+        auto RTBStartHostCode = GetCursorAddress<uint8_t *>();
+        do_rule_translation(get_translation_rule(cur_ins_pc), reg_liveness);
+        if (DebugData) {
+          DebugData->Subblocks.push_back({
+            static_cast<uint32_t>(RTBStartHostCode - CodeData.BlockEntry),
+            static_cast<uint32_t>(GetCursorAddress<uint8_t *>() - RTBStartHostCode)
+          });
+        }
+      }
+
+      IsRTDone = true;
+
+      continue;
     }
 
     for (auto [CodeNode, IROp] : IR->GetCode(BlockNode)) {
@@ -861,7 +871,6 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
     }
   }
 
-  next:
   // Make sure last branch is generated. It certainly can't be eliminated here.
   if (PendingTargetLabel)
   {

@@ -1,6 +1,8 @@
 #include "Interface/Context/Context.h"
+#include "FEXCore/IR/IR.h"
 #include "Interface/Core/ArchHelpers/CodeEmitter/Emitter.h"
 #include "Interface/Core/ArchHelpers/CodeEmitter/Registers.h"
+#include "Interface/Core/LookupCache.h"
 #include "Interface/Core/JIT/Arm64/JITClass.h"
 
 #include <FEXCore/Utils/CompilerDefs.h>
@@ -771,63 +773,57 @@ IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
 }
 
 DEF_OPC(B) {
-    ARMOperand *opd = &instr->opd[0];
     ARMConditionCode cond = instr->cc;
-    ARMEmitter::BiDirectionalLabel Label;
-    int64_t TargetOffset;
-    uint64_t InstRIP;
-    uint64_t TargetRIP;
 
-    get_label_map(opd->content.imm.content.sym, &TargetOffset, &InstRIP);
+    IR::IROp_Header const *IROp = nullptr;
 
-    TargetRIP = InstRIP + TargetOffset;
+    if (cond == ARM_CC_AL) {
+      IROp = FindIROp(IR::IROps::OP_JUMP);
 
-    Bind(&Label);
+      const auto Op = IROp->C<IR::IROp_Jump>();
 
-    b(MapBranchCC(cond), &Label);
+      PendingTargetLabel = &JumpTargets.try_emplace(Op->TargetBlock.ID()).first->second;
+    } else {
+
+      IROp = FindIROp(IR::IROps::OP_CONDJUMP);
+
+      const auto Op = IROp->C<IR::IROp_CondJump>();
+
+      auto TrueTargetLabel = &JumpTargets.try_emplace(Op->TrueBlock.ID()).first->second;
+
+      b(MapBranchCC(cond), TrueTargetLabel);
+
+      PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
+    }
 }
 
 DEF_OPC(BL) {
-    ARMOperand *opd = &instr->opd[0];
-    ARMEmitter::BiDirectionalLabel Label;
-    int64_t TargetOffset;
-    uint64_t InstRIP;
-    uint64_t TargetRIP;
+    IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_JUMP);
 
-    get_label_map(opd->content.imm.content.sym, &TargetOffset, &InstRIP);
+    auto Op = IROp->C<IR::IROp_Jump>();
 
-    TargetRIP = InstRIP + TargetOffset;
+    auto Label = &JumpTargets.try_emplace(Op->TargetBlock.ID()).first->second;
 
-    Bind(&Label);
-
-    bl(&Label);
+    bl(Label);
 }
 
 DEF_OPC(CBNZ) {
     ARMOperand *opd0 = &instr->opd[0];
-    ARMOperand *opd1 = &instr->opd[1];
-    uint8_t     OpSize = instr->OpdSize;
+    auto     Src = GetARMReg(opd0->content.reg.num);
+    uint8_t  OpSize = instr->OpdSize;
 
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
-    auto Src = GetARMReg(opd0->content.reg.num);
+    IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_CONDJUMP);
 
-    ARMEmitter::BackwardLabel Label;
-    int64_t TargetOffset;
-    uint64_t InstRIP;
-    uint64_t TargetRIP;
+    auto Op = IROp->C<IR::IROp_CondJump>();
 
-    get_label_map(opd1->content.imm.content.sym, &TargetOffset, &InstRIP);
+    auto TrueTargetLabel = &JumpTargets.try_emplace(Op->TrueBlock.ID()).first->second;
 
-    TargetRIP = InstRIP + TargetOffset;
+    cbnz(EmitSize, Src, TrueTargetLabel);
 
-    LogMan::Msg::IFmt( "Get label target: {:x} rip: {:x} targetrip: {:x}\n", TargetOffset, InstRIP, TargetRIP);
-
-    Label.Location = GetCursorAddress<uint8_t*>() - 0xc;
-
-    cbnz(EmitSize, Src, &Label);
+    PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
 }
 
 void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, uint32_t *reg_liveness, RuleRecord *rrule)
@@ -920,7 +916,7 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
 
 void FEXCore::CPU::Arm64JITCore::assemble_arm_exit_tb(uint64_t target_pc)
 {
-  IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_INLINEENTRYPOINTOFFSET);
+  IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_EXITFUNCTION);
 
   auto Op = IROp->C<IR::IROp_ExitFunction>();
 
@@ -937,6 +933,27 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_exit_tb(uint64_t target_pc)
     Bind(&l_BranchHost);
     dc64(ThreadState->CurrentFrame->Pointers.Common.ExitFunctionLinker);
     dc64(NewRIP);
+  } else {
+
+    ARMEmitter::SingleUseForwardLabel FullLookup;
+    auto RipReg = GetReg(Op->NewRIP.ID());
+
+    // L1 Cache
+    ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.L1Pointer));
+
+    and_(ARMEmitter::Size::i64Bit, TMP4, RipReg, LookupCache::L1_ENTRIES_MASK);
+    add(TMP1, TMP1, TMP4, ARMEmitter::ShiftType::LSL, 4);
+
+    // Note: sub+cbnz used over cmp+br to preserve flags.
+    ldp<ARMEmitter::IndexType::OFFSET>(TMP2, TMP1, TMP1, 0);
+    sub(TMP1, TMP1, RipReg.X());
+    cbnz(ARMEmitter::Size::i64Bit, TMP1, &FullLookup);
+    br(TMP2);
+
+    Bind(&FullLookup);
+    ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.DispatcherLoopTop));
+    str(RipReg.X(), STATE, offsetof(FEXCore::Core::CpuStateFrame, State.rip));
+    br(TMP1);
   }
 }
 
