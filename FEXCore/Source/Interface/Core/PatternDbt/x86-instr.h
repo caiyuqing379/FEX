@@ -14,10 +14,10 @@ typedef enum {
     X86_REG_INVALID = 0,
 
     /* Physical registers */
-    X86_REG_CS, X86_REG_DS, X86_REG_ES,
-    X86_REG_FS, X86_REG_GS, X86_REG_SS,
-    X86_REG_EAX, X86_REG_EBX, X86_REG_ECX, X86_REG_EDX,
-    X86_REG_ESI, X86_REG_EDI, X86_REG_EBP, X86_REG_ESP,
+    X86_REG_RAX, X86_REG_RCX, X86_REG_RDX, X86_REG_RBX,
+    X86_REG_RSP, X86_REG_RBP, X86_REG_RSI, X86_REG_RDI,
+    X86_REG_R8, X86_REG_R9, X86_REG_R10, X86_REG_R11,
+    X86_REG_R12, X86_REG_R13, X86_REG_R14, X86_REG_R15,
 
     /* Eflags */
     X86_REG_OF, X86_REG_SF, X86_REG_CF, X86_REG_ZF,
@@ -151,7 +151,7 @@ typedef enum{
 typedef struct {
     X86ImmType type;
     union {
-        int32_t val;
+        uint64_t val;
         char sym[20]; /* this symbol might contain expression */
     } content;
 } X86Imm;
@@ -225,7 +225,7 @@ void set_x86_instr_opd_num(X86Instruction *instr, uint32_t num);
 void set_x86_instr_size(X86Instruction *instr, size_t size);
 
 void set_x86_instr_opd_type(X86Instruction *instr, int opd_index, X86OperandType type);
-void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint32_t val);
+void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint64_t val);
 void set_x86_instr_opd_reg(X86Instruction *instr, int opd_index, int regno);
 void set_x86_instr_opd_mem_base(X86Instruction *instr, int opd_index, int regno);
 void set_x86_instr_opd_mem_off(X86Instruction *instr, int opd_index, int32_t offset);

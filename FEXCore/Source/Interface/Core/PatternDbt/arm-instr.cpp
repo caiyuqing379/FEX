@@ -285,7 +285,7 @@ static ARMConditionCode get_arm_cc(char *opc_str)
 
     for (i = ARM_CC_INVALID; i < ARM_CC_END; i++) {
         if(!strcmp(arm_cc_str[i], &opc_str[len-2])) {
-            opc_str[len-2] = '\0';
+            opc_str[len-3] = '\0';
             return static_cast<ARMConditionCode>(i);
         }
     }

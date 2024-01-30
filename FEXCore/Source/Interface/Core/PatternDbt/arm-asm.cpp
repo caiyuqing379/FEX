@@ -18,6 +18,8 @@ using namespace FEXCore;
 #define DEF_OPC(x) void FEXCore::CPU::Arm64JITCore::Opc_##x(ARMInstruction *instr, \
                                 uint32_t *reg_liveness, RuleRecord *rrule)
 
+static int h_reg_map_buf_index = 0;
+
 static ARMEmitter::Condition MapBranchCC(ARMConditionCode Cond)
 {
   switch (Cond) {
@@ -35,9 +37,9 @@ static ARMEmitter::Condition MapBranchCC(ARMConditionCode Cond)
     case ARM_CC_VC: return ARMEmitter::Condition::CC_VC;
     case ARM_CC_MI: return ARMEmitter::Condition::CC_MI;
     case ARM_CC_PL: return ARMEmitter::Condition::CC_PL;
-  default:
-    LOGMAN_MSG_A_FMT("Unsupported compare type");
-    return ARMEmitter::Condition::CC_NV;
+    default:
+      LOGMAN_MSG_A_FMT("Unsupported compare type");
+      return ARMEmitter::Condition::CC_NV;
   }
 }
 
@@ -48,6 +50,8 @@ static ARMEmitter::ShiftType GetShiftType(ARMOperandScaleDirect direct)
     case ARM_OPD_DIRECT_LSR: return ARMEmitter::ShiftType::LSR;
     case ARM_OPD_DIRECT_ASR: return ARMEmitter::ShiftType::ASR;
     case ARM_OPD_DIRECT_ROR: return ARMEmitter::ShiftType::ROR;
+    default:
+      LOGMAN_MSG_A_FMT("Unsupported Shift type");
   }
 }
 
@@ -62,12 +66,14 @@ static ARMEmitter::ExtendedType GetExtendType(ARMOperandScaleExtend extend)
     case ARM_OPD_EXTEND_SXTH: return ARMEmitter::ExtendedType::SXTH;
     case ARM_OPD_EXTEND_SXTW: return ARMEmitter::ExtendedType::SXTW;
     case ARM_OPD_EXTEND_SXTX: return ARMEmitter::ExtendedType::SXTX;
+    default:
+      LOGMAN_MSG_A_FMT("Unsupported Extend type");
   }
 }
 
-static ARMEmitter::Register GetARMReg(ARMRegister reg)
+static ARMEmitter::Register GetHostRegMap(ARMRegister reg)
 {
-  ARMEmitter::Register r255(255);
+  ARMEmitter::Register reg_invalid(255);
   switch (reg) {
     case ARM_REG_R0:  return ARMEmitter::Reg::r0;
     case ARM_REG_R1:  return ARMEmitter::Reg::r1;
@@ -101,8 +107,21 @@ static ARMEmitter::Register GetARMReg(ARMRegister reg)
     case ARM_REG_R29: return ARMEmitter::Reg::r29;
     case ARM_REG_R30: return ARMEmitter::Reg::r30;
     case ARM_REG_R31: return ARMEmitter::Reg::r31;
+    default:
+      LOGMAN_MSG_A_FMT("Unsupported reg num");
+      return reg_invalid;
   }
-  return r255;
+}
+
+static uint64_t get_imm_map_wrapper(ARMImm *imm)
+{
+    if (imm->type == ARM_IMM_TYPE_NONE)
+        return 0;
+
+    if (imm->type == ARM_IMM_TYPE_VAL)
+        return imm->content.val;
+
+    return get_imm_map(imm->content.sym);
 }
 
 static ARMEmitter::ExtendedMemOperand  GenerateExtMemOperand(ARMEmitter::Register Base,
@@ -125,9 +144,9 @@ static ARMEmitter::ExtendedMemOperand  GenerateExtMemOperand(ARMEmitter::Registe
     } else if (Index != ARM_REG_INVALID) {
 
       switch(OffsetScale.content.extend) {
-        case ARM_OPD_EXTEND_UXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetARMReg(Index).X(), ARMEmitter::ExtendedType::UXTW, FEXCore::ilog2(amount) );
-        case ARM_OPD_EXTEND_SXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetARMReg(Index).X(), ARMEmitter::ExtendedType::SXTW, FEXCore::ilog2(amount) );
-        case ARM_OPD_EXTEND_SXTX: return ARMEmitter::ExtendedMemOperand(Base.X(), GetARMReg(Index).X(), ARMEmitter::ExtendedType::SXTX, FEXCore::ilog2(amount) );
+        case ARM_OPD_EXTEND_UXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::UXTW, FEXCore::ilog2(amount) );
+        case ARM_OPD_EXTEND_SXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::SXTW, FEXCore::ilog2(amount) );
+        case ARM_OPD_EXTEND_SXTX: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::SXTX, FEXCore::ilog2(amount) );
         default: LOGMAN_MSG_A_FMT("Unhandled GenerateExtMemOperand OffsetType: {}", OffsetScale.content.extend); break;
       }
 
@@ -141,14 +160,14 @@ DEF_OPC(LDR) {
     uint8_t    OpSize = instr->OpdSize;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_MEM) {
-        auto Src = GetARMReg(opd0->content.reg.num);
+        auto Src = GetHostRegMap(opd0->content.reg.num);
 
         if (opd1->content.mem.base != ARM_REG_INVALID) {
           ARMRegister      Index = opd1->content.mem.index;
           ARMImm           Offset = opd1->content.mem.offset;
           ARMOperandScale  OffsetScale = opd1->content.mem.scale;
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
-          auto Base = GetARMReg(opd1->content.mem.base);
+          auto Base = GetHostRegMap(opd1->content.mem.base);
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Offset, OffsetScale, PrePost);
 
@@ -193,10 +212,10 @@ DEF_OPC(STR) {
     uint8_t    OpSize = instr->OpdSize;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_MEM) {
-        auto Src = GetARMReg(opd0->content.reg.num);
+        auto Src = GetHostRegMap(opd0->content.reg.num);
 
         if (opd1->content.mem.base != ARM_REG_INVALID) {
-          auto Base = GetARMReg(opd1->content.mem.base);
+          auto Base = GetHostRegMap(opd1->content.mem.base);
           ARMRegister      Index = opd1->content.mem.index;
           ARMImm           Offset = opd1->content.mem.offset;
           ARMOperandScale  OffsetScale = opd1->content.mem.scale;
@@ -236,12 +255,12 @@ DEF_OPC(MOV) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
       if(opd1->content.reg.num != ARM_REG_INVALID) {
-        auto SrcDst = GetARMReg(opd1->content.reg.num);
+        auto SrcDst = GetHostRegMap(opd1->content.reg.num);
         mov(EmitSize, Dst, SrcDst);  // move (register)
                                      // move (to/from SP) not support
       } else
@@ -252,8 +271,11 @@ DEF_OPC(MOV) {
       if (opd1->content.imm.type == ARM_IMM_TYPE_VAL) {
         uint32_t Imm = opd1->content.imm.content.val;
         mov(EmitSize, Dst, Imm);  //  Move wide immediate, by movz
-      } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for mov instruction.\n");
+      } else {
+        LogMan::Msg::IFmt( "[arm] MOV instr imm type is sym.");
+        uint64_t Constant = get_imm_map_wrapper(&opd1->content.imm);
+        LoadConstant(ARMEmitter::Size::i64Bit, Dst, Constant);
+      }
 
     } else
         LogMan::Msg::IFmt( "[arm] Unsupported operand type for mov instruction.\n");
@@ -267,12 +289,12 @@ DEF_OPC(MVN) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
       if(opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto SrcDst = GetARMReg(opd1->content.reg.num);
+        auto SrcDst = GetHostRegMap(opd1->content.reg.num);
         auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
         uint32_t amt = opd1->content.reg.scale.imm.content.val;
         mvn(EmitSize, Dst, SrcDst, Shift, amt);
@@ -292,8 +314,8 @@ DEF_OPC(AND) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
 
@@ -310,7 +332,7 @@ DEF_OPC(AND) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if(opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
 
@@ -334,8 +356,8 @@ DEF_OPC(ORR) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
 
@@ -344,21 +366,21 @@ DEF_OPC(ORR) {
 
         orr(EmitSize, Dst, Src1, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for orr instruction.\n");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if(opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
 
         orr(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for orr instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for orr instruction.\n");
 }
 
 DEF_OPC(EOR) {
@@ -370,8 +392,8 @@ DEF_OPC(EOR) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
 
@@ -380,21 +402,21 @@ DEF_OPC(EOR) {
 
         eor(EmitSize, Dst, Src1, Imm);  // and imm
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for eor instruction.\n");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if(opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
 
         eor(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for eor instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for eor instruction.\n");
 }
 
 DEF_OPC(BIC) {
@@ -406,13 +428,13 @@ DEF_OPC(BIC) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if(opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
 
@@ -421,10 +443,10 @@ DEF_OPC(BIC) {
         else
           bics(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for bic instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for bic instruction.\n");
 }
 
 DEF_OPC(Shift) {
@@ -436,8 +458,8 @@ DEF_OPC(Shift) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
 
@@ -451,12 +473,12 @@ DEF_OPC(Shift) {
         else if (instr->opc == ARM_OPC_LSR)
           asr(EmitSize, Dst, Src1, shift);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for shift instruction.\n");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if(opd2->content.reg.num != ARM_REG_INVALID) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
 
         if(instr->opc == ARM_OPC_LSL)
           lslv(EmitSize, Dst, Src1, Src2);
@@ -465,23 +487,23 @@ DEF_OPC(Shift) {
         else if (instr->opc == ARM_OPC_LSR)
           asrv(EmitSize, Dst, Src1, Src2);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for shift instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for shift instruction.\n");
 }
 
 DEF_OPC(ADD) {
-    ARMOperand *opd0 = &instr->opd[0];
-    ARMOperand *opd1 = &instr->opd[1];
-    ARMOperand *opd2 = &instr->opd[2];
+    ARMOperand *opd0   = &instr->opd[0];
+    ARMOperand *opd1   = &instr->opd[1];
+    ARMOperand *opd2   = &instr->opd[2];
     uint8_t     OpSize = instr->OpdSize;
 
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+
+    auto Dst  = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
 
@@ -493,12 +515,12 @@ DEF_OPC(ADD) {
         else
           adds(EmitSize, Dst, Src1, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for add instruction.\n");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE){
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
 
         if(instr->opc == ARM_OPC_ADD)
           add(EmitSize, Dst, Src1, Src2);
@@ -506,9 +528,9 @@ DEF_OPC(ADD) {
           adds(EmitSize, Dst, Src1, Src2);
       }
       else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
-        auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
-        uint32_t amt = opd2->content.reg.scale.imm.content.val;
+        auto     Src2  = GetHostRegMap(opd2->content.reg.num);
+        auto     Shift = GetShiftType(opd2->content.reg.scale.content.direct);
+        uint32_t amt   = opd2->content.reg.scale.imm.content.val;
 
         if(instr->opc == ARM_OPC_ADD)
           add(EmitSize, Dst, Src1, Src2, Shift, amt);
@@ -516,9 +538,9 @@ DEF_OPC(ADD) {
           adds(EmitSize, Dst, Src1, Src2, Shift, amt);
       }
       else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
-        auto Option = GetExtendType(opd2->content.reg.scale.content.extend);
-        uint32_t amt = opd2->content.reg.scale.imm.content.val;
+        auto     Src2   = GetHostRegMap(opd2->content.reg.num);
+        auto     Option = GetExtendType(opd2->content.reg.scale.content.extend);
+        uint32_t amt    = opd2->content.reg.scale.imm.content.val;
 
         if(instr->opc == ARM_OPC_ADD)
           add(EmitSize, Dst, Src1, Src2, Option, amt);
@@ -542,9 +564,9 @@ DEF_OPC(ADC) {
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      auto Dst = GetARMReg(opd0->content.reg.num);
-      auto Src1 = GetARMReg(opd1->content.reg.num);
-      auto Src2 = GetARMReg(opd2->content.reg.num);
+      auto Dst = GetHostRegMap(opd0->content.reg.num);
+      auto Src1 = GetHostRegMap(opd1->content.reg.num);
+      auto Src2 = GetHostRegMap(opd2->content.reg.num);
 
       if(instr->opc == ARM_OPC_ADC)
         adc(EmitSize, Dst, Src1, Src2);
@@ -552,7 +574,7 @@ DEF_OPC(ADC) {
         adcs(EmitSize, Dst, Src1, Src2);
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for ADC instruction.\n");
 }
 
 DEF_OPC(SUB) {
@@ -564,8 +586,8 @@ DEF_OPC(SUB) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
 
@@ -577,12 +599,12 @@ DEF_OPC(SUB) {
         else
           subs(EmitSize, Dst, Src1, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for SUB instruction.\n");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
 
@@ -591,7 +613,7 @@ DEF_OPC(SUB) {
         else
           subs(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
-        auto Src2 = GetARMReg(opd2->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
         auto Option = GetExtendType(opd2->content.reg.scale.content.extend);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
 
@@ -600,10 +622,10 @@ DEF_OPC(SUB) {
         else
           subs(EmitSize, Dst, Src1, Src2, Option, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for SUB instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for SUB instruction.\n");
 }
 
 DEF_OPC(SBC) {
@@ -617,9 +639,9 @@ DEF_OPC(SBC) {
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      auto Dst = GetARMReg(opd0->content.reg.num);
-      auto Src1 = GetARMReg(opd1->content.reg.num);
-      auto Src2 = GetARMReg(opd2->content.reg.num);
+      auto Dst = GetHostRegMap(opd0->content.reg.num);
+      auto Src1 = GetHostRegMap(opd1->content.reg.num);
+      auto Src2 = GetHostRegMap(opd2->content.reg.num);
 
       if(instr->opc == ARM_OPC_SUB)
         sbc(EmitSize, Dst, Src1, Src2);
@@ -627,7 +649,7 @@ DEF_OPC(SBC) {
         sbcs(EmitSize, Dst, Src1, Src2);
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for SBC instruction.\n");
 }
 
 DEF_OPC(MUL) {
@@ -641,9 +663,9 @@ DEF_OPC(MUL) {
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      auto Dst = GetARMReg(opd0->content.reg.num);
-      auto Src1 = GetARMReg(opd1->content.reg.num);
-      auto Src2 = GetARMReg(opd2->content.reg.num);
+      auto Dst = GetHostRegMap(opd0->content.reg.num);
+      auto Src1 = GetHostRegMap(opd1->content.reg.num);
+      auto Src2 = GetHostRegMap(opd2->content.reg.num);
 
       if (instr->opc == ARM_OPC_MUL)
         mul(EmitSize, Dst, Src1, Src2);
@@ -652,7 +674,7 @@ DEF_OPC(MUL) {
       else if(instr->opc == ARM_OPC_SUB)
         smull(Dst.X(), Src1.W(), Src2.W());
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for MUL instruction.\n");
 }
 
 DEF_OPC(CLZ) {
@@ -665,12 +687,12 @@ DEF_OPC(CLZ) {
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
-      auto Dst = GetARMReg(opd0->content.reg.num);
-      auto Src = GetARMReg(opd1->content.reg.num);
+      auto Dst = GetHostRegMap(opd0->content.reg.num);
+      auto Src = GetHostRegMap(opd1->content.reg.num);
 
       clz(EmitSize, Dst, Src);
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for CLZ instruction.\n");
 }
 
 DEF_OPC(TST) {
@@ -681,12 +703,12 @@ DEF_OPC(TST) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
       if(opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto SrcDst = GetARMReg(opd1->content.reg.num);
+        auto SrcDst = GetHostRegMap(opd1->content.reg.num);
         auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
         uint32_t amt = opd1->content.reg.scale.imm.content.val;
 
@@ -699,12 +721,12 @@ DEF_OPC(TST) {
       if (opd1->content.imm.type == ARM_IMM_TYPE_VAL) {
         uint32_t Imm = opd1->content.imm.content.val;
 
-        tst(EmitSize, Dst, Imm);  //  Move wide immediate, by movz
+        tst(EmitSize, Dst, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for mov instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for TST instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for mov instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for TST instruction.\n");
 }
 
 DEF_OPC(COMPARE) {
@@ -715,8 +737,8 @@ DEF_OPC(COMPARE) {
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetARMReg(opd0->content.reg.num);
-    auto Src1 = GetARMReg(opd1->content.reg.num);
+    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto Src1 = GetHostRegMap(opd1->content.reg.num);
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
 
@@ -728,7 +750,7 @@ DEF_OPC(COMPARE) {
         else
           cmn(EmitSize, Dst, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for compare instruction.\n");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
@@ -749,24 +771,20 @@ DEF_OPC(COMPARE) {
         else
           cmn(EmitSize, Dst, Src1, Option, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for compare instruction.\n");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for compare instruction.\n");
 }
 
 IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
 {
   FEXCore::IR::IRListView const *IR = this->IR;
   for (auto [BlockNode, BlockHeader] : IR->GetBlocks()) {
-    using namespace FEXCore::IR;
-
     for (auto [CodeNode, IROp] : IR->GetCode(BlockNode)) {
-
       if (IROp->Op == tIROp) {
         return IROp;
       }
-
     }
   }
   return nullptr;
@@ -809,7 +827,7 @@ DEF_OPC(BL) {
 
 DEF_OPC(CBNZ) {
     ARMOperand *opd0 = &instr->opd[0];
-    auto     Src = GetARMReg(opd0->content.reg.num);
+    auto     Src = GetHostRegMap(opd0->content.reg.num);
     uint8_t  OpSize = instr->OpdSize;
 
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
@@ -824,6 +842,11 @@ DEF_OPC(CBNZ) {
     cbnz(EmitSize, Src, TrueTargetLabel);
 
     PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
+}
+
+void reset_asm_buffer(void)
+{
+    h_reg_map_buf_index = 0;
 }
 
 void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, uint32_t *reg_liveness, RuleRecord *rrule)

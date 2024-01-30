@@ -843,7 +843,6 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
       }
 
       IsRTDone = true;
-
       continue;
     }
 

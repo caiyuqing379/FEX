@@ -140,7 +140,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
         while (line[idx] == ')')
             idx++;
     } else
-        LogMan::Msg::IFmt( "Error in parsing x86 operand: unknown operand type at idx {} char {} in line: {}", idx, line[idx], line);
+        fprintf(stderr, "Error in parsing x86 operand: unknown operand type at idx %d char %c in line: %s", idx, line[idx], line);
 
     if (line[idx] == ',')
         return idx+2;

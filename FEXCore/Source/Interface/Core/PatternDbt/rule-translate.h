@@ -11,7 +11,7 @@
 
 typedef struct ImmMapping {
     char imm_str[20];
-    int32_t imm_val;
+    uint64_t imm_val;
     struct ImmMapping *next;
 } ImmMapping;
 
@@ -60,7 +60,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *);
 void do_rule_translation(RuleRecord *, uint32_t *);
 
 void get_label_map(char *, int64_t *, uint64_t *);
-int32_t get_imm_map(char *);
+uint64_t get_imm_map(char *);
 int32_t get_offset_map(char *);
 X86Register get_guest_reg_map(ARMRegister);
 bool is_last_access(ARMInstruction *, ARMRegister);

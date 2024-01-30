@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "rule-translate.h"
+#include "arm-asm.h"
 
 #define MAX_RULE_RECORD_BUF_LEN 800
 #define MAX_GUEST_INSTR_LEN 800
@@ -126,11 +127,6 @@ static int debug = 1;
 static int match_insts = 0;
 static int match_counter = 10;
 
-static TranslationRule record_host_buf[MAX_HOST_RULE_LEN];
-
-static X86Instruction record_host_instr_buf[MAX_HOST_RULE_INSTR_LEN];
-static int record_host_instr_buf_index = 0;
-
 static uint64_t pc_para_matched_buf[MAX_GUEST_INSTR_LEN];
 static int pc_para_matched_buf_index = 0;
 
@@ -192,45 +188,6 @@ static inline void add_rule_record(TranslationRule *rule, uint64_t pc, uint64_t 
         p->para_opc[i] = pa_opc[i];
 }
 
-// not worked
-static bool used_following(X86Instruction *ginstr, int idx, int skip){
-    X86Instruction *p_instr = ginstr;
-    X86Register reg_name = p_instr->opd[idx].content.reg.num;
-    int i, j;
-    // skip instructions in this rule
-    for (i = 0; i <= skip; i++){
-        if (p_instr->next == NULL){
-            return false;
-        }
-        p_instr = p_instr->next;
-    }
-
-    // check if this register is used in next 10 instructions
-    for (i = 0; i < 10; i++){
-        for(j = 0; j < p_instr->opd_num; j++) {
-            X86Operand opd = p_instr->opd[j];
-            switch (opd.type){
-                case X86_OPD_TYPE_REG:
-                    if (opd.content.reg.num == reg_name)
-                        return true;
-                    break;
-                case X86_OPD_TYPE_MEM:
-                    if (opd.content.mem.base == reg_name)
-                        return true;
-                    if (opd.content.mem.index == reg_name)
-                        return true;
-                    break;
-                default:
-                    break;
-            }
-        }
-        if (p_instr->next == NULL){
-            return false;
-        }
-        p_instr = p_instr->next;
-    }
-    return false;
-}
 
 static inline void add_matched_pc(uint64_t pc)
 {
@@ -277,12 +234,10 @@ static bool match_register(X86Register greg, X86Register rreg)
 {
     GuestRegisterMapping *gmap = g_reg_map;
 
-    if (greg == X86_REG_INVALID &&
-        rreg == X86_REG_INVALID)
+    if (greg == X86_REG_INVALID && rreg == X86_REG_INVALID)
         return true;
 
-    if (greg == X86_REG_INVALID ||
-        rreg == X86_REG_INVALID)
+    if (greg == X86_REG_INVALID || rreg == X86_REG_INVALID)
     {
         if (debug)
             LogMan::Msg::IFmt( "Unmatch reg: invalid reg\n");
@@ -330,12 +285,12 @@ static bool match_register(X86Register greg, X86Register rreg)
     return true;
 }
 
-static bool match_imm(int32_t val, char *sym)
+static bool match_imm(uint64_t val, char *sym)
 {
     ImmMapping *imap = imm_map;
 
     while(imap) {
-        if (strcmp(sym, imap->imm_str)){
+        if (strcmp(sym, imap->imm_str)) {
             if (debug && (val != imap->imm_val))
                 LogMan::Msg::IFmt( "Unmatch imm: symbol map conflict {} {}\n", imap->imm_val, val);
             return (val == imap->imm_val);
@@ -425,7 +380,7 @@ static bool match_opd_imm(X86ImmOperand *gopd, X86ImmOperand *ropd)
         return (gopd->content.val == ropd->content.val);
     else if (ropd->type == X86_IMM_TYPE_SYM)
         return match_imm(gopd->content.val, ropd->content.sym);
-    else{
+    else {
         if (debug)
             LogMan::Msg::IFmt( "Unmatch imm: type error\n");
         return false;
@@ -451,8 +406,9 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
     X86Operand *gopd = &ginstr->opd[opd_idx];
     X86Operand *ropd = &rinstr->opd[opd_idx];
 
-    if (gopd->type != ropd->type)
+    if (gopd->type != ropd->type) {
         return false;
+    }
 
 	if (ginstr->opc == X86_OPC_CALL) {
 		unsigned int pc_val = ginstr->pc + ginstr->InstSize;
@@ -521,8 +477,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
 
     while(p_rule_instr) {
 
-        if (p_rule_instr->opc == X86_OPC_INVALID ||
-            p_guest_instr->opc == X86_OPC_INVALID){
+        if (p_rule_instr->opc == X86_OPC_INVALID || p_guest_instr->opc == X86_OPC_INVALID){
             return false;
         }
 
@@ -603,8 +558,8 @@ void get_label_map(char *lab_str, int64_t *t, uint64_t *f)
     assert (0);
 }
 
-extern int parse_str_to_int(char *s);
-int32_t get_imm_map(char *sym)
+
+uint64_t get_imm_map(char *sym)
 {
     ImmMapping *im = imm_map;
     char t_str[50]; /* replaced string */
@@ -617,19 +572,18 @@ int32_t get_imm_map(char *sym)
     while(im) {
         char *p_str = strstr(t_str, im->imm_str);
         while (p_str) {
-            //LogMan::Msg::IFmt( "\t found a matched string for {}, value: {}\n", im->imm_str, im->imm_val);
+            // LogMan::Msg::IFmt( "\t found a matched string for {}, value: {:x}\n", im->imm_str, im->imm_val);
             size_t len = (size_t)(p_str - t_str);
             strncpy(t_buf, t_str, len);
-            sprintf(t_buf + len, "%d", im->imm_val);
+            sprintf(t_buf + len, "%lu", im->imm_val);
             strncat(t_buf, t_str + len + strlen(im->imm_str), strlen(t_str) - len - strlen(im->imm_str));
             strcpy(t_str, t_buf);
             p_str = strstr(t_str, im->imm_str);
         }
         im = im->next;
     }
-    //LogMan::Msg::IFmt( "=================val str: {}\n", t_str);
-    //LogMan::Msg::IFmt( "=================val val: {} %x\n", parse_str_to_int(t_str), parse_str_to_int(t_str));
-    return parse_str_to_int(t_str);
+    LogMan::Msg::IFmt( "=============== val: {:x}\n", std::stoll(t_str));
+    return std::stoll(t_str);
 }
 
 
@@ -750,40 +704,26 @@ static ARMRegister generate_matched_reg(X86Register greg){
     return (ARMRegister)(gmap->sym - 2);
 }
 
+void adjust_rule(TranslationRule* cur_rule)
+{
+    // nop
+}
+
 /* Try to match instructions in this tb with existing rules */
 void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
 {
     if (match_counter <= 0)
         return;
+
     X86Instruction *guest_instr = tb->guest_instr;
     X86Instruction *cur_head = guest_instr;
     int guest_instr_num = 0;
     int i, j;
     uint64_t tbpc = guest_instr->pc;
 
-    LogMan::Msg::IFmt( "=====Guest Instr Match Rule Start=====\n");
-
-    LogMan::Msg::IFmt( "Current match pc: {:x}", tbpc);
+    LogMan::Msg::IFmt( "=====Guest Instr Match Rule Start, match pc: {:x}=====\n", tbpc);
 
     reset_buffer();
-
-    #if defined(DEBUG_RULE_TRANSLATION)
-    for (i = 0; i < sizeof(skip_pc)/sizeof(skip_pc[0]); i++) {
-        if (skip_pc[i] == tbpc)
-            return;
-    }
-    #if 0
-    bool take = false;
-    for (i = 0; i < sizeof(take_pc)/sizeof(take_pc[0]); i++) {
-        if (take_pc[i] == tbpc) {
-            take = true;
-            break;
-        }
-    }
-    if (!take)
-        return;
-    #endif
-    #endif
 
     /* Try from the longest rule */
     while (cur_head) {
@@ -819,17 +759,13 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                 if (cur_rule->guest_instr_num != i)
                     goto next;
 
-                // LogMan::Msg::IFmt( "========starting matching internal, rule: {}=======\n", cur_rule->index);
                 if (match_rule_internal(cur_head, cur_rule, tb)) {
+                    LogMan::Msg::IFmt( "##### Match rule {} success! #####\n", cur_rule->index);
+
                     #if 0
-                    if (cur_rule->index == 9998) {
-                        static int counter = 0;
-                        counter++;
-                        if (counter > 594)
-                            goto next;
-                    }
+                    adjust_rule(cur_rule);
                     #endif
-                    LogMan::Msg::IFmt( "##### match rule {} success! #####\n", cur_rule->index);
+
                     break;
                 }
                 next:
@@ -957,6 +893,8 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
     int i = 0;
 
     LogMan::Msg::IFmt( "==========Applying rule: {}\n", rule->index);
+
+    reset_asm_buffer();
 
     ARMInstruction *arm_code = rule->arm_host;
     arm_host = arm_code;
