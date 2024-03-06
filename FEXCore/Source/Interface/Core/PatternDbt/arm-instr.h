@@ -276,7 +276,7 @@ void set_arm_opd_type(ARMOperand *opd, ARMOperandType type);
 void set_arm_opd_imm_val_str(ARMOperand *, char *);
 void set_arm_opd_imm_sym_str(ARMOperand *, char *);
 
-void set_arm_opd_mem_off_val(ARMOperand *opd, int32_t off);
+void set_arm_opd_mem_off_val(ARMOperand *opd, char *off_str);
 void set_arm_opd_mem_off_str(ARMOperand *opd, char *off_str);
 
 void set_arm_opd_mem_index_reg(ARMOperand *, int);

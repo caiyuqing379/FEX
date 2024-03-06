@@ -129,7 +129,6 @@ static void print_opd_index_type(ARMMemIndexType pre_post)
 {
     if (pre_post != ARM_MEM_INDEX_TYPE_NONE)
          LogMan::Msg::IFmt( ", index type: {}", arm_index_type_str[pre_post]);
-     LogMan::Msg::IFmt(" ");
 }
 
 void print_opd_scale(ARMOperandScale *scale)
@@ -143,7 +142,7 @@ void print_opd_scale(ARMOperandScale *scale)
             LogMan::Msg::IFmt( ", {} {} ", arm_direct_str[scale->content.direct], imm->content.sym);
     }
     else
-        LogMan::Msg::IFmt("none scale \n");
+        LogMan::Msg::IFmt("none scale");
 }
 
 void print_reg_opd(ARMRegOperand *opd)
@@ -154,15 +153,14 @@ void print_reg_opd(ARMRegOperand *opd)
 
 void print_mem_opd(ARMMemOperand *opd)
 {
-     LogMan::Msg::IFmt( "[{}", arm_reg_str[opd->base]);
+    LogMan::Msg::IFmt( "[base: {}", arm_reg_str[opd->base]);
     if (opd->index != ARM_REG_INVALID)
-         LogMan::Msg::IFmt( ", {}", arm_reg_str[opd->index]);
+        LogMan::Msg::IFmt( ", index: {}", arm_reg_str[opd->index]);
     if (opd->offset.type == ARM_IMM_TYPE_VAL)
-         LogMan::Msg::IFmt( ", 0x{}", opd->offset.content.val);
+        LogMan::Msg::IFmt( ", offset: 0x{:x}", opd->offset.content.val);
     else if (opd->offset.type == ARM_IMM_TYPE_SYM)
-         LogMan::Msg::IFmt( ", {}", opd->offset.content.sym);
+        LogMan::Msg::IFmt( ", offset: {}", opd->offset.content.sym);
     print_opd_scale(&opd->scale);
-     LogMan::Msg::IFmt("] ");
     print_opd_index_type(opd->pre_post);
 }
 
@@ -401,6 +399,16 @@ void set_arm_instr_opd_mem_base_str(ARMInstruction *instr, int opd_index, char *
 {
     ARMMemOperand *mopd = &(instr->opd[opd_index].content.mem);
 
+    if (reg_str[0] == 'w') {
+        if (!opd_index)
+          instr->OpdSize = 4;
+        reg_str[0] = 'r';
+    } else if (reg_str[0] == 'x'){
+        if (!opd_index)
+          instr->OpdSize = 8;
+        reg_str[0] = 'r';
+    }
+
     mopd->base = get_arm_register(reg_str);
 
 }
@@ -470,12 +478,12 @@ void set_arm_opd_imm_sym_str(ARMOperand *opd, char *imm_str)
     strcpy(iopd->content.sym, imm_str);
 }
 
-void set_arm_opd_mem_off_val(ARMOperand *opd, int32_t off)
+void set_arm_opd_mem_off_val(ARMOperand *opd, char *off_str)
 {
     ARMMemOperand *mopd = &opd->content.mem;
 
     mopd->offset.type = ARM_IMM_TYPE_VAL;
-    mopd->offset.content.val = off;
+    mopd->offset.content.val = atoi(off_str);
 }
 
 void set_arm_opd_mem_off_str(ARMOperand *opd, char *off_str)

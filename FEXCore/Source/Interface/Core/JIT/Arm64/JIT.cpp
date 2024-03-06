@@ -790,6 +790,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
   PendingTargetLabel = nullptr;
 
+      // Perform translation rule match
       auto   *tBlockInfo = static_cast<const FEXCore::Frontend::Decoder::DecodedBlockInformation*>(BlockInfo);
       auto   CodeBlocks = &tBlockInfo->Blocks;
       auto   Block = CodeBlocks->at(0);
@@ -797,13 +798,13 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
       if(CodeBlocks->size() <= 1)
 		    match_translation_rule(&Block);
       else
-        LogMan::Msg::IFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
+        LogMan::Msg::EFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
 
       bool IsRuleTrans = false, IsRTDone = false;
       uint64_t cur_ins_pc = IR->GetHeader()->OriginalRIP;
       uint32_t reg_liveness[100] = {0};
 
-      /* See if we can use rules to do translation */
+      // See if we can use rules to do translation
       if (cur_ins_pc && instr_is_match(cur_ins_pc))
         IsRuleTrans = true;
 
@@ -830,7 +831,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
     }
 
     if (IsRuleTrans) {
-      /* See if we can use rules to do translation */
+      // Start translating by translation rules
       if (!IsRTDone && cur_ins_pc && instr_is_match(cur_ins_pc)) {
         auto RTBStartHostCode = GetCursorAddress<uint8_t *>();
         do_rule_translation(get_translation_rule(cur_ins_pc), reg_liveness);

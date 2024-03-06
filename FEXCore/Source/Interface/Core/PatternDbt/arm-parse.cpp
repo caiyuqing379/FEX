@@ -143,7 +143,6 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
 
         if (line[idx] == ',') {
 
-
             idx += 2;
 
             if (line[idx] == '#') { /* This is an immediate offset (#imm_xxx symbolic chars) */
@@ -153,9 +152,11 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
                 idx++;
                 tfc = line[idx];
                 assert(tfc == 'i');
-                strncat(off_str, &line[idx], 7);
-                idx += 7;
-                set_arm_opd_mem_off_str(opd, off_str);
+
+                while (line[idx] != ',' && line[idx] != ']' && line[idx] != '\n')
+                  strncat(off_str, &line[idx++], 1);
+
+                set_arm_opd_mem_off_val(opd, off_str);
             } else if (line[idx] == 'r') { /* This is an index register */
                 char index_reg_str[20] = "\0";
                 while (line[idx] != ',' && line[idx] != ']' && line[idx] != '\n')

@@ -196,30 +196,30 @@ X86Instruction *create_x86_instr(uint64_t pc)
 void print_x86_instr(X86Instruction *instr)
 {
     int i;
-    LogMan::Msg::IFmt( "0x{:x}: {}", instr->pc, x86_opc_str[instr->opc]);
+    LogMan::Msg::IFmt("0x{:x}: {}", instr->pc, x86_opc_str[instr->opc]);
     for (i = 0; i < instr->opd_num; i++) {
       X86Operand *opd = &instr->opd[i];
       if (opd->type == X86_OPD_TYPE_IMM) {
         X86ImmOperand *imm = &opd->content.imm;
         if (imm->type == X86_IMM_TYPE_VAL)
-          LogMan::Msg::IFmt( "     imm: 0x{:x}", imm->content.val);
+          LogMan::Msg::IFmt("     imm: 0x{:x}", imm->content.val);
         else if (imm->type == X86_IMM_TYPE_SYM)
-          LogMan::Msg::IFmt( "     imm: {}", imm->content.sym);
+          LogMan::Msg::IFmt("     imm: {}", imm->content.sym);
       }
       else if (opd->type == X86_OPD_TYPE_REG)
-        LogMan::Msg::IFmt( "     reg: {}", x86_reg_str[opd->content.reg.num]);
+        LogMan::Msg::IFmt("     reg: {}", x86_reg_str[opd->content.reg.num]);
       else if (opd->type == X86_OPD_TYPE_MEM) {
-        LogMan::Msg::IFmt( "     mem: base({})", x86_reg_str[opd->content.mem.base]);
+        fprintf(stderr,"[INFO]      mem: base(%s)", x86_reg_str[opd->content.mem.base]);
         if (opd->content.mem.index != X86_REG_INVALID)
           fprintf(stderr,", index(%s)", x86_reg_str[opd->content.mem.index]);
         if (opd->content.mem.scale.type == X86_IMM_TYPE_SYM)
           fprintf(stderr,", scale(%s)", opd->content.mem.scale.content.sym);
         else if (opd->content.mem.scale.type == X86_IMM_TYPE_VAL)
-          fprintf(stderr,", scale(0x%x)", opd->content.mem.scale.content.val);
+          fprintf(stderr,", scale(0x%lx)", opd->content.mem.scale.content.val);
         if (opd->content.mem.offset.type == X86_IMM_TYPE_SYM)
           fprintf(stderr,", offset(%s)", opd->content.mem.offset.content.sym);
         else if (opd->content.mem.offset.type == X86_IMM_TYPE_VAL)
-          fprintf(stderr,", offset(0x%x)", opd->content.mem.offset.content.val);
+          fprintf(stderr,", offset(0x%lx)", opd->content.mem.offset.content.val);
         fprintf(stderr,"\n");
       }
     }
@@ -913,13 +913,10 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
             break;
 
           LogMan::Msg::IFmt( "====Operand Num: 0x{:x}", num+1);
-          if (Opd->IsGPR() || Opd->IsGPRDirect()){
+          if (Opd->IsGPR()){
               uint8_t GPR = Opd->Data.GPR.GPR;
 
-              if (Opd->IsGPR())
-                LogMan::Msg::IFmt( "     GPR: 0x{:x}", GPR);
-              else
-                LogMan::Msg::IFmt( "     GPRDirect: 0x{:x}", GPR);
+              LogMan::Msg::IFmt( "     GPR: 0x{:x}", GPR);
 
               if(GPR <= FEXCore::X86State::REG_R15)
                 set_x86_instr_opd_reg(instr, num, GPR);
@@ -936,11 +933,20 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               LogMan::Msg::IFmt( "     Literal: 0x{:x}", Literal);
               set_x86_instr_opd_imm(instr, num, Literal);
           }
+          else if(Opd->IsGPRDirect()) {
+              uint8_t GPR = Opd->Data.GPR.GPR;
+              LogMan::Msg::IFmt( "     GPRDirect: 0x{:x}", GPR);
+              set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
+              if(GPR <= FEXCore::X86State::REG_R15)
+                set_x86_instr_opd_mem_base(instr, num, GPR);
+              else
+                set_x86_instr_opd_mem_base(instr, num, 0x10);
+          }
           else if(Opd->IsGPRIndirect()){
               uint8_t GPR = Opd->Data.GPRIndirect.GPR;
               int32_t Displacement = Opd->Data.GPRIndirect.Displacement;
 
-              LogMan::Msg::IFmt( "     GPRIndirect.GPR: 0x{:x}, GPRIndirect.Displacement: 0x{:x}", GPR, Displacement);
+              LogMan::Msg::IFmt( "     GPRIndirect - GPR: 0x{:x}, Displacement: 0x{:x}", GPR, Displacement);
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
               if(GPR <= FEXCore::X86State::REG_R15)
@@ -955,7 +961,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               uint8_t Index = Opd->Data.SIB.Index;
               uint8_t Scale = Opd->Data.SIB.Scale;
 
-              LogMan::Msg::IFmt( "     SIB-Base: 0x{:x}, Offset: 0x{:x}, Index: 0x{:x}, Scale: 0x{:x}", Base, Offset, Index, Scale);
+              LogMan::Msg::IFmt( "     SIB - Base: 0x{:x}, Offset: 0x{:x}, Index: 0x{:x}, Scale: 0x{:x}", Base, Offset, Index, Scale);
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
               if(Base <= FEXCore::X86State::REG_R15)
@@ -977,6 +983,13 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         break;
       } else {
         Opd = &DecodeInst->Src[count++];
+      }
+    }
+
+    if (instr->opc == X86_OPC_CMPB || instr->opc == X86_OPC_CMPW || instr->opc == X86_OPC_CMPL) {
+      if(num == 3) {
+        instr->opd[1] = instr->opd[2];
+        num--;
       }
     }
 

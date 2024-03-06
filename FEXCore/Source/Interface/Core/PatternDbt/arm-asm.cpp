@@ -203,7 +203,7 @@ DEF_OPC(LDR) {
           }
         }
     } else
-      LogMan::Msg::IFmt( "[arm] Unsupported operand type for ldr instruction.\n");
+      LogMan::Msg::EFmt( "[arm] Unsupported operand type for ldr instruction.");
 }
 
 DEF_OPC(STR) {
@@ -244,7 +244,7 @@ DEF_OPC(STR) {
           }
         }
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for str instruction.\n");
+      LogMan::Msg::EFmt( "[arm] Unsupported operand type for str instruction.");
 }
 
 DEF_OPC(MOV) {
@@ -264,7 +264,7 @@ DEF_OPC(MOV) {
         mov(EmitSize, Dst, SrcDst);  // move (register)
                                      // move (to/from SP) not support
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg num for mov instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg num for mov instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
 
@@ -278,7 +278,7 @@ DEF_OPC(MOV) {
       }
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for mov instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for mov instruction.");
 }
 
 DEF_OPC(MVN) {
@@ -299,10 +299,10 @@ DEF_OPC(MVN) {
         uint32_t amt = opd1->content.reg.scale.imm.content.val;
         mvn(EmitSize, Dst, SrcDst, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for mvn instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for mvn instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for mvn instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for mvn instruction.");
 }
 
 DEF_OPC(AND) {
@@ -327,7 +327,7 @@ DEF_OPC(AND) {
         else
           ands(EmitSize, Dst, Src1, Imm);  // adds imm
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -341,10 +341,10 @@ DEF_OPC(AND) {
         else
           ands(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for and instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for and instruction.");
 }
 
 DEF_OPC(ORR) {
@@ -366,7 +366,7 @@ DEF_OPC(ORR) {
 
         orr(EmitSize, Dst, Src1, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for orr instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for orr instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -377,10 +377,10 @@ DEF_OPC(ORR) {
 
         orr(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for orr instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for orr instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for orr instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for orr instruction.");
 }
 
 DEF_OPC(EOR) {
@@ -402,7 +402,7 @@ DEF_OPC(EOR) {
 
         eor(EmitSize, Dst, Src1, Imm);  // and imm
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for eor instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for eor instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -413,10 +413,10 @@ DEF_OPC(EOR) {
 
         eor(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for eor instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for eor instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for eor instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for eor instruction.");
 }
 
 DEF_OPC(BIC) {
@@ -443,10 +443,10 @@ DEF_OPC(BIC) {
         else
           bics(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for bic instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for bic instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for bic instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for bic instruction.");
 }
 
 DEF_OPC(Shift) {
@@ -473,7 +473,7 @@ DEF_OPC(Shift) {
         else if (instr->opc == ARM_OPC_LSR)
           asr(EmitSize, Dst, Src1, shift);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for shift instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for shift instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -487,10 +487,10 @@ DEF_OPC(Shift) {
         else if (instr->opc == ARM_OPC_LSR)
           asrv(EmitSize, Dst, Src1, Src2);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for shift instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for shift instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for shift instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for shift instruction.");
 }
 
 DEF_OPC(ADD) {
@@ -515,7 +515,7 @@ DEF_OPC(ADD) {
         else
           adds(EmitSize, Dst, Src1, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for add instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for add instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -547,10 +547,10 @@ DEF_OPC(ADD) {
         else
           adds(EmitSize, Dst, Src1, Src2, Option, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for add instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for add instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for add instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for add instruction.");
 }
 
 DEF_OPC(ADC) {
@@ -574,7 +574,7 @@ DEF_OPC(ADC) {
         adcs(EmitSize, Dst, Src1, Src2);
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for ADC instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for ADC instruction.");
 }
 
 DEF_OPC(SUB) {
@@ -599,7 +599,7 @@ DEF_OPC(SUB) {
         else
           subs(EmitSize, Dst, Src1, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for SUB instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for SUB instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -622,10 +622,10 @@ DEF_OPC(SUB) {
         else
           subs(EmitSize, Dst, Src1, Src2, Option, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for SUB instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for SUB instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for SUB instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for SUB instruction.");
 }
 
 DEF_OPC(SBC) {
@@ -649,7 +649,7 @@ DEF_OPC(SBC) {
         sbcs(EmitSize, Dst, Src1, Src2);
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for SBC instruction.\n");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for SBC instruction.");
 }
 
 DEF_OPC(MUL) {
@@ -674,7 +674,7 @@ DEF_OPC(MUL) {
       else if(instr->opc == ARM_OPC_SUB)
         smull(Dst.X(), Src1.W(), Src2.W());
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for MUL instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for MUL instruction.");
 }
 
 DEF_OPC(CLZ) {
@@ -692,7 +692,7 @@ DEF_OPC(CLZ) {
 
       clz(EmitSize, Dst, Src);
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for CLZ instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for CLZ instruction.");
 }
 
 DEF_OPC(TST) {
@@ -714,7 +714,7 @@ DEF_OPC(TST) {
 
         tst(EmitSize, Dst, SrcDst, Shift, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for mvn instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for mvn instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
 
@@ -723,10 +723,10 @@ DEF_OPC(TST) {
 
         tst(EmitSize, Dst, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for TST instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for TST instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for TST instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for TST instruction.");
 }
 
 DEF_OPC(COMPARE) {
@@ -750,7 +750,7 @@ DEF_OPC(COMPARE) {
         else
           cmn(EmitSize, Dst, Imm);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported imm type for compare instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported imm type for compare instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
@@ -771,10 +771,10 @@ DEF_OPC(COMPARE) {
         else
           cmn(EmitSize, Dst, Src1, Option, amt);
       } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for compare instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported reg for compare instruction.");
 
     } else
-        LogMan::Msg::IFmt( "[arm] Unsupported operand type for compare instruction.\n");
+        LogMan::Msg::IFmt( "[arm] Unsupported operand type for compare instruction.");
 }
 
 IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
@@ -932,7 +932,7 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
             Opc_CBNZ(instr, reg_liveness, rrule);
             break;
         default:
-            LogMan::Msg::IFmt( "Unsupported x86 instruction in the assembler: {}, rule index: {}.\n",
+            LogMan::Msg::IFmt( "Unsupported x86 instruction in the assembler: {}, rule index: {}.",
                     get_arm_instr_opc(instr->opc), rrule->rule->index);
     }
 }

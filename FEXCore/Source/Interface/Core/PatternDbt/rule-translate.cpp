@@ -439,23 +439,6 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
 
 
 static bool check_instr(X86Instruction *ginstr){
-    // int i;
-
-    //pc register can not be translated by rules now
-    // for (i = 0; i < ginstr->opd_num; i++){
-    //     switch (ginstr->opd[i].type){
-    //         case ARM_OPD_TYPE_REG:
-    //             if (ginstr->opd[i].content.reg.num == X86_REG_R15)
-    //                 return false;
-    //             break;
-    //         case ARM_OPD_TYPE_MEM:
-    //             if (ginstr->opd[i].content.mem.base == X86_REG_R15)
-    //                 return false;
-    //             if (ginstr->opd[i].content.mem.index == X86_REG_R15)
-    //                 return false;
-    //             break;
-    //     }
-    // }
     return true;
 }
 
@@ -487,7 +470,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
 
             if (debug){
                 if (p_rule_instr->opd_num != p_guest_instr->opd_num)
-                    LogMan::Msg::IFmt( "different operand number\n");
+                    LogMan::Msg::IFmt( "different operand number");
             }
 
             return false;
