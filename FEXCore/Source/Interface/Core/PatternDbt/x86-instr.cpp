@@ -935,6 +935,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
     }
 
     set_x86_instr_opd_num(instr, num);
+    set_x86_instr_size(instr, DecodeInst->InstSize);
 
     print_x86_instr(instr);
 }

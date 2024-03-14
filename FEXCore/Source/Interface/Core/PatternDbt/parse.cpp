@@ -282,7 +282,7 @@ TranslationRule *get_rule(void)
 
 void parse_translation_rules(void)
 {
-    const char rule_file[] = "/home/ubuntu/rules4all";
+    const char rule_file[] = "/home/zzy/rules4all";
     TranslationRule *rule = NULL;
     int counter = 0;
     int install_counter = 0;

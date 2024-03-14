@@ -52,7 +52,7 @@ void LoadOptions(int argc, char **argv) {
   Separator = Options["d"];
 
   for (const auto &Omit: Options.all("o")) {
-    std::istringstream ss{Omit};
+    std::istringstream ss{std::string(Omit)};
     std::string sub;
     while (std::getline(ss, sub, ',')) {
       int64_t pid;

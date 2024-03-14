@@ -112,6 +112,10 @@ typedef enum {
     ARM_OPC_BL,
     ARM_OPC_CBNZ,
 
+    ARM_OPC_SET_JUMP,
+    ARM_OPC_SET_CALL,
+    ARM_OPC_PC_REL,
+
 // parameterized opcode
     ARM_OPC_OP1,
     ARM_OPC_OP2,

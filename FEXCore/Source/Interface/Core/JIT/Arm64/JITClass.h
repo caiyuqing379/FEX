@@ -281,6 +281,7 @@ private:
   DEF_OPC(B);
   DEF_OPC(BL);
   DEF_OPC(CBNZ);
+  DEF_OPC(SET_JUMP);
 #undef DEF_OPC
 };
 

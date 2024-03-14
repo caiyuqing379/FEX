@@ -134,26 +134,21 @@ static ARMEmitter::ExtendedMemOperand  GenerateExtMemOperand(ARMEmitter::Registe
 
     uint8_t amount = static_cast<uint8_t>(OffsetScale.imm.content.val);
 
-    if (Offset.type != ARM_IMM_TYPE_NONE) {
-
+    if (Index == ARM_REG_INVALID) {
         if (OffsetType == ARM_MEM_INDEX_TYPE_PRE)
           return ARMEmitter::ExtendedMemOperand(Base.X(), ARMEmitter::IndexType::PRE, Offset.content.val);
         else if (OffsetType == ARM_MEM_INDEX_TYPE_POST)
           return ARMEmitter::ExtendedMemOperand(Base.X(), ARMEmitter::IndexType::POST, Offset.content.val);
         else
           return ARMEmitter::ExtendedMemOperand(Base.X(), ARMEmitter::IndexType::OFFSET, Offset.content.val);
-
-    } else if (Index != ARM_REG_INVALID) {
-
+    } else {
       switch(OffsetScale.content.extend) {
         case ARM_OPD_EXTEND_UXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::UXTW, FEXCore::ilog2(amount) );
         case ARM_OPD_EXTEND_SXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::SXTW, FEXCore::ilog2(amount) );
         case ARM_OPD_EXTEND_SXTX: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::SXTX, FEXCore::ilog2(amount) );
         default: LOGMAN_MSG_A_FMT("Unhandled GenerateExtMemOperand OffsetType: {}", OffsetScale.content.extend); break;
       }
-
-    } else
-       LOGMAN_MSG_A_FMT("Error GenerateExtMemOperand AddrOp!");
+    }
 }
 
 DEF_OPC(LDR) {
@@ -258,7 +253,7 @@ DEF_OPC(STR) {
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Offset, OffsetScale, PrePost);
 
-          if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_LDR) {
+          if (instr->opc == ARM_OPC_STRB || instr->opc == ARM_OPC_STRH || instr->opc == ARM_OPC_STR) {
             switch (OpSize) {
               case 1:
                 strb(Src, MemSrc);
@@ -385,7 +380,7 @@ DEF_OPC(AND) {
         if(instr->opc == ARM_OPC_AND)
           and_(EmitSize, Dst, Src1, Imm);  // and imm
         else
-          ands(EmitSize, Dst, Src1, Imm);  // adds imm
+          ands(EmitSize, Dst, Src1, Imm);  // ands imm
       } else
         LogMan::Msg::IFmt( "[arm] Unsupported imm type for and instruction.");
 
@@ -681,11 +676,17 @@ DEF_OPC(SUB) {
           sub(EmitSize, Dst, Src1, Src2, Option, amt);
         else
           subs(EmitSize, Dst, Src1, Src2, Option, amt);
-      } else
-        LogMan::Msg::IFmt( "[arm] Unsupported reg for SUB instruction.");
+      } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE){
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
+
+        if(instr->opc == ARM_OPC_SUB)
+          sub(EmitSize, Dst, Src1, Src2);
+        else
+          subs(EmitSize, Dst, Src1, Src2);
+      }
 
     } else
-      LogMan::Msg::IFmt( "[arm] Unsupported operand type for SUB instruction.");
+      LogMan::Msg::IFmt( "[arm] Unsupported operand type for sub instruction.");
 }
 
 DEF_OPC(SBC) {
@@ -810,7 +811,7 @@ DEF_OPC(COMPARE) {
       uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
 
       if(instr->opc == ARM_OPC_CMP) {
-        if ((Imm >> 32) != 0) {
+        if ((Imm >> 12) != 0) {
           LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), Imm);
           cmp(EmitSize, Dst, (ARMEmitter::Reg::r20).X());
         } else
@@ -877,7 +878,8 @@ DEF_OPC(B) {
 
       auto TrueTargetLabel = &JumpTargets.try_emplace(Op->TrueBlock.ID()).first->second;
 
-      if (cond == ARM_CC_LS) {  // b.ls (CF=0 || ZF=1)
+      if (cond == ARM_CC_LS) {
+        // b.ls (CF=0 || ZF=1)
         mov((ARMEmitter::Reg::r20).W(), 1);
         cset(EmitSize, (ARMEmitter::Reg::r21).X(), MapBranchCC(ARM_CC_CS));
         csel(EmitSize, (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X(), MapBranchCC(ARM_CC_EQ));
@@ -900,8 +902,8 @@ DEF_OPC(BL) {
 
 DEF_OPC(CBNZ) {
     ARMOperand *opd0 = &instr->opd[0];
-    auto     Src = GetHostRegMap(opd0->content.reg.num);
-    uint8_t  OpSize = instr->OpdSize;
+    uint8_t OpSize = instr->OpdSize;
+    auto Src = GetHostRegMap(opd0->content.reg.num);
 
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
@@ -915,6 +917,24 @@ DEF_OPC(CBNZ) {
     cbnz(EmitSize, Src, TrueTargetLabel);
 
     PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
+}
+
+DEF_OPC(SET_JUMP) {
+    ARMOperand *opd = &instr->opd[0];
+    uint8_t  OpSize = instr->OpdSize;
+    uint64_t target, fallthrough, Mask = ~0ULL;
+
+    if (OpSize == 4) {
+      Mask = 0xFFFF'FFFFULL;
+    }
+
+    if(opd->type == ARM_OPD_TYPE_IMM) {
+      get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
+
+      LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), fallthrough);
+      LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), target);
+      add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X());
+    }
 }
 
 void reset_asm_buffer(void)
@@ -1009,6 +1029,9 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
             break;
         case ARM_OPC_CBNZ:
             Opc_CBNZ(instr, reg_liveness, rrule);
+            break;
+        case ARM_OPC_SET_JUMP:
+            Opc_SET_JUMP(instr, reg_liveness, rrule);
             break;
         default:
             LogMan::Msg::IFmt( "Unsupported x86 instruction in the assembler: {}, rule index: {}.",

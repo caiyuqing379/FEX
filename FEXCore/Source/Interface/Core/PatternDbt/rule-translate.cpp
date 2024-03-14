@@ -52,7 +52,7 @@ static const ARMOpcode X862ARM[] = {
     [X86_OPC_SETE]   = ARM_OPC_INVALID,
     [X86_OPC_CWT]    = ARM_OPC_INVALID,
 
-    [X86_OPC_JMP]    = ARM_OPC_B,
+    [X86_OPC_JMP]    = ARM_OPC_SET_JUMP,
     [X86_OPC_JA]     = ARM_OPC_B,
     [X86_OPC_JAE]    = ARM_OPC_B,
     [X86_OPC_JB]     = ARM_OPC_B,
@@ -208,48 +208,20 @@ static bool match_register(X86Register greg, X86Register rreg)
 {
     GuestRegisterMapping *gmap = g_reg_map;
 
-    if (greg == X86_REG_INVALID && rreg == X86_REG_INVALID)
+    if(greg == X86_REG_INVALID && rreg == X86_REG_INVALID)
         return true;
 
-    if (greg == X86_REG_INVALID || rreg == X86_REG_INVALID) {
-        if (debug)
-            LogMan::Msg::IFmt( "Unmatch reg: invalid reg\n");
+    if(greg == X86_REG_INVALID || rreg == X86_REG_INVALID) {
+        if(debug)
+            LogMan::Msg::IFmt( "Unmatch reg: invalid reg!");
         return false;
     }
 
-    /* check if we already have this map */
-    while (gmap) {
-        if (gmap->sym != rreg) {
-            gmap = gmap->next;
-            continue;
-        }
-        if (debug && (gmap->num != greg))
-            fprintf(stderr, "Unmatch reg: map conflict: %d %d\n", gmap->num, greg);
-        return (gmap->num == greg);
+    if(greg != rreg) {
+        if(debug)
+            LogMan::Msg::IFmt( "Unmatch reg: diffrent reg!");
+        return false;
     }
-
-    /* check if this guest register has another map */
-    gmap = g_reg_map;
-    while (gmap) {
-        if (gmap->num != greg) {
-            gmap = gmap->next;
-            continue;
-        }
-
-        if (debug && (gmap->sym != rreg))
-            fprintf(stderr, "Unmatch reg: have anther map: %d %d %d\n", greg, gmap->sym, rreg);
-        return (gmap->sym == rreg);
-    }
-
-    /* append this map to register map buffer */
-    gmap = &g_reg_map_buf[g_reg_map_buf_index++];
-    assert(g_reg_map_buf_index < MAX_MAP_BUF_LEN);
-    gmap->sym = rreg;
-    gmap->num = greg;
-    ++reg_map_num;
-
-    gmap->next = g_reg_map;
-    g_reg_map = gmap;
 
     return true;
 }
