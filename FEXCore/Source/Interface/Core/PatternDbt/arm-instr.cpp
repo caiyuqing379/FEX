@@ -65,9 +65,11 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_LDRH]  = "ldrh",
     [ARM_OPC_LDRSH] = "ldrsh",
     [ARM_OPC_LDR]   = "ldr",
+    [ARM_OPC_LDP]   = "ldp",
     [ARM_OPC_STRB]  = "strb",
     [ARM_OPC_STRH]  = "strh",
     [ARM_OPC_STR]   = "str",
+    [ARM_OPC_STP]   = "stp",
     [ARM_OPC_MOV]   = "mov",
     [ARM_OPC_MVN]   = "mvn",
     [ARM_OPC_AND]   = "and",
@@ -312,7 +314,7 @@ void set_arm_instr_opc_str(ARMInstruction *instr, char *opc_str)
 }
 
 /* set the number of operands of this instruction */
-void set_arm_instr_opd_num(ARMInstruction *instr, uint32_t num)
+void set_arm_instr_opd_num(ARMInstruction *instr, size_t num)
 {
     instr->opd_num = num;
 }
@@ -384,7 +386,7 @@ void set_arm_instr_opd_scale_imm_str(ARMOperandScale *pscale, char *scale_str)
         strcpy(pscale->imm.content.sym, scale_str);
     } else { /* this is a value scale */
         pscale->imm.type = ARM_IMM_TYPE_VAL;
-        pscale->imm.content.val = atoi(scale_str);
+        pscale->imm.content.val = strtol(scale_str, NULL, 16);
     }
 }
 
@@ -467,7 +469,7 @@ void set_arm_opd_imm_val_str(ARMOperand *opd, char *imm_str)
     ARMImmOperand *iopd = &opd->content.imm;
 
     iopd->type = ARM_IMM_TYPE_VAL;
-    iopd->content.val = atoi(imm_str);
+    iopd->content.val = strtol(imm_str, NULL, 16);
 }
 
 void set_arm_opd_imm_sym_str(ARMOperand *opd, char *imm_str)
@@ -483,7 +485,7 @@ void set_arm_opd_mem_off_val(ARMOperand *opd, char *off_str)
     ARMMemOperand *mopd = &opd->content.mem;
 
     mopd->offset.type = ARM_IMM_TYPE_VAL;
-    mopd->offset.content.val = atoi(off_str);
+    mopd->offset.content.val = strtol(off_str, NULL, 16);
 }
 
 void set_arm_opd_mem_off_str(ARMOperand *opd, char *off_str)

@@ -15,57 +15,35 @@ int instr_block_start;
 
 static const char *x86_opc_str[] = {
     [X86_OPC_INVALID] = "**** unsupported (x86) ****",
-    [X86_OPC_MOVB] = "movb",
-    [X86_OPC_MOVZBL] = "movzbl",
-    [X86_OPC_MOVSBL] = "movsbl",
-    [X86_OPC_MOVW] = "movw",
-    [X86_OPC_MOVZWL] = "movzwl",
-    [X86_OPC_MOVSWL] = "movswl",
-    [X86_OPC_MOVL] = "movl",
-    [X86_OPC_LEAL] = "leal",
-    [X86_OPC_NOTL] = "notl",
-    [X86_OPC_ANDB] = "andb",
-    [X86_OPC_ANDW] = "andw",
-    [X86_OPC_ANDL] = "andl",
-    [X86_OPC_ORB] = "orb",
-    [X86_OPC_XORB] = "xorb",
-    [X86_OPC_ORW] = "orw",
-    [X86_OPC_ORL] = "orl",
-    [X86_OPC_XORL] = "xorl",
-    [X86_OPC_NEGL] = "negl",
-    [X86_OPC_INCB] = "incb",
-    [X86_OPC_INCW] = "incw",
-    [X86_OPC_INCL] = "incl",
-    [X86_OPC_DECB] = "decb",
-    [X86_OPC_DECW] = "decw",
-    [X86_OPC_DECL] = "decl",
-    [X86_OPC_ADDB] = "addb",
-    [X86_OPC_ADDW] = "addw",
-    [X86_OPC_ADDL] = "addl",
-    [X86_OPC_ADCL] = "adcl",
-    [X86_OPC_SUBL] = "subl",
-    [X86_OPC_SBBL] = "sbbl",
-    [X86_OPC_MULL] = "mull",
-    [X86_OPC_IMULL] = "imull",
-    [X86_OPC_SHLB] = "shlb",
-    [X86_OPC_SHRB] = "shrb",
-    [X86_OPC_SHLW] = "shlw",
-    [X86_OPC_SHLL] = "shll",
-    [X86_OPC_SHRL] = "shrl",
-    [X86_OPC_SARL] = "sarl",
-    [X86_OPC_SHLDL] = "shldl",
-    [X86_OPC_SHRDL] = "shrdl",
-    [X86_OPC_BTL] = "btl",
-    [X86_OPC_TESTB] = "testb",
-    [X86_OPC_TESTW] = "testw",
-    [X86_OPC_TESTL] = "testl",
-    [X86_OPC_CMPB] = "cmpb",
-    [X86_OPC_CMPW] = "cmpw",
-    [X86_OPC_CMPL] = "cmpl",
-    [X86_OPC_CMOVNEL] = "cmovnel",
-    [X86_OPC_CMOVAL] = "cmoval",
-    [X86_OPC_CMOVBL] = "cmovbl",
-    [X86_OPC_CMOVLL] = "cmovll",
+    [X86_OPC_MOVZX] = "movzb",
+    [X86_OPC_MOVSX] = "movsb",
+    [X86_OPC_MOV] = "mov",
+    [X86_OPC_LEA] = "lea",
+    [X86_OPC_NOT] = "not",
+    [X86_OPC_AND] = "and",
+    [X86_OPC_OR] = "or",
+    [X86_OPC_XOR] = "xor",
+    [X86_OPC_NEG] = "neg",
+    [X86_OPC_INC] = "inc",
+    [X86_OPC_DEC] = "dec",
+    [X86_OPC_ADD] = "add",
+    [X86_OPC_ADC] = "adc",
+    [X86_OPC_SUB] = "sub",
+    [X86_OPC_SBB] = "sbb",
+    [X86_OPC_MULL] = "mul",
+    [X86_OPC_IMUL] = "imul",
+    [X86_OPC_SHL] = "shl",
+    [X86_OPC_SHR] = "shr",
+    [X86_OPC_SAR] = "sar",
+    [X86_OPC_SHLD] = "shld",
+    [X86_OPC_SHRD] = "shrd",
+    [X86_OPC_BT] = "bt",
+    [X86_OPC_TEST] = "test",
+    [X86_OPC_CMP] = "cmp",
+    [X86_OPC_CMOVNE] = "cmovne",
+    [X86_OPC_CMOVA] = "cmova",
+    [X86_OPC_CMOVB] = "cmovb",
+    [X86_OPC_CMOVL] = "cmovl",
     [X86_OPC_SETE] = "sete",
     [X86_OPC_CWT] = "cwt",
     [X86_OPC_JMP] = "jmp",
@@ -100,11 +78,6 @@ static const char *x86_opc_str[] = {
     [X86_OPC_OP10] = "op10",
     [X86_OPC_OP11] = "op11",
     [X86_OPC_OP12] = "op12",
-
-    [X86_OPC_SYNC_M] = "sync_m",
-    [X86_OPC_SYNC_R] = "sync_r",
-	  [X86_OPC_PC_IR] = "pc_ir",
-	  [X86_OPC_PC_RR] = "pc_rr",
 };
 
 static const X86Register x86_reg_table[] = {
@@ -140,8 +113,7 @@ void x86_instr_buffer_init(void)
 
 static X86Opcode get_x86_opcode(char *opc_str)
 {
-    int i;
-    for (i = X86_OPC_INVALID; i < X86_OPC_END; i++) {
+    for (int i = X86_OPC_INVALID; i < X86_OPC_END; i++) {
         if (!strcmp(opc_str, x86_opc_str[i]))
             return static_cast<X86Opcode>(i);
     }
@@ -195,9 +167,8 @@ X86Instruction *create_x86_instr(uint64_t pc)
 
 void print_x86_instr(X86Instruction *instr)
 {
-    int i;
     LogMan::Msg::IFmt("0x{:x}: {}", instr->pc, x86_opc_str[instr->opc]);
-    for (i = 0; i < instr->opd_num; i++) {
+    for (int i = 0; i < instr->opd_num; i++) {
       X86Operand *opd = &instr->opd[i];
       if (opd->type == X86_OPD_TYPE_IMM) {
         X86ImmOperand *imm = &opd->content.imm;
@@ -247,9 +218,15 @@ void set_x86_instr_opc_str(X86Instruction *instr, char *opc_str)
 }
 
 /* set the number of operands of this instruction */
-void set_x86_instr_opd_num(X86Instruction *instr, uint32_t num)
+void set_x86_instr_opd_num(X86Instruction *instr, uint8_t num)
 {
     instr->opd_num = num;
+}
+
+void set_x86_instr_opd_size(X86Instruction *instr, uint32_t SrcSize, uint32_t DestSize)
+{
+    instr->SrcSize = SrcSize;
+    instr->DestSize = DestSize;
 }
 
 void set_x86_instr_size(X86Instruction *instr, size_t size)
@@ -262,12 +239,13 @@ void set_x86_instr_opd_type(X86Instruction *instr, int opd_index, X86OperandType
     set_x86_opd_type(&instr->opd[opd_index], type);
 }
 
-void set_x86_instr_opd_reg(X86Instruction *instr, int opd_index, int regno)
+void set_x86_instr_opd_reg(X86Instruction *instr, int opd_index, int regno, bool HighBits)
 {
     X86Operand *opd = &instr->opd[opd_index];
 
     opd->type = X86_OPD_TYPE_REG;
     opd->content.reg.num = x86_reg_table[regno];
+    opd->content.reg.HighBits = HighBits;
 }
 
 void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint64_t val)
@@ -335,7 +313,7 @@ void set_x86_opd_imm_val_str(X86Operand *opd, char *imm_str)
     X86ImmOperand *iopd = &opd->content.imm;
 
     iopd->type = X86_IMM_TYPE_VAL;
-    iopd->content.val = strtol(imm_str, NULL, 0);
+    iopd->content.val = strtol(imm_str, NULL, 16);
 }
 
 void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str)
@@ -347,8 +325,31 @@ void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str)
 }
 
 /* set register operand using given string */
-void set_x86_opd_reg_str(X86Operand *opd, char *reg_str)
+void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
 {
+    int length = strlen(reg_str);
+    opd->content.reg.HighBits = false;
+
+    if (!strcmp(reg_str, "ah") || !strcmp(reg_str, "bh")|| !strcmp(reg_str, "ch") || !strcmp(reg_str, "dh")) {
+        *OpdSize = 1;
+        opd->content.reg.HighBits = true;
+    } else if (!strcmp(reg_str, "al") || !strcmp(reg_str, "bl") || !strcmp(reg_str, "cl") || !strcmp(reg_str, "dl") || reg_str[length-1] == 'b') {
+        *OpdSize = 1;
+        if (reg_str[length-1] == 'b')
+          reg_str[length-1] = '\0';
+    } else if (!strcmp(reg_str, "ax") || !strcmp(reg_str, "bx") || !strcmp(reg_str, "cx") || !strcmp(reg_str, "dx")
+        || !strcmp(reg_str, "sp") || !strcmp(reg_str, "bp") || !strcmp(reg_str, "si") || !strcmp(reg_str, "di") || reg_str[length-1] == 'w') {
+        *OpdSize = 2;
+        if (reg_str[length-1] == 'w')
+          reg_str[length-1] = '\0';
+    } else if (!strcmp(reg_str, "eax") || !strcmp(reg_str, "ebx") || !strcmp(reg_str, "ecx") || !strcmp(reg_str, "edx")
+        || !strcmp(reg_str, "esp") || !strcmp(reg_str, "ebp") || !strcmp(reg_str, "esi") || !strcmp(reg_str, "edi") || reg_str[length-1] == 'd') {
+        *OpdSize = 3;
+        if (reg_str[length-1] == 'd')
+          reg_str[length-1] = '\0';
+    } else
+        *OpdSize = 4;
+
     opd->content.reg.num = get_x86_register(reg_str);
 }
 
@@ -379,17 +380,17 @@ void set_x86_opd_mem_off(X86Operand *opd, int32_t val)
     opd->content.mem.offset.content.val = val;
 }
 
-void set_x86_opd_mem_off_str(X86Operand *opd, char *off_str)
+void set_x86_opd_mem_off_str(X86Operand *opd, char *off_str, bool neg)
 {
     if (strstr(off_str, "imm")) { /* offset is a symbol */
         opd->content.mem.offset.type = X86_IMM_TYPE_SYM;
         strcpy(opd->content.mem.offset.content.sym, off_str);
     } else { /* offset is a constant integer */
         opd->content.mem.offset.type = X86_IMM_TYPE_VAL;
-        if(off_str[0] == '-') /* negative value */
-            opd->content.mem.offset.content.val = 0 - strtol(&off_str[1], NULL, 0);
+        if (neg) /* negative value */
+            opd->content.mem.offset.content.val = 0 - strtol(off_str, NULL, 16);
         else
-            opd->content.mem.offset.content.val = strtol(off_str, NULL, 0);
+            opd->content.mem.offset.content.val = strtol(off_str, NULL, 16);
     }
 }
 
@@ -400,38 +401,30 @@ const char *get_x86_reg_str(X86Register reg)
 
 bool x86_instr_test_branch(X86Instruction *instr)
 {
-    if (instr->opc == X86_OPC_JMP
+    if (instr->opc == X86_OPC_CALL || instr->opc == X86_OPC_RET
       || instr->opc == X86_OPC_JA || instr->opc == X86_OPC_JAE
       || instr->opc == X86_OPC_JB || instr->opc == X86_OPC_JBE
       || instr->opc == X86_OPC_JL || instr->opc == X86_OPC_JLE
       || instr->opc == X86_OPC_JG || instr->opc == X86_OPC_JGE
       || instr->opc == X86_OPC_JE || instr->opc == X86_OPC_JNE
-      || instr->opc == X86_OPC_JS || instr->opc == X86_OPC_JNS)
+      || instr->opc == X86_OPC_JS || instr->opc == X86_OPC_JNS
+      || instr->opc == X86_OPC_JMP)
       return true;
     return false;
 }
 
 static inline bool insn_define_cc(X86Opcode opc)
 {
-    if ((opc == X86_OPC_ANDB) || (opc == X86_OPC_ORB) ||
-       (opc == X86_OPC_XORB) || (opc == X86_OPC_ANDW) ||
-       (opc == X86_OPC_ORW)  || (opc == X86_OPC_ANDL) ||
-       (opc == X86_OPC_ORL)  || (opc == X86_OPC_XORL) ||
-       (opc == X86_OPC_NEGL) || (opc == X86_OPC_INCB) ||
-       (opc == X86_OPC_INCL) || (opc == X86_OPC_DECB) ||
-       (opc == X86_OPC_DECW) || (opc == X86_OPC_INCW) ||
-       (opc == X86_OPC_DECL) || (opc == X86_OPC_ADDB) ||
-       (opc == X86_OPC_ADDW) || (opc == X86_OPC_ADDL) ||
-       (opc == X86_OPC_ADCL) || (opc == X86_OPC_SUBL) ||
-       (opc == X86_OPC_SBBL) || (opc == X86_OPC_IMULL) ||
-       (opc == X86_OPC_SHLB) || (opc == X86_OPC_SHRB) ||
-       (opc == X86_OPC_SHLW) || (opc == X86_OPC_SHLL) ||
-       (opc == X86_OPC_SHRL) || (opc == X86_OPC_SARL) ||
-       (opc == X86_OPC_SHLDL)|| (opc == X86_OPC_SHRDL)||
-       (opc == X86_OPC_BTL)  || (opc == X86_OPC_TESTW)||
-       (opc == X86_OPC_TESTB)|| (opc == X86_OPC_CMPB) ||
-       (opc == X86_OPC_CMPW) || (opc == X86_OPC_TESTL)||
-       (opc == X86_OPC_CMPL))
+    if ((opc == X86_OPC_AND) || (opc == X86_OPC_OR) ||
+       (opc == X86_OPC_XOR) || (opc == X86_OPC_SAR) ||
+       (opc == X86_OPC_NEG) || (opc == X86_OPC_INC) ||
+       (opc == X86_OPC_DEC) || (opc == X86_OPC_ADD) ||
+       (opc == X86_OPC_ADC) || (opc == X86_OPC_SUB) ||
+       (opc == X86_OPC_SBB) || (opc == X86_OPC_IMUL) ||
+       (opc == X86_OPC_SHL) || (opc == X86_OPC_SHR) ||
+       (opc == X86_OPC_SHLD)|| (opc == X86_OPC_SHRD)||
+       (opc == X86_OPC_BT)  || (opc == X86_OPC_TEST)||
+       (opc == X86_OPC_CMP))
       return true;
     return false;
 }
@@ -466,13 +459,13 @@ void decide_reg_liveness(int succ_define_cc, X86Instruction *insn_seq)
         /* Check if this instruciton uses any condition code */
         /* 1. Conditional execution */
         switch (insn->opc) {
-            case X86_OPC_CMOVNEL:
+            case X86_OPC_CMOVNE:
             case X86_OPC_SETE:
             case X86_OPC_JE:
             case X86_OPC_JNE:
                 cur_liveness[X86_REG_ZF] = true;
                 break;
-            case X86_OPC_CMOVBL:
+            case X86_OPC_CMOVB:
             case X86_OPC_JAE:
             case X86_OPC_JB:
                 cur_liveness[X86_REG_CF] = true;
@@ -481,13 +474,13 @@ void decide_reg_liveness(int succ_define_cc, X86Instruction *insn_seq)
             case X86_OPC_JNS:
                 cur_liveness[X86_REG_SF] = true;
                 break;
-            case X86_OPC_CMOVAL:
+            case X86_OPC_CMOVA:
             case X86_OPC_JA:
             case X86_OPC_JBE:
                 cur_liveness[X86_REG_CF] = true;
                 cur_liveness[X86_REG_ZF] = true;
                 break;
-            case X86_OPC_CMOVLL:
+            case X86_OPC_CMOVL:
             case X86_OPC_JL:
             case X86_OPC_JGE:
                 cur_liveness[X86_REG_SF] = true;
@@ -503,7 +496,7 @@ void decide_reg_liveness(int succ_define_cc, X86Instruction *insn_seq)
                 fprintf(stderr, "Error: unexpected condition code: %d\n", insn->opc);
         }
         /* 2. Condition code as an operand */
-        if (insn->opc == X86_OPC_ADCL || insn->opc == X86_OPC_SBBL || insn->opc == X86_OPC_BTL)
+        if (insn->opc == X86_OPC_ADC || insn->opc == X86_OPC_SBB || insn->opc == X86_OPC_BT)
             cur_liveness[X86_REG_CF] = true;
 
         /* 3. Update the liveness if this instruciton defines condition code */
@@ -525,122 +518,91 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
     // A normal instruction is the most likely.
     if (DecodeInst->TableInfo->Type == FEXCore::X86Tables::TYPE_INST) [[likely]] {
         if (!strcmp(DecodeInst->TableInfo->Name, "MOV")
-          && ((DecodeInst->OP == 0x88 || DecodeInst->OP == 0x8A)
-          || (DecodeInst->OP >= 0xB0 && DecodeInst->OP <= 0xB7))) {
-            set_x86_instr_opc(instr, X86_OPC_MOVB);
+          && (((DecodeInst->OP >= 0x88 && DecodeInst->OP <= 0x8B) || DecodeInst->OP == 0x8E)
+          || (DecodeInst->OP >= 0xA0 && DecodeInst->OP <= 0xA3)
+          || (DecodeInst->OP >= 0xB0 && DecodeInst->OP <= 0xBF))) {
+            set_x86_instr_opc(instr, X86_OPC_MOV);
         }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "MOV")
-          && ((DecodeInst->OP == 0x89 || DecodeInst->OP == 0x8B)
-          || (DecodeInst->OP >= 0xB8 && DecodeInst->OP <= 0xBF))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_MOVW : X86_OPC_MOVL);
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVZX")
+          && (DecodeInst->OP == 0xB6 || DecodeInst->OP == 0xB7)) {
+            set_x86_instr_opc(instr, X86_OPC_MOVZX);
         }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVZX") && (DecodeInst->OP == 0xB6)) {
-            set_x86_instr_opc(instr, X86_OPC_MOVZBL);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVZX") && (DecodeInst->OP == 0xB7)) {
-            set_x86_instr_opc(instr, X86_OPC_MOVZWL);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSX") && (DecodeInst->OP == 0xBE)) {
-            set_x86_instr_opc(instr, X86_OPC_MOVSBL);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSX") && (DecodeInst->OP == 0xBF)) {
-            set_x86_instr_opc(instr, X86_OPC_MOVSWL);
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSX")
+          && (DecodeInst->OP == 0xBE || DecodeInst->OP == 0xBF)) {
+            set_x86_instr_opc(instr, X86_OPC_MOVSX);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "LEA") && (DecodeInst->OP == 0x8D)) {
-            set_x86_instr_opc(instr, X86_OPC_LEAL);
+            set_x86_instr_opc(instr, X86_OPC_LEA);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "AND")
-          && (DecodeInst->OP == 0x20 || DecodeInst->OP == 0x22 || DecodeInst->OP == 0x24)) {
-            set_x86_instr_opc(instr, X86_OPC_ANDB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "AND")
-          && (DecodeInst->OP == 0x21 || DecodeInst->OP == 0x23 || DecodeInst->OP == 0x25)) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_ANDW : X86_OPC_ANDL);
+          && (DecodeInst->OP >= 0x20 && DecodeInst->OP <= 0x25)) {
+            set_x86_instr_opc(instr, X86_OPC_AND);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "OR")
-          && (DecodeInst->OP == 0x20 || DecodeInst->OP == 0x22 || DecodeInst->OP == 0x24)) {
-            set_x86_instr_opc(instr, X86_OPC_ORB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "OR")
-          && (DecodeInst->OP == 0x21 || DecodeInst->OP == 0x23 || DecodeInst->OP == 0x25)) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_ORW : X86_OPC_ORL);
+          && (DecodeInst->OP >= 0x08 && DecodeInst->OP <= 0x0D)) {
+            set_x86_instr_opc(instr, X86_OPC_OR);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "XOR")
-          && (DecodeInst->OP == 0x30 || DecodeInst->OP == 0x32 || DecodeInst->OP == 0x34)) {
-            set_x86_instr_opc(instr, X86_OPC_XORB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "XOR")
-          && (DecodeInst->OP == 0x31 || DecodeInst->OP == 0x33 || DecodeInst->OP == 0x35)) {
-            set_x86_instr_opc(instr, X86_OPC_XORL);
+          && (DecodeInst->OP >= 0x30 && DecodeInst->OP <= 0x35)) {
+            set_x86_instr_opc(instr, X86_OPC_XOR);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "INC")
-          && (DecodeInst->OP == 0x40)) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_INCW : X86_OPC_INCL);
+          && (DecodeInst->OP >= 0x40 && DecodeInst->OP <= 0x47)) {
+            set_x86_instr_opc(instr, X86_OPC_INC);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "DEC")
-          && (DecodeInst->OP == 0x48)) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_DECW : X86_OPC_DECL);
+          && (DecodeInst->OP == 0x48 && DecodeInst->OP <= 0x4F)) {
+            set_x86_instr_opc(instr, X86_OPC_DEC);
             SingleSrc = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "ADD")
-          && (DecodeInst->OP == 0x00 || DecodeInst->OP == 0x02 || DecodeInst->OP == 0x04)) {
-            set_x86_instr_opc(instr, X86_OPC_ADDB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "ADD")
-          && (DecodeInst->OP == 0x01 || DecodeInst->OP == 0x03 || DecodeInst->OP == 0x05)) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_ADDW : X86_OPC_ADDL);
+          && (DecodeInst->OP >= 0x00 && DecodeInst->OP <= 0x05)) {
+            set_x86_instr_opc(instr, X86_OPC_ADD);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "ADC")
-          && (DecodeInst->OP == 0x11 || DecodeInst->OP == 0x13 || DecodeInst->OP == 0x15)) {
-            set_x86_instr_opc(instr, X86_OPC_ADCL);
+          && (DecodeInst->OP >= 0x10 && DecodeInst->OP <= 0x15)) {
+            set_x86_instr_opc(instr, X86_OPC_ADC);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SUB")
-          && (DecodeInst->OP == 0x29 || DecodeInst->OP == 0x2B || DecodeInst->OP == 0x2D)) {
-            set_x86_instr_opc(instr, X86_OPC_SUBL);
+          && (DecodeInst->OP >= 0x28 && DecodeInst->OP <= 0x2D)) {
+            set_x86_instr_opc(instr, X86_OPC_SUB);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SBB")
-          && (DecodeInst->OP == 0x19 || DecodeInst->OP == 0x1B || DecodeInst->OP == 0x1D)) {
-            set_x86_instr_opc(instr, X86_OPC_SBBL);
+          && (DecodeInst->OP >= 0x18 && DecodeInst->OP <= 0x1D)) {
+            set_x86_instr_opc(instr, X86_OPC_SBB);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "IMUL")
           && (DecodeInst->OP == 0x69 || DecodeInst->OP == 0x6B || DecodeInst->OP == 0xAF)) {
-            set_x86_instr_opc(instr, X86_OPC_IMULL);
+            set_x86_instr_opc(instr, X86_OPC_IMUL);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "BT")
           && (DecodeInst->OP == 0xA3)) {
-            set_x86_instr_opc(instr, X86_OPC_BTL);
+            set_x86_instr_opc(instr, X86_OPC_BT);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "TEST")
-          && (DecodeInst->OP == 0x84)) {
-            set_x86_instr_opc(instr, X86_OPC_TESTB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "TEST")
-          && (DecodeInst->OP == 0x85)) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_TESTW : X86_OPC_TESTL);
+          && (DecodeInst->OP == 0x84 || DecodeInst->OP == 0x85
+          || DecodeInst->OP == 0xA8 || DecodeInst->OP == 0xA9)) {
+            set_x86_instr_opc(instr, X86_OPC_TEST);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "CMP")
-          && (DecodeInst->OP == 0x38 || DecodeInst->OP == 0x3A || DecodeInst->OP == 0x3C)) {
-            set_x86_instr_opc(instr, X86_OPC_CMPB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "CMP")
-          && (DecodeInst->OP == 0x39 || DecodeInst->OP == 0x3B || DecodeInst->OP == 0x3D)) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_CMPW : X86_OPC_CMPL);
+          && (DecodeInst->OP >= 0x38 && DecodeInst->OP <= 0x3D)) {
+            set_x86_instr_opc(instr, X86_OPC_CMP);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "CMOVNZ")
           && (DecodeInst->OP == 0x45)) {
-            set_x86_instr_opc(instr, X86_OPC_CMOVNEL);
+            set_x86_instr_opc(instr, X86_OPC_CMOVNE);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "CMOVNBE")
           && (DecodeInst->OP == 0x47)) {
-            set_x86_instr_opc(instr, X86_OPC_CMOVAL);
+            set_x86_instr_opc(instr, X86_OPC_CMOVA);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "CMOVB")
           && (DecodeInst->OP == 0x42)) {
-            set_x86_instr_opc(instr, X86_OPC_CMOVBL);
+            set_x86_instr_opc(instr, X86_OPC_CMOVB);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "CMOVL")
           && (DecodeInst->OP == 0x4C)) {
-            set_x86_instr_opc(instr, X86_OPC_CMOVLL);
+            set_x86_instr_opc(instr, X86_OPC_CMOVL);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SETZ")
           && (DecodeInst->OP == 0x94)) {
@@ -727,97 +689,81 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
 #define OPD(group, prefix, Reg) (((group - FEXCore::X86Tables::TYPE_GROUP_1) << 6) | (prefix) << 3 | (Reg))
 
         if (!strcmp(DecodeInst->TableInfo->Name, "MOV")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_11, FEXCore::X86Tables::OpToIndex(0xC6), 0))) {
-            set_x86_instr_opc(instr, X86_OPC_MOVB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "MOV")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_11, FEXCore::X86Tables::OpToIndex(0xC7), 0))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_MOVW : X86_OPC_MOVL);
+          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_11, FEXCore::X86Tables::OpToIndex(0xC6), 0)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_11, FEXCore::X86Tables::OpToIndex(0xC7), 0))) {
+            set_x86_instr_opc(instr, X86_OPC_MOV);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "NOT")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 2))) {
-            set_x86_instr_opc(instr, X86_OPC_NOTL);
+            set_x86_instr_opc(instr, X86_OPC_NOT);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "NEG")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 3))) {
-            set_x86_instr_opc(instr, X86_OPC_NEGL);
+            set_x86_instr_opc(instr, X86_OPC_NEG);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "AND")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 4)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 4))) {
-            set_x86_instr_opc(instr, X86_OPC_ANDB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "AND")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 4)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 4)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 4)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 4))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_ANDW : X86_OPC_ANDL);
+            set_x86_instr_opc(instr, X86_OPC_AND);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "OR")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 1)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 1))) {
-            set_x86_instr_opc(instr, X86_OPC_ORB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "OR")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 1)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 1)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 1)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 1))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_ORW : X86_OPC_ORL);
+            set_x86_instr_opc(instr, X86_OPC_OR);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "XOR")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 6)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 6))) {
-            set_x86_instr_opc(instr, X86_OPC_XORB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "XOR")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 6)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 6)
+          ||DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 6)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 6))) {
-            set_x86_instr_opc(instr, X86_OPC_XORL);
+            set_x86_instr_opc(instr, X86_OPC_XOR);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "INC")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_4, FEXCore::X86Tables::OpToIndex(0xFE), 0))) {
-            set_x86_instr_opc(instr, X86_OPC_INCB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "INC")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_5, FEXCore::X86Tables::OpToIndex(0xFF), 0))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_INCW : X86_OPC_INCL);
+          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_4, FEXCore::X86Tables::OpToIndex(0xFE), 0)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_5, FEXCore::X86Tables::OpToIndex(0xFF), 0))) {
+            set_x86_instr_opc(instr, X86_OPC_INC);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "DEC")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_4, FEXCore::X86Tables::OpToIndex(0xFE), 1))) {
-            set_x86_instr_opc(instr, X86_OPC_DECB);
-            SingleSrc = true;
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "DEC")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_5, FEXCore::X86Tables::OpToIndex(0xFF), 1))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_DECW : X86_OPC_DECL);
+          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_4, FEXCore::X86Tables::OpToIndex(0xFE), 1)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_5, FEXCore::X86Tables::OpToIndex(0xFF), 1))) {
+            set_x86_instr_opc(instr, X86_OPC_DEC);
             SingleSrc = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "ADD")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 0)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 0))) {
-            set_x86_instr_opc(instr, X86_OPC_ANDB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "ADD")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 0)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 0)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 0)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 0))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_ANDW : X86_OPC_ANDL);
+            set_x86_instr_opc(instr, X86_OPC_ADD);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "ADC")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 2)
+          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 2)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 2)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 2)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 2))) {
-            set_x86_instr_opc(instr, X86_OPC_ADCL);
+            set_x86_instr_opc(instr, X86_OPC_ADC);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SUB")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 5)
+          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 5)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 5)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 5)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 5))) {
-            set_x86_instr_opc(instr, X86_OPC_SUBL);
+            set_x86_instr_opc(instr, X86_OPC_SUB);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SBB")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 3)
+          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 3)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 3)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 3)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 3))) {
-            set_x86_instr_opc(instr, X86_OPC_SUBL);
+            set_x86_instr_opc(instr, X86_OPC_SBB);
         }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "IMULL")
+        else if (!strcmp(DecodeInst->TableInfo->Name, "IMUL")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 5))) {
-            set_x86_instr_opc(instr, X86_OPC_IMULL);
+            set_x86_instr_opc(instr, X86_OPC_IMUL);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SHL")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC0), 4)
@@ -825,55 +771,46 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD0), 4)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD0), 6)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD2), 4)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD2), 6))) {
-            set_x86_instr_opc(instr, X86_OPC_SHLB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "SHL")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC1), 4)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD2), 6)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC1), 4)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC1), 6)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD1), 4)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD1), 6)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD3), 4)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD3), 6))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_SHLW : X86_OPC_SHLL);
+            set_x86_instr_opc(instr, X86_OPC_SHL);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SHR")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC0), 5)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD0), 5)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD2), 5))) {
-            set_x86_instr_opc(instr, X86_OPC_SHRB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "SHR")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC1), 5)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD2), 5)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC1), 5)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD1), 5)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD3), 5))) {
-            set_x86_instr_opc(instr, X86_OPC_SHRL);
+            set_x86_instr_opc(instr, X86_OPC_SHR);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SAR")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC1), 7)
+          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC0), 7)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD0), 7)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD2), 7)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC1), 7)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD1), 7)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD3), 7))) {
-            set_x86_instr_opc(instr, X86_OPC_SARL);
+            set_x86_instr_opc(instr, X86_OPC_SAR);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "TEST")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF6), 0)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF6), 1))) {
-            set_x86_instr_opc(instr, X86_OPC_TESTB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "TEST")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 0)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF6), 1)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 0)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 1))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_TESTW : X86_OPC_TESTL);
+            set_x86_instr_opc(instr, X86_OPC_TEST);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "CMP")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 7)
-          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 7))) {
-            set_x86_instr_opc(instr, X86_OPC_CMPB);
-        }
-        else if (!strcmp(DecodeInst->TableInfo->Name, "CMP")
-          && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 7)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x82), 7)
+          || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x81), 7)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x83), 7))) {
-            set_x86_instr_opc(instr, DecodeInst->LastEscapePrefix == 0x66 ? X86_OPC_CMPW : X86_OPC_CMPL);
+            set_x86_instr_opc(instr, X86_OPC_CMP);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "JMP")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_5, FEXCore::X86Tables::OpToIndex(0xFF), 4))) {
@@ -896,15 +833,20 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         // TYPE_VEX_TABLE_PREFIX
 #define OPD(map_select, pp, opcode) (((map_select - 1) << 10) | (pp << 8) | (opcode))
         if (!strcmp(DecodeInst->TableInfo->Name, "SHLX") && (DecodeInst->OP == OPD(2, 0b01, 0xF7))) {
-            set_x86_instr_opc(instr, X86_OPC_SHLDL);
+            set_x86_instr_opc(instr, X86_OPC_SHLD);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SHRX") && (DecodeInst->OP == OPD(2, 0b11, 0xF7))) {
-            set_x86_instr_opc(instr, X86_OPC_SHRDL);
+            set_x86_instr_opc(instr, X86_OPC_SHRD);
         }
 #undef OPD
     }
 
-    int num = 0, count = 0;
+    uint32_t SrcSize = FEXCore::X86Tables::DecodeFlags::GetSizeSrcFlags(DecodeInst->Flags);
+    uint32_t DestSize = FEXCore::X86Tables::DecodeFlags::GetSizeDstFlags(DecodeInst->Flags);
+
+    set_x86_instr_opd_size(instr, SrcSize, DestSize);
+
+    uint8_t num = 0, count = 0;
     FEXCore::X86Tables::DecodedOperand *Opd = &DecodeInst->Dest;
 
     while(Opd) {
@@ -915,13 +857,14 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
           LogMan::Msg::IFmt( "====Operand Num: 0x{:x}", num+1);
           if (Opd->IsGPR()){
               uint8_t GPR = Opd->Data.GPR.GPR;
+              bool HighBits = Opd->Data.GPR.HighBits;
 
               LogMan::Msg::IFmt( "     GPR: 0x{:x}", GPR);
 
               if(GPR <= FEXCore::X86State::REG_R15)
-                set_x86_instr_opd_reg(instr, num, GPR);
+                set_x86_instr_opd_reg(instr, num, GPR, HighBits);
               else
-                set_x86_instr_opd_reg(instr, num, 0x10);
+                set_x86_instr_opd_reg(instr, num, 0x10, false);
           }
           else if(Opd->IsRIPRelative()){
               uint32_t Literal = Opd->Data.RIPLiteral.Value.u;
@@ -986,11 +929,9 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
       }
     }
 
-    if (instr->opc == X86_OPC_CMPB || instr->opc == X86_OPC_CMPW || instr->opc == X86_OPC_CMPL) {
-      if(num == 3) {
-        instr->opd[1] = instr->opd[2];
-        num--;
-      }
+    if ((instr->opc == X86_OPC_CMP || instr->opc == X86_OPC_ADD) && (num == 3)) {
+      instr->opd[1] = instr->opd[2];
+      num--;
     }
 
     set_x86_instr_opd_num(instr, num);

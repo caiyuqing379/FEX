@@ -61,6 +61,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 {
     X86Operand *opd = &instr->opd[opd_idx];
     char fc = line[idx];
+    uint32_t OpdSize = 4;
 
     if (fc == '$') {
         /* Immediate Operand */
@@ -96,51 +97,79 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
             strncat(reg_str, &line[idx++], 1);
 
         set_x86_opd_type(opd, X86_OPD_TYPE_REG);
-        set_x86_opd_reg_str(opd, reg_str);
-    } else if (fc == 'i' || fc == '(' || fc == '-' || isdigit(fc)) {
+        set_x86_opd_reg_str(opd, reg_str, &OpdSize);
+    } else if (fc == 'b' || fc == 'w' || fc == 'd' || fc == 'q' || fc == '[') {
         /* Memory operand with or without offset (imm_XXX) */
         char reg_str[10] = "\0";
 
         set_x86_opd_type(opd, X86_OPD_TYPE_MEM);
-        if (fc == 'i' || fc == '-' || isdigit(fc) ||
-            (fc == '(' && line[idx+1] != 'r' && line[idx+1] != 't')) { // parse offset
-            char off_str[20] = "\0";
-            if (fc == '(')
-                idx++;
-            while(line[idx] != '(' && line[idx] != ')')
-                strncat(off_str, &line[idx++], 1);
-            if (line[idx] == ')')
-                idx++;
-            set_x86_opd_mem_off_str(opd, off_str);
+        if (fc == 'b' || fc == 'w') {
+            idx += 4;
+            if (fc == 'b')
+              OpdSize = 1;
+            else
+              OpdSize = 2;
+        } else if ((fc == 'd' || fc == 'q') && line[idx+1] == 'w') {
+            idx += 5;
+            if (fc == 'd')
+              OpdSize = 3;
+            else
+              OpdSize = 4;
+        } else
+            OpdSize = 4;
+
+        if (line[idx] == ' ') {
+          idx++; // skip ' '
+          fc = line[idx];
         }
-        idx++; // skip '('
-        if (line[idx] == 't')
-            has_temp_register = true;
-        while (line[idx] != ',' && line[idx] != ')' && line[idx] != '\n')
-            strncat(reg_str, &line[idx++], 1);
-        set_x86_opd_mem_base_str(opd, reg_str);
-        if (line[idx] == ',') {// have index register
-            char index_str[10] = "\0";
-            idx += 2; // skip , and space
-            if (line[idx] == 't')
-                has_temp_register = true;
-            while(line[idx] != ',' && line[idx] != ')' && line[idx] != '\n')
-                strncat(index_str, &line[idx++], 1);
-            set_x86_opd_mem_index_str(opd, index_str);
+
+        if (fc == '[') {
+            idx+=2; // skip '[ '
+            while (line[idx] != ' ')
+                strncat(reg_str, &line[idx++], 1);
+            set_x86_opd_mem_base_str(opd, reg_str);
+
+            idx++; // skip ' '
+            fc = line[idx];
+            if (fc == '+' || fc == '-') {
+                if (fc == '+' && line[idx+2] == 'r') { // have index register
+                    char index_str[10] = "\0";
+                    idx+=2;
+                    while(line[idx] != ' ')
+                      strncat(index_str, &line[idx++], 1);
+                    idx++;
+                    set_x86_opd_mem_index_str(opd, index_str);
+
+                    if (line[idx] == '*') { // have scale value
+                      char scale_str[20] = "\0";
+                      idx+=2;
+                      while(line[idx] != ' ')
+                        strncat(scale_str, &line[idx++], 1);
+                      idx++;
+                      set_x86_opd_mem_scale_str(opd, scale_str);
+                    }
+                }
+                if (line[idx] == '+' || line[idx] == '-') {
+                    char off_str[20] = "\0"; // parse offset
+                    bool neg = line[idx] == '-' ? true : false;
+                    idx+=2;
+                    while(line[idx] != ' ')
+                        strncat(off_str, &line[idx++], 1);
+                    idx++;
+                    set_x86_opd_mem_off_str(opd, off_str, neg);
+                }
+            }
         }
-        if (line[idx] == ',') { // have scale value
-            char scale_str[20] = "\0";
-            idx += 2; // skip , and space
-            if (line[idx] == '(') // this is an expression
-                idx ++;
-            while(line[idx] != ',' && line[idx] != ')' && line[idx] != '\n')
-                strncat(scale_str, &line[idx++], 1);
-            set_x86_opd_mem_scale_str(opd, scale_str);
-        }
-        while (line[idx] == ')')
-            idx++;
+
+        while (line[idx] == ']')
+          idx++;
     } else
         fprintf(stderr, "Error in parsing x86 operand: unknown operand type at idx %d char %c in line: %s", idx, line[idx], line);
+
+    if (!opd_idx)
+        instr->DestSize = OpdSize;
+    else
+        instr->SrcSize = OpdSize;
 
     if (line[idx] == ',')
         return idx+2;
@@ -154,8 +183,10 @@ static X86Instruction *parse_rule_x86_instruction(char *line, uint64_t pc)
     int opd_idx;
     int i;
 
-    // LogMan::Msg::IFmt( "============== parsing x86 line: {}\n", line);
     i = parse_rule_x86_opcode(line, instr);
+
+    if (instr->opc == X86_OPC_RET)
+      set_x86_instr_opd_size(instr, 4, 4);
 
     opd_idx = 0;
     while(line[i] != '\n')
@@ -182,15 +213,6 @@ void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
             fseek(fp, (0-strlen(line)), SEEK_CUR);
             break;
         }
-        // if (strstr(line, "Context")) {
-        //     if(fgets(line, 500, fp)) {
-        //         char inter_regs[50] = "";
-        //         rule->intermediate_regs = strcpy(inter_regs, line);
-        //         ret = true;
-        //         // LogMan::Msg::IFmt( "{}\n", rule->intermediate_regs);
-        //         continue;
-        //     }
-        // }
 
         // if (!strcmp(line, "\n"))
         //     break;
@@ -214,7 +236,7 @@ void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
         ret = false;
 
 
-    LogMan::Msg::IFmt( "\n**** Guest {} ****\n", rule->index);
+    LogMan::Msg::IFmt( "**** Guest {} ****", rule->index);
     print_x86_instr_seq(code_head);
 
     rule->x86_guest = code_head;

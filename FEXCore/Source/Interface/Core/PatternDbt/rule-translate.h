@@ -31,16 +31,16 @@ typedef struct LabelMapping {
 } LabelMapping;
 
 typedef struct {
-    uint64_t pc; /* Simulated guest pc */
-    uint64_t target_pc; /* Branch target pc.
+    uint64_t pc;            /* Simulated guest pc */
+    uint64_t target_pc;     /* Branch target pc.
                                Only valid if the last instruction of current tb is not branch
                                and covered by this rule */
-    TranslationRule *rule; /* Translation rule for this instruction sequence.
-                              Only valid at the first instruction */
+    TranslationRule *rule;  /* Translation rule for this instruction sequence.
+                               Only valid at the first instruction */
     int icount;             /* Number of guest instructions matched by this rule */
-    uint64_t next_pc;  /* Guest pc after this rule record */
-    bool update_cc;        /* If guest instructions in this rule update condition codes */
-    bool save_cc;          /* If the condition code needs to be saved */
+    uint64_t next_pc;       /* Guest pc after this rule record */
+    bool update_cc;         /* If guest instructions in this rule update condition codes */
+    bool save_cc;           /* If the condition code needs to be saved */
     ImmMapping *imm_map;
     GuestRegisterMapping *g_reg_map;
     LabelMapping *l_map;
@@ -59,7 +59,7 @@ void remove_guest_instruction(FEXCore::Frontend::Decoder::DecodedBlocks *, uint6
 void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *);
 void do_rule_translation(RuleRecord *, uint32_t *);
 
-void get_label_map(char *, int64_t *, uint64_t *);
+void get_label_map(char *, uint64_t *, uint64_t *);
 uint64_t get_imm_map(char *);
 int32_t get_offset_map(char *);
 X86Register get_guest_reg_map(ARMRegister);

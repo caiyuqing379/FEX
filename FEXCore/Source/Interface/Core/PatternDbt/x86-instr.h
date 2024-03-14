@@ -37,68 +37,42 @@ typedef enum {
 typedef enum {
     X86_OPC_INVALID = 0,
 
-    X86_OPC_MOVB,
-    X86_OPC_MOVZBL,
-    X86_OPC_MOVSBL,
-    X86_OPC_MOVW,
-    X86_OPC_MOVZWL,
-    X86_OPC_MOVSWL,
-    X86_OPC_MOVL,
+    X86_OPC_MOVZX,
+    X86_OPC_MOVSX,
+    X86_OPC_MOV,
+    X86_OPC_LEA,
 
-    X86_OPC_LEAL,
+    X86_OPC_NOT,
+    X86_OPC_AND,
+    X86_OPC_OR,
+    X86_OPC_XOR,
+    X86_OPC_NEG,
 
-    X86_OPC_NOTL,
+    X86_OPC_INC,
+    X86_OPC_DEC,
+    X86_OPC_ADD,
+    X86_OPC_ADC,
+    X86_OPC_SUB,
+    X86_OPC_SBB,
+	X86_OPC_MULL,
+    X86_OPC_IMUL,
 
-    X86_OPC_ANDB,
-    X86_OPC_ORB,
-    X86_OPC_XORB,
-    X86_OPC_ANDW,
-    X86_OPC_ORW,
-    X86_OPC_ANDL,
-    X86_OPC_ORL,
-    X86_OPC_XORL,
-    X86_OPC_NEGL,
+    X86_OPC_SHL,
+    X86_OPC_SHR,
+    X86_OPC_SAR,
+    X86_OPC_SHLD,
+    X86_OPC_SHRD,
 
-    X86_OPC_INCB,
-    X86_OPC_INCL,
-    X86_OPC_DECB,
-    X86_OPC_DECW,
-    X86_OPC_INCW,
-    X86_OPC_DECL,
+    X86_OPC_BT,
+    X86_OPC_TEST,
+    X86_OPC_CMP,
 
-    X86_OPC_ADDB,
-    X86_OPC_ADDW,
-    X86_OPC_ADDL,
-    X86_OPC_ADCL,
-    X86_OPC_SUBL,
-    X86_OPC_SBBL,
-
-    X86_OPC_IMULL,
-
-    X86_OPC_SHLB,
-    X86_OPC_SHRB,
-    X86_OPC_SHLW,
-    X86_OPC_SHLL,
-    X86_OPC_SHRL,
-    X86_OPC_SARL,
-    X86_OPC_SHLDL,
-    X86_OPC_SHRDL,
-
-    X86_OPC_BTL,
-    X86_OPC_TESTW,
-    X86_OPC_TESTB,
-    X86_OPC_CMPB,
-    X86_OPC_CMPW,
-    X86_OPC_TESTL,
-    X86_OPC_CMPL,
-
-    X86_OPC_CMOVNEL,
-    X86_OPC_CMOVAL,
-    X86_OPC_CMOVBL,
-    X86_OPC_CMOVLL,
+    X86_OPC_CMOVNE,
+    X86_OPC_CMOVA,
+    X86_OPC_CMOVB,
+    X86_OPC_CMOVL,
 
     X86_OPC_SETE,
-
     X86_OPC_CWT,
 
     X86_OPC_JMP,
@@ -119,12 +93,6 @@ typedef enum {
 
     X86_OPC_SET_LABEL, // fake instruction to generate label
 
-    X86_OPC_SYNC_M,
-    X86_OPC_SYNC_R,
-	X86_OPC_PC_IR,
-    X86_OPC_PC_RR,
-	X86_OPC_MULL,
-
     //parameterized opcode
     X86_OPC_OP1,
     X86_OPC_OP2,
@@ -142,6 +110,7 @@ typedef enum {
     X86_OPC_END
 } X86Opcode;
 
+// x86 imm operand
 typedef enum{
     X86_IMM_TYPE_NONE = 0,
     X86_IMM_TYPE_VAL,
@@ -158,19 +127,21 @@ typedef struct {
 
 typedef X86Imm X86ImmOperand;
 
+// x86 reg operand
 typedef struct {
+    bool HighBits;
     X86Register num;
 } X86RegOperand;
 
+// x86 mem operand
 typedef struct {
-    X86Register segment; /* not used now */
-
     X86Register base;
     X86Register index;
     X86Imm scale;
     X86Imm offset;
 } X86MemOperand;
 
+// x86 operand
 typedef enum {
     X86_OPD_TYPE_NONE = 0,
     X86_OPD_TYPE_IMM,
@@ -180,7 +151,6 @@ typedef enum {
 
 typedef struct {
     X86OperandType type;
-
     union {
         X86ImmOperand imm;
         X86RegOperand reg;
@@ -193,8 +163,10 @@ typedef struct X86Instruction {
 
     X86Opcode opc;      /* Opcode of this instruction */
     X86Operand opd[X86_MAX_OPERAND_NUM];    /* Operands of this instruction */
-    uint32_t opd_num;   /* number of operands of this instruction */
+    uint8_t opd_num;     /* number of operands of this instruction */
 
+    uint32_t SrcSize;
+    uint32_t DestSize;
     size_t InstSize; /* size of operands: 1, 2, or 4 bytes */
 
     struct X86Instruction *prev; /* previous instruction in this block */
@@ -203,7 +175,7 @@ typedef struct X86Instruction {
     bool reg_liveness[X86_REG_NUM]; /* liveness of each register after this instruction.
                                        True: this register will be used
                                        False: this regsiter will not be used
-                                   Currently, we only maitain this for the four condition codes */
+                                    Currently, we only maitain this for the four condition codes */
     bool save_cc;   /* If this instruction defines conditon code, save_cc indicates if it is necessary to
                         save the condition code when do rule translation. */
 } X86Instruction;
@@ -221,12 +193,13 @@ void print_x86_instr_seq(X86Instruction *instr_seq);
 
 void set_x86_instr_opc(X86Instruction *instr, X86Opcode opc);
 void set_x86_instr_opc_str(X86Instruction *instr, char *opc_str);
-void set_x86_instr_opd_num(X86Instruction *instr, uint32_t num);
+void set_x86_instr_opd_num(X86Instruction *instr, uint8_t num);
+void set_x86_instr_opd_size(X86Instruction *instr, uint32_t SrcSize, uint32_t DestSize);
 void set_x86_instr_size(X86Instruction *instr, size_t size);
 
 void set_x86_instr_opd_type(X86Instruction *instr, int opd_index, X86OperandType type);
 void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint64_t val);
-void set_x86_instr_opd_reg(X86Instruction *instr, int opd_index, int regno);
+void set_x86_instr_opd_reg(X86Instruction *instr, int opd_index, int regno, bool HighBits);
 void set_x86_instr_opd_mem_base(X86Instruction *instr, int opd_index, int regno);
 void set_x86_instr_opd_mem_off(X86Instruction *instr, int opd_index, int32_t offset);
 void set_x86_instr_opd_mem_scale(X86Instruction *instr, int opd_index, uint8_t scale);
@@ -235,13 +208,13 @@ void set_x86_instr_opd_mem_index(X86Instruction *instr, int opd_index, int regno
 void set_x86_opd_type(X86Operand *opd, X86OperandType type);
 void set_x86_opd_imm_val_str(X86Operand *opd, char *imm_str);
 void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str);
-void set_x86_opd_reg_str(X86Operand *opd, char *reg_str);
+void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize);
 
 void set_x86_opd_mem_off(X86Operand *, int32_t val);
 void set_x86_opd_mem_base_str(X86Operand *opd, char *reg_str);
 void set_x86_opd_mem_index_str(X86Operand *, char *);
 void set_x86_opd_mem_scale_str(X86Operand *, char *);
-void set_x86_opd_mem_off_str(X86Operand *opd, char *off_str);
+void set_x86_opd_mem_off_str(X86Operand *opd, char *off_str, bool neg);
 
 const char *get_x86_reg_str(X86Register );
 bool x86_instr_test_branch(X86Instruction *instr);

@@ -135,14 +135,13 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
         set_arm_instr_opd_type(instr, opd_idx, ARM_OPD_TYPE_MEM);
         set_arm_instr_opd_mem_base_str(instr, opd_idx, reg_str);
 
-        //post-index
+        // post-index
         if ((line[idx] == ']') && (line[idx+1] == ',')){
-                set_arm_instr_opd_mem_index_type(instr, opd_idx, ARM_MEM_INDEX_TYPE_POST);
-                idx++;
+            set_arm_instr_opd_mem_index_type(instr, opd_idx, ARM_MEM_INDEX_TYPE_POST);
+            idx++;
         }
 
         if (line[idx] == ',') {
-
             idx += 2;
 
             if (line[idx] == '#') { /* This is an immediate offset (#imm_xxx symbolic chars) */
@@ -256,6 +255,25 @@ bool parse_rule_arm_code(FILE *fp, TranslationRule *rule)
             break;
         }
 
+        // if (strstr(line, "Condition Code")) {
+        //     int i;
+        //     for(i = 0; i < 4; i++) {
+        //         if (fgets(line, 500, fp)) {
+        //             if (strstr(line, "none"))
+        //                 rule->x86_cc_mapping[i] = 0;
+        //             else if (strstr(line, "arm")) {
+        //                 rule->x86_cc_mapping[i] = 1;
+        //                 if (strstr(line, "!"))
+        //                     rule->x86_cc_mapping[i] = 2;
+        //             }
+        //         } else {
+        //             fprintf(stderr, "Error to parse condition code mapping, exit.\n");
+        //             exit(-1);
+        //         }
+        //     }
+        //     continue;
+        // }
+
         /* check if this line is a comment */
         char fs = line[0];
         if (fs == '#')
@@ -270,7 +288,7 @@ bool parse_rule_arm_code(FILE *fp, TranslationRule *rule)
         pc += 4; // fake value
     }
 
-    LogMan::Msg::IFmt( "\n\n**** Host {} ****\n", rule->index);
+    LogMan::Msg::IFmt( "**** Host {} ****", rule->index);
     print_arm_instr_seq(code_head);
 
     rule->arm_host = code_head;

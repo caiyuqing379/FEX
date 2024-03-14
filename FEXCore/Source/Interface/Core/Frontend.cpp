@@ -586,8 +586,8 @@ bool Decoder::NormalOp(FEXCore::X86Tables::X86InstInfo const *Info, uint16_t Op,
     DecodeInst->Src[CurrentSrc].Data.Literal.Value = Literal;
   }
 
-  LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} '{}' Had an instruction of size {} with {} remaining",
-              DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
+  LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} 0x{:08x} '{}' Had an instruction of size {} with {} remaining",
+              DecodeInst->PC, DecodeInst->OP,  DecodeInst->Flags, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
 
   DecodeInstToX86Inst(DecodeInst, x86_instr);
 

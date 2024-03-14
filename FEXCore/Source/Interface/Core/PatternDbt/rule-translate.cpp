@@ -17,59 +17,38 @@
 #define MAX_HOST_RULE_INSTR_LEN 1000
 
 static const ARMOpcode X862ARM[] = {
-    [X86_OPC_MOVB]   = ARM_OPC_INVALID,
-    [X86_OPC_MOVZBL] = ARM_OPC_LDRB,
-    [X86_OPC_MOVSBL] = ARM_OPC_LDRSB,
-    [X86_OPC_MOVW]   = ARM_OPC_INVALID,
-    [X86_OPC_MOVZWL] = ARM_OPC_LDRH,
-    [X86_OPC_MOVSWL] = ARM_OPC_LDRSH,
-    [X86_OPC_MOVL]   = ARM_OPC_INVALID,
-    [X86_OPC_LEAL]   = ARM_OPC_MOV,
-    [X86_OPC_NOTL]   = ARM_OPC_MVN,
-    [X86_OPC_ANDB]   = ARM_OPC_ANDS,
-    [X86_OPC_ORB]    = ARM_OPC_ORR,
-    [X86_OPC_XORB]   = ARM_OPC_EOR,
-    [X86_OPC_ANDW]   = ARM_OPC_ANDS,
-    [X86_OPC_ORW]    = ARM_OPC_ORR,
-    [X86_OPC_ANDL]   = ARM_OPC_ANDS,
-    [X86_OPC_ORL]    = ARM_OPC_ORR,
-    [X86_OPC_XORL]   = ARM_OPC_EOR,
-    [X86_OPC_NEGL]   = ARM_OPC_INVALID,
-    [X86_OPC_INCB]   = ARM_OPC_ADDS,
-    [X86_OPC_INCL]   = ARM_OPC_ADDS,
-    [X86_OPC_DECB]   = ARM_OPC_SUBS,
-    [X86_OPC_DECW]   = ARM_OPC_SUBS,
-    [X86_OPC_INCW]   = ARM_OPC_ADDS,
-    [X86_OPC_DECL]   = ARM_OPC_SUBS,
+    [X86_OPC_MOV]   = ARM_OPC_INVALID,
+    [X86_OPC_MOVZX] = ARM_OPC_LDRB,
+    [X86_OPC_MOVSX] = ARM_OPC_LDRSB,
+    [X86_OPC_LEA]   = ARM_OPC_MOV,
+    [X86_OPC_NOT]   = ARM_OPC_MVN,
+    [X86_OPC_AND]   = ARM_OPC_ANDS,
+    [X86_OPC_OR]    = ARM_OPC_ORR,
+    [X86_OPC_XOR]   = ARM_OPC_EOR,
+    [X86_OPC_NEG]   = ARM_OPC_INVALID,
+    [X86_OPC_INC]   = ARM_OPC_ADDS,
+    [X86_OPC_DEC]   = ARM_OPC_SUBS,
 
-    [X86_OPC_ADDB]   = ARM_OPC_ADDS,
-    [X86_OPC_ADDW]   = ARM_OPC_ADDS,
-    [X86_OPC_ADDL]   = ARM_OPC_ADDS,
-    [X86_OPC_ADCL]   = ARM_OPC_ADCS,
-    [X86_OPC_SUBL]   = ARM_OPC_SUBS,
-    [X86_OPC_SBBL]   = ARM_OPC_SBCS,
-    [X86_OPC_IMULL]  = ARM_OPC_MUL,
-    [X86_OPC_SHLB]   = ARM_OPC_LSL,
-    [X86_OPC_SHRB]   = ARM_OPC_LSR,
-    [X86_OPC_SHLW]   = ARM_OPC_LSL,
-    [X86_OPC_SHLL]   = ARM_OPC_LSL,
-    [X86_OPC_SHRL]   = ARM_OPC_LSR,
-    [X86_OPC_SARL]   = ARM_OPC_ASR,
-    [X86_OPC_SHLDL]  = ARM_OPC_LSL,
-    [X86_OPC_SHRDL]  = ARM_OPC_LSR,
+    [X86_OPC_ADD]   = ARM_OPC_ADDS,
+    [X86_OPC_ADC]   = ARM_OPC_ADCS,
+    [X86_OPC_SUB]   = ARM_OPC_SUBS,
+    [X86_OPC_SBB]   = ARM_OPC_SBCS,
+	[X86_OPC_MULL]  = ARM_OPC_UMULL,
+    [X86_OPC_IMUL]  = ARM_OPC_MUL,
+    [X86_OPC_SHL]   = ARM_OPC_LSL,
+    [X86_OPC_SHR]   = ARM_OPC_LSR,
+    [X86_OPC_SAR]   = ARM_OPC_ASR,
+    [X86_OPC_SHLD]  = ARM_OPC_LSL,
+    [X86_OPC_SHRD]  = ARM_OPC_LSR,
 
-    [X86_OPC_BTL]    = ARM_OPC_INVALID,
-    [X86_OPC_TESTW]  = ARM_OPC_ANDS,
-    [X86_OPC_TESTB]  = ARM_OPC_ANDS,
-    [X86_OPC_CMPB]   = ARM_OPC_CMP,
-    [X86_OPC_CMPW]   = ARM_OPC_CMP,
-    [X86_OPC_TESTL]  = ARM_OPC_ANDS,
-    [X86_OPC_CMPL]   = ARM_OPC_CMP,
+    [X86_OPC_BT]    = ARM_OPC_INVALID,
+    [X86_OPC_TEST]  = ARM_OPC_ANDS,
+    [X86_OPC_CMP]   = ARM_OPC_CMP,
 
-    [X86_OPC_CMOVNEL]= ARM_OPC_MOV,
-    [X86_OPC_CMOVAL] = ARM_OPC_MOV,
-    [X86_OPC_CMOVBL] = ARM_OPC_MOV,
-    [X86_OPC_CMOVLL] = ARM_OPC_MOV,
+    [X86_OPC_CMOVNE]= ARM_OPC_MOV,
+    [X86_OPC_CMOVA] = ARM_OPC_MOV,
+    [X86_OPC_CMOVB] = ARM_OPC_MOV,
+    [X86_OPC_CMOVL] = ARM_OPC_MOV,
     [X86_OPC_SETE]   = ARM_OPC_INVALID,
     [X86_OPC_CWT]    = ARM_OPC_INVALID,
 
@@ -93,11 +72,6 @@ static const ARMOpcode X862ARM[] = {
     [X86_OPC_RET]    = ARM_OPC_INVALID,
 
     [X86_OPC_SET_LABEL] = ARM_OPC_INVALID, // fake instruction to generate label
-    [X86_OPC_SYNC_M] = ARM_OPC_INVALID,
-    [X86_OPC_SYNC_R] = ARM_OPC_INVALID,
-	[X86_OPC_PC_IR]  = ARM_OPC_INVALID,
-    [X86_OPC_PC_RR]  = ARM_OPC_INVALID,
-	[X86_OPC_MULL]   = ARM_OPC_UMULL,
 };
 
 
@@ -204,7 +178,7 @@ static inline void add_matched_para_pc(uint64_t pc)
 }
 
 
-static bool match_label(char *lab_str, int64_t t, uint64_t f)
+static bool match_label(char *lab_str, uint64_t t, uint64_t f)
 {
     LabelMapping *lmap = l_map;
 
@@ -237,18 +211,15 @@ static bool match_register(X86Register greg, X86Register rreg)
     if (greg == X86_REG_INVALID && rreg == X86_REG_INVALID)
         return true;
 
-    if (greg == X86_REG_INVALID || rreg == X86_REG_INVALID)
-    {
+    if (greg == X86_REG_INVALID || rreg == X86_REG_INVALID) {
         if (debug)
             LogMan::Msg::IFmt( "Unmatch reg: invalid reg\n");
         return false;
     }
 
     /* check if we already have this map */
-    while (gmap)
-    {
-        if (gmap->sym != rreg)
-        {
+    while (gmap) {
+        if (gmap->sym != rreg) {
             gmap = gmap->next;
             continue;
         }
@@ -259,10 +230,8 @@ static bool match_register(X86Register greg, X86Register rreg)
 
     /* check if this guest register has another map */
     gmap = g_reg_map;
-    while (gmap)
-    {
-        if (gmap->num != greg)
-        {
+    while (gmap) {
+        if (gmap->num != greg) {
             gmap = gmap->next;
             continue;
         }
@@ -290,9 +259,9 @@ static bool match_imm(uint64_t val, char *sym)
     ImmMapping *imap = imm_map;
 
     while(imap) {
-        if (strcmp(sym, imap->imm_str)) {
+        if (!strcmp(sym, imap->imm_str)) {
             if (debug && (val != imap->imm_val))
-                LogMan::Msg::IFmt( "Unmatch imm: symbol map conflict {} {}\n", imap->imm_val, val);
+                LogMan::Msg::IFmt( "Unmatch imm: symbol map conflict {} {}", imap->imm_val, val);
             return (val == imap->imm_val);
         }
 
@@ -304,7 +273,7 @@ static bool match_imm(uint64_t val, char *sym)
     while(imap) {
         if (imap->imm_val == val){
             if (debug)
-                LogMan::Msg::IFmt( "Unmatch imm: another symbol map {}\n", val);
+                LogMan::Msg::IFmt( "Unmatch imm: another symbol map {}", val);
             return false;
         }
 
@@ -331,7 +300,7 @@ static bool match_scale(X86Imm *gscale, X86Imm *rscale)
 
     if (rscale->type == X86_IMM_TYPE_VAL){
         if (debug && (gscale->content.val != rscale->content.val))
-            LogMan::Msg::IFmt( "Unmatch scale value: {} {}\n", gscale->content.val, rscale->content.val);
+            LogMan::Msg::IFmt( "Unmatch scale value: {} {}", gscale->content.val, rscale->content.val);
         return gscale->content.val == rscale->content.val;
     }
     else if (rscale->type == X86_IMM_TYPE_NONE)
@@ -360,7 +329,7 @@ static bool match_offset(X86Imm *goffset, X86Imm *roffset)
     if (goffset->type == X86_IMM_TYPE_NONE ||
         roffset->type == X86_IMM_TYPE_NONE){
         if (debug) {
-            LogMan::Msg::IFmt( "Unmatch offset: none\n");
+            LogMan::Msg::IFmt( "Unmatch offset: none");
         }
         return false;
     }
@@ -382,14 +351,16 @@ static bool match_opd_imm(X86ImmOperand *gopd, X86ImmOperand *ropd)
         return match_imm(gopd->content.val, ropd->content.sym);
     else {
         if (debug)
-            LogMan::Msg::IFmt( "Unmatch imm: type error\n");
+            LogMan::Msg::IFmt( "Unmatch imm: type error");
         return false;
     }
 }
 
 static bool match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd)
 {
-    return (match_register(gopd->num, ropd->num));
+    if (gopd->HighBits != ropd->HighBits)
+        return false;
+    return match_register(gopd->num, ropd->num);
 }
 
 static bool match_opd_mem(X86MemOperand *gopd, X86MemOperand *ropd)
@@ -465,12 +436,21 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
         }
 
         /* check opcode and number of operands */
-        if (((p_rule_instr->opc != p_guest_instr->opc) && (opc_set[p_guest_instr->opc] != p_rule_instr->opc)) || //opcode not equal
-            ((p_rule_instr->opd_num != 0) && (p_rule_instr->opd_num != p_guest_instr->opd_num))) { //operand not equal
+        if (((p_rule_instr->opc != p_guest_instr->opc) && (opc_set[p_guest_instr->opc] != p_rule_instr->opc)) ||  //opcode not equal
+            ((p_rule_instr->opd_num != 0) && (p_rule_instr->opd_num != p_guest_instr->opd_num)) ||  //operand not equal
+            (p_rule_instr->DestSize != p_guest_instr->DestSize) ||
+            ((p_rule_instr->opd_num > 1) && (p_rule_instr->opd[1].type != X86_OPD_TYPE_IMM) && (p_rule_instr->SrcSize != p_guest_instr->SrcSize))) {
 
-            if (debug){
+            if (debug) {
                 if (p_rule_instr->opd_num != p_guest_instr->opd_num)
                     LogMan::Msg::IFmt( "different operand number");
+                else if (p_rule_instr->DestSize != p_guest_instr->DestSize)
+                    LogMan::Msg::IFmt( "Different RULE dest size: {}, GUEST dest size: {}", p_rule_instr->DestSize, p_guest_instr->DestSize);
+                else if (p_rule_instr->SrcSize != p_guest_instr->SrcSize)
+                    LogMan::Msg::IFmt( "different src operand size");
+                LogMan::Msg::IFmt("Unmatched operand :\n");
+                print_x86_instr(p_guest_instr);
+                print_x86_instr(p_rule_instr);
             }
 
             return false;
@@ -479,7 +459,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
         /*check parameterized instructions*/
         if ((p_rule_instr->opd_num == 0) && !check_instr(p_guest_instr)){
             if (debug){
-                LogMan::Msg::IFmt( "parameterization check error\n");
+                LogMan::Msg::IFmt( "parameterization check error!");
             }
             return false;
         }
@@ -491,7 +471,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
                     fprintf(stderr, "guest->type: %d\n", p_guest_instr->opd[i].type);
                     fprintf(stderr, "rule->type: %d\n", p_rule_instr->opd[i].type);
                     if (p_guest_instr->opd[i].type != p_rule_instr->opd[i].type){
-                        LogMan::Msg::IFmt( "Unmatched operand :");
+                        LogMan::Msg::IFmt("Unmatched operand :\n");
                         print_x86_instr(p_guest_instr);
                         print_x86_instr(p_rule_instr);
                     }
@@ -516,7 +496,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
             (p_reg_liveness[X86_REG_ZF] && (rule->x86_cc_mapping[X86_ZF] == 0))){
 
                 if (debug) {
-                    LogMan::Msg::IFmt( "Different liveness cc!\n");
+                    LogMan::Msg::IFmt( "Different liveness cc!");
                 }
                 return false;
             }
@@ -525,7 +505,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
     return true;
 }
 
-void get_label_map(char *lab_str, int64_t *t, uint64_t *f)
+void get_label_map(char *lab_str, uint64_t *t, uint64_t *f)
 {
     LabelMapping *lmap = l_map;
 
@@ -565,8 +545,8 @@ uint64_t get_imm_map(char *sym)
         }
         im = im->next;
     }
-    LogMan::Msg::IFmt( "=============== val: {:x}\n", std::stoll(t_str));
-    return std::stoll(t_str);
+    LogMan::Msg::IFmt("=============== val: {}\n", t_str);
+    return std::stoull(t_str);
 }
 
 
@@ -643,6 +623,7 @@ static uint64_t take_pc[] = {
 #endif
 
 #ifdef PROFILE_RULE_TRANSLATION
+uint32_t num_rules_hit = 0;
 uint32_t static_inst_rule_counter = 0;
 #endif
 
@@ -687,11 +668,6 @@ static ARMRegister generate_matched_reg(X86Register greg){
     return (ARMRegister)(gmap->sym - 2);
 }
 
-void adjust_rule(TranslationRule* cur_rule)
-{
-    // nop
-}
-
 /* Try to match instructions in this tb with existing rules */
 void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
 {
@@ -727,7 +703,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
             }
         }
 
-        for(i = guest_instr_num; i > 0; i--) {
+        for (i = guest_instr_num; i > 0; i--) {
             /* calculate hash key */
             int hindex = rule_hash_key(cur_head, i);
 
@@ -743,14 +719,10 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                     goto next;
 
                 if (match_rule_internal(cur_head, cur_rule, tb)) {
-                    LogMan::Msg::IFmt( "##### Match rule {} success! #####\n", cur_rule->index);
-
-                    #if 0
-                    adjust_rule(cur_rule);
-                    #endif
-
+                    LogMan::Msg::IFmt( "##### Match rule {} success #####\n", cur_rule->index);
                     break;
                 }
+
                 next:
                 cur_rule = cur_rule->next;
                 recover_map_buf_index();
@@ -760,23 +732,15 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                 X86Instruction *temp = cur_head;
                 uint64_t target_pc = 0;
 
-                // match_counter -= 1;
                 match_insts += i;
 
                 #ifdef PROFILE_RULE_TRANSLATION
-                tb->num_rules_hit++;
-                static_inst_rule_counter += i;
-                tb->num_insts_match += i;
-                cur_rule->hit_num++;
+                  num_rules_hit++;
+                  static_inst_rule_counter += i;
+                  cur_rule->hit_num++;
+                  LogMan::Msg::IFmt( "##### Total hit rule num: {} #####\n", num_rules_hit);
                 #endif
 
-                #ifdef DEBUG_RULE_TRANSLATION
-                if (cur_rule->index == 0)
-                    LogMan::Msg::IFmt( "    0x{:x},\n", tbpc);
-                if (tbpc == debug_pc)
-                    LogMan::Msg::IFmt( "== Hit a rule [{}] at tb: 0x{:x} instr: 0x{:x}, num_insns: {}, update_cc: {}",
-                                cur_rule->index, tbpc, cur_head->pc, i, is_update_cc(cur_head, i) ? "true" : "false");
-                #endif
                 /* Check target_pc for this rule */
                 for (j = 1; j < i; j++)
                     temp = temp->next;
@@ -897,12 +861,10 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
         arm_code = arm_code->next;
     }
 
-    if (rule_r->target_pc != 0) {
+    if (rule_r->target_pc) {
         LogMan::Msg::IFmt( "--------- pc: {:x}, target_pc: {:x}\n", rule_r->pc, rule_r->target_pc);
         assemble_arm_exit_tb(rule_r->target_pc);
     }
-
-    /* sync and dead registers to keep consistency with TCG */
 }
 
 bool is_last_access(ARMInstruction *insn, ARMRegister reg)

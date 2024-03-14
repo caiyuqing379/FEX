@@ -4,6 +4,9 @@
 #include "arm-instr.h"
 #include "x86-instr.h"
 
+#define PROFILE_RULE_TRANSLATION
+#define DEBUG_RULE_TRANSLATION
+
 #define X86_CC_NUM 4
 
 #define X86_OF 0
@@ -16,12 +19,12 @@
 extern const X86Opcode opc_set[];
 
 typedef struct TranslationRule {
-    int index;                  /* index of this rule */
+    int index;                   /* index of this rule */
 
-    ARMInstruction *arm_host;  /* guest code */
+    ARMInstruction *arm_host;    /* guest code */
     X86Instruction *x86_guest;   /* host code */
 
-    uint32_t guest_instr_num;    /* number of guest instructions */
+    uint32_t guest_instr_num;       /* number of guest instructions */
     struct TranslationRule *next;   /* next rule in this hash entry */
     struct TranslationRule *prev;   /* previous rule in this hash entry */
     char *intermediate_regs;
@@ -38,8 +41,8 @@ typedef struct TranslationRule {
     int print_flag;     /* flag used to print hit number */
     #endif
 
-    int match_counter;  /*counter the match times for each rule
-                        used in rule ordering */
+    int match_counter;  /* counter the match times for each rule
+                           used in rule ordering */
 
 } TranslationRule;
 

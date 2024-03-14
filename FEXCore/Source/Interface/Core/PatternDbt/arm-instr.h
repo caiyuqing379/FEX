@@ -70,9 +70,11 @@ typedef enum {
     ARM_OPC_LDRH,
     ARM_OPC_LDRSH,
     ARM_OPC_LDR,
+    ARM_OPC_LDP,
     ARM_OPC_STRB,
     ARM_OPC_STRH,
     ARM_OPC_STR,
+    ARM_OPC_STP,
 
     ARM_OPC_MOV,
     ARM_OPC_MVN,
@@ -226,9 +228,8 @@ typedef struct ARMInstruction {
 
     ARMOpcode opc;      /* Opcode of this instruction */
     ARMOperand opd[ARM_MAX_OPERAND_NUM];    /* Operands of this instruction */
-    uint32_t opd_num;       /* number of operands of this instruction */
-
-    size_t OpdSize; /* size of operands: 1, 2, or 4 bytes */
+    size_t opd_num;     /* number of operands of this instruction */
+    size_t OpdSize;     /* size of operands: 1, 2, or 4 bytes */
 
     struct ARMInstruction *prev; /* previous instruction in this block */
     struct ARMInstruction *next; /* next instruction in this block */
@@ -250,7 +251,7 @@ void set_arm_instr_cc(ARMInstruction *instr, uint32_t cond);
 void set_arm_instr_opc(ARMInstruction *instr, ARMOpcode opc);
 void set_arm_instr_opc_str(ARMInstruction *instr, char *opc_str);
 
-void set_arm_instr_opd_num(ARMInstruction *instr, uint32_t num);
+void set_arm_instr_opd_num(ARMInstruction *instr, size_t num);
 void set_arm_instr_opd_size(ARMInstruction *instr);
 
 void set_arm_instr_opd_type(ARMInstruction *instr, int opd_index, ARMOperandType type);

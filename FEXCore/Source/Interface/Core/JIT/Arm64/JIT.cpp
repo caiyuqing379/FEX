@@ -706,6 +706,10 @@ bool Arm64JITCore::IsGPRPair(IR::NodeID Node) const {
   return Class == IR::GPRPairClass;
 }
 
+#ifdef PROFILE_RULE_TRANSLATION
+static uint32_t replace_tb_num = 0;
+#endif
+
 CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
                                 const void *BlockInfo,
                                 FEXCore::IR::IRListView const *IR,
@@ -790,23 +794,25 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
   PendingTargetLabel = nullptr;
 
-      // Perform translation rule match
-      auto   *tBlockInfo = static_cast<const FEXCore::Frontend::Decoder::DecodedBlockInformation*>(BlockInfo);
-      auto   CodeBlocks = &tBlockInfo->Blocks;
-      auto   Block = CodeBlocks->at(0);
+  /*
+    Perform translation rule match
+  */
+  auto   *tBlockInfo = static_cast<const FEXCore::Frontend::Decoder::DecodedBlockInformation*>(BlockInfo);
+  auto   CodeBlocks = &tBlockInfo->Blocks;
+  auto   Block = CodeBlocks->at(0);
 
-      if(CodeBlocks->size() <= 1)
-		    match_translation_rule(&Block);
-      else
-        LogMan::Msg::EFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
+  if(CodeBlocks->size() <= 1)
+		match_translation_rule(&Block);
+  else
+    LogMan::Msg::EFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
 
-      bool IsRuleTrans = false, IsRTDone = false;
-      uint64_t cur_ins_pc = IR->GetHeader()->OriginalRIP;
-      uint32_t reg_liveness[100] = {0};
+  bool IsRuleTrans = false;
+  uint64_t cur_ins_pc = IR->GetHeader()->OriginalRIP;
+  uint32_t reg_liveness[100] = {0};
 
-      // See if we can use rules to do translation
-      if (cur_ins_pc && instr_is_match(cur_ins_pc))
-        IsRuleTrans = true;
+  // See if we can use rules to do translation
+  if (cur_ins_pc && instr_is_match(cur_ins_pc))
+    IsRuleTrans = true;
 
   for (auto [BlockNode, BlockHeader] : IR->GetBlocks()) {
     using namespace FEXCore::IR;
@@ -832,8 +838,12 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
     if (IsRuleTrans) {
       // Start translating by translation rules
-      if (!IsRTDone && cur_ins_pc && instr_is_match(cur_ins_pc)) {
+      if (cur_ins_pc && instr_is_match(cur_ins_pc)) {
         auto RTBStartHostCode = GetCursorAddress<uint8_t *>();
+        #ifdef PROFILE_RULE_TRANSLATION
+          replace_tb_num++;
+          LogMan::Msg::IFmt("##### Total replace tb num: {} #####\n", replace_tb_num);
+        #endif
         do_rule_translation(get_translation_rule(cur_ins_pc), reg_liveness);
         if (DebugData) {
           DebugData->Subblocks.push_back({
@@ -843,7 +853,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
         }
       }
 
-      IsRTDone = true;
+      IsRuleTrans = false;
       continue;
     }
 
