@@ -80,9 +80,9 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 
         set_x86_opd_type(opd, X86_OPD_TYPE_IMM);
         if (fc == 'i' || fc == '(' || fc == 'L')
-            set_x86_opd_imm_sym_str(opd, imm_str);
+            set_x86_opd_imm_sym_str(opd, imm_str, false);
         else
-            set_x86_opd_imm_val_str(opd, imm_str);
+            set_x86_opd_imm_val_str(opd, imm_str, false, false);
 
         if (line[idx] == ':')
             idx++; // skip ':'
@@ -127,6 +127,30 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
             idx+=2; // skip '[ '
             while (line[idx] != ' ')
                 strncat(reg_str, &line[idx++], 1);
+
+            // rip literal
+            if (!strcmp(reg_str,"rip")) {
+                idx++; // skip ' '
+                fc = line[idx];
+                if (fc == '+' || fc == '-') {
+                    char off_str[20] = "\0"; // parse offset
+                    bool neg = line[idx] == '-' ? true : false;
+                    idx+=2;
+                    fc = line[idx];
+
+                    while(line[idx] != ' ')
+                        strncat(off_str, &line[idx++], 1);
+                    idx++; // skip " "
+
+                    set_x86_opd_type(opd, X86_OPD_TYPE_IMM);
+                    if (fc == 'i')
+                       set_x86_opd_imm_sym_str(opd, off_str, true);
+                    else
+                       set_x86_opd_imm_val_str(opd, off_str, true, neg);
+                }
+                goto next;
+            }
+
             set_x86_opd_mem_base_str(opd, reg_str);
 
             idx++; // skip ' '
@@ -152,15 +176,18 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
                 if (line[idx] == '+' || line[idx] == '-') {
                     char off_str[20] = "\0"; // parse offset
                     bool neg = line[idx] == '-' ? true : false;
-                    idx+=2;
+                    idx+=2; // skip '+ '
+
                     while(line[idx] != ' ')
                         strncat(off_str, &line[idx++], 1);
                     idx++;
+
                     set_x86_opd_mem_off_str(opd, off_str, neg);
                 }
             }
         }
 
+        next:
         while (line[idx] == ']')
           idx++;
     } else
@@ -214,9 +241,6 @@ void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
             break;
         }
 
-        // if (!strcmp(line, "\n"))
-        //     break;
-
         /* check if this line is a comment */
         char fs = line[0];
         if (fs == '#')
@@ -234,7 +258,6 @@ void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
 
     if (has_temp_register)
         ret = false;
-
 
     LogMan::Msg::IFmt( "**** Guest {} ****", rule->index);
     print_x86_instr_seq(code_head);

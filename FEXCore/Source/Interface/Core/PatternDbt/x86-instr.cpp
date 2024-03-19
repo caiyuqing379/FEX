@@ -15,8 +15,10 @@ int instr_block_start;
 
 static const char *x86_opc_str[] = {
     [X86_OPC_INVALID] = "**** unsupported (x86) ****",
-    [X86_OPC_MOVZX] = "movzb",
-    [X86_OPC_MOVSX] = "movsb",
+    [X86_OPC_NOP] = "nop",
+    [X86_OPC_MOVZX] = "movzx",
+    [X86_OPC_MOVSX] = "movsx",
+    [X86_OPC_MOVSXD] = "movsxd",
     [X86_OPC_MOV] = "mov",
     [X86_OPC_LEA] = "lea",
     [X86_OPC_NOT] = "not",
@@ -167,7 +169,7 @@ X86Instruction *create_x86_instr(uint64_t pc)
 
 void print_x86_instr(X86Instruction *instr)
 {
-    LogMan::Msg::IFmt("0x{:x}: {}", instr->pc, x86_opc_str[instr->opc]);
+    LogMan::Msg::IFmt("0x{:x}: opcode: {} destsize:{} srcsize:{}", instr->pc, x86_opc_str[instr->opc], instr->DestSize, instr->SrcSize);
     for (int i = 0; i < instr->opd_num; i++) {
       X86Operand *opd = &instr->opd[i];
       if (opd->type == X86_OPD_TYPE_IMM) {
@@ -177,8 +179,9 @@ void print_x86_instr(X86Instruction *instr)
         else if (imm->type == X86_IMM_TYPE_SYM)
           LogMan::Msg::IFmt("     imm: {}", imm->content.sym);
       }
-      else if (opd->type == X86_OPD_TYPE_REG)
+      else if (opd->type == X86_OPD_TYPE_REG) {
         LogMan::Msg::IFmt("     reg: {}", x86_reg_str[opd->content.reg.num]);
+      }
       else if (opd->type == X86_OPD_TYPE_MEM) {
         fprintf(stderr,"[INFO]      mem: base(%s)", x86_reg_str[opd->content.mem.base]);
         if (opd->content.mem.index != X86_REG_INVALID)
@@ -248,13 +251,14 @@ void set_x86_instr_opd_reg(X86Instruction *instr, int opd_index, int regno, bool
     opd->content.reg.HighBits = HighBits;
 }
 
-void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint64_t val)
+void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint64_t val, bool isRipLiteral)
 {
     X86Operand *opd = &instr->opd[opd_index];
 
     opd->type = X86_OPD_TYPE_IMM;
     opd->content.imm.type = X86_IMM_TYPE_VAL;
     opd->content.imm.content.val = val;
+    opd->content.imm.isRipLiteral = isRipLiteral;
 }
 
 void set_x86_instr_opd_mem_base(X86Instruction *instr, int opd_index, int regno)
@@ -308,20 +312,25 @@ void set_x86_opd_type(X86Operand *opd, X86OperandType type)
 }
 
 /* set immediate operand using given string */
-void set_x86_opd_imm_val_str(X86Operand *opd, char *imm_str)
+void set_x86_opd_imm_val_str(X86Operand *opd, char *imm_str, bool isRipLiteral, bool neg)
 {
     X86ImmOperand *iopd = &opd->content.imm;
 
     iopd->type = X86_IMM_TYPE_VAL;
-    iopd->content.val = strtol(imm_str, NULL, 16);
+    if (neg) /* negative value */
+      iopd->content.val = 0 - strtol(imm_str, NULL, 16);
+    else
+      iopd->content.val = strtol(imm_str, NULL, 16);
+    iopd->isRipLiteral = isRipLiteral;
 }
 
-void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str)
+void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str, bool isRipLiteral)
 {
     X86ImmOperand *iopd = &opd->content.imm;
 
     iopd->type = X86_IMM_TYPE_SYM;
     strcpy(iopd->content.sym, imm_str);
+    iopd->isRipLiteral = isRipLiteral;
 }
 
 /* set register operand using given string */
@@ -515,6 +524,9 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
 {
     bool SingleSrc = false;
 
+    if (!strcmp(DecodeInst->TableInfo->Name, "NOP"))
+      set_x86_instr_opc(instr, X86_OPC_NOP);
+
     // A normal instruction is the most likely.
     if (DecodeInst->TableInfo->Type == FEXCore::X86Tables::TYPE_INST) [[likely]] {
         if (!strcmp(DecodeInst->TableInfo->Name, "MOV")
@@ -530,6 +542,10 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSX")
           && (DecodeInst->OP == 0xBE || DecodeInst->OP == 0xBF)) {
             set_x86_instr_opc(instr, X86_OPC_MOVSX);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSXD")
+          && (DecodeInst->OP == 0x63)) {
+            set_x86_instr_opc(instr, X86_OPC_MOVSXD);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "LEA") && (DecodeInst->OP == 0x8D)) {
             set_x86_instr_opc(instr, X86_OPC_LEA);
@@ -869,7 +885,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
           else if(Opd->IsRIPRelative()){
               uint32_t Literal = Opd->Data.RIPLiteral.Value.u;
               LogMan::Msg::IFmt( "     RIPLiteral: 0x{:x}", Literal);
-              set_x86_instr_opd_imm(instr, num, Literal);
+              set_x86_instr_opd_imm(instr, num, Literal, true);
           }
           else if(Opd->IsLiteral()){
               uint64_t Literal = Opd->Data.Literal.Value;
@@ -907,16 +923,16 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               LogMan::Msg::IFmt( "     SIB - Base: 0x{:x}, Offset: 0x{:x}, Index: 0x{:x}, Scale: 0x{:x}", Base, Offset, Index, Scale);
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
-              if(Base <= FEXCore::X86State::REG_R15)
+              if (Base <= FEXCore::X86State::REG_R15) {
                 set_x86_instr_opd_mem_base(instr, num, Base);
-              else
+                set_x86_instr_opd_mem_off(instr, num, Offset);
+                if (Index <= FEXCore::X86State::REG_R15) {
+                  set_x86_instr_opd_mem_index(instr, num, Index);
+                  set_x86_instr_opd_mem_scale(instr, num, Scale);
+                } else
+                  set_x86_instr_opd_mem_index(instr, num, 0x10);
+              } else
                 set_x86_instr_opd_mem_base(instr, num, 0x10);
-              set_x86_instr_opd_mem_off(instr, num, Offset);
-              if(Index <= FEXCore::X86State::REG_R15)
-                set_x86_instr_opd_mem_index(instr, num, Index);
-              else
-                set_x86_instr_opd_mem_index(instr, num, 0x10);
-              set_x86_instr_opd_mem_scale(instr, num, Scale);
           }
           num++;
         }
@@ -929,8 +945,14 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
       }
     }
 
-    if ((instr->opc == X86_OPC_CMP || instr->opc == X86_OPC_ADD) && (num == 3)) {
+    if ((instr->opc == X86_OPC_CMP || instr->opc == X86_OPC_ADD
+      || instr->opc == X86_OPC_OR || instr->opc == X86_OPC_MOV) && (num == 3)) {
       instr->opd[1] = instr->opd[2];
+      num--;
+    }
+
+    if ((instr->opc == X86_OPC_JMP) && (num == 2)) {
+      instr->opd[0] = instr->opd[1];
       num--;
     }
 

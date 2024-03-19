@@ -14,8 +14,10 @@
 #define RULE_BUF_LEN 10000
 
 const X86Opcode opc_set[] = {
+    [X86_OPC_NOP]   = X86_OPC_INVALID,
     [X86_OPC_MOVZX] = X86_OPC_OP3,
     [X86_OPC_MOVSX] = X86_OPC_OP3,
+    [X86_OPC_MOVSXD] = X86_OPC_OP3,
     [X86_OPC_MOV]   = X86_OPC_OP4,
     [X86_OPC_LEA]   = X86_OPC_OP4,
     [X86_OPC_NOT]   = X86_OPC_INVALID,
@@ -321,11 +323,9 @@ void parse_translation_rules(void)
             strncpy(idx, line, strlen(line) - strlen(substr));
             rule->index = atoi(idx);
 
-            // LogMan::Msg::IFmt( "===== Parsing guest with index: {}, idx: {}=====\n", rule->index, idx);
             parse_rule_x86_code(fp, rule);
 
         } else if (strstr(line, ".Host:\n")) {
-            // LogMan::Msg::IFmt( "===== Parsing host =====\n");
             if (parse_rule_arm_code(fp, rule)) {
 
                 /* install this rule to the hash table*/
@@ -333,7 +333,6 @@ void parse_translation_rules(void)
 
                 install_counter++;
             }
-            //LogMan::Msg::IFmt( "===== Finish parsing host =====\n");
         } else
             LogMan::Msg::IFmt( "Error in parsing rule file: {}.\n", line);
     }
@@ -342,13 +341,11 @@ void parse_translation_rules(void)
     for (i = 0; i < MAX_GUEST_LEN;i++){
         if (cache_rule_table[i]){
             TranslationRule *temp = cache_rule_table[i];
-            while(temp->next){
+            while(temp->next) {
                 temp = temp->next;
             }
             temp->next = rule_table[i];
-        }
-        else
-        {
+        } else {
             cache_rule_table[i] = rule_table[i];
         }
 

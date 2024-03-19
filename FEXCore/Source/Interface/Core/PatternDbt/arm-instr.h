@@ -76,6 +76,8 @@ typedef enum {
     ARM_OPC_STR,
     ARM_OPC_STP,
 
+    ARM_OPC_SXTW,
+
     ARM_OPC_MOV,
     ARM_OPC_MVN,
 
@@ -114,7 +116,10 @@ typedef enum {
 
     ARM_OPC_SET_JUMP,
     ARM_OPC_SET_CALL,
-    ARM_OPC_PC_REL,
+    ARM_OPC_PC_L,
+    ARM_OPC_PC_LB,
+    ARM_OPC_PC_S,
+    ARM_OPC_PC_SB,
 
 // parameterized opcode
     ARM_OPC_OP1,

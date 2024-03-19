@@ -68,8 +68,6 @@ static int parse_scale(char *line, int idx, ARMOperandScale *pscale)
         strncat(direct_str, &line[iix++], 1);
     }
 
-    //LogMan::Msg::IFmt( "==== direct str: %s\n", direct_str);
-
     /* Try to set the scale direct based on the string, may fail-- */
     if (set_arm_instr_opd_scale_str(pscale, direct_str))
         return idx;
@@ -83,7 +81,7 @@ static int parse_scale(char *line, int idx, ARMOperandScale *pscale)
             strncat(scale_str, &line[idx++], 1);
         set_arm_instr_opd_scale_imm_str(pscale, scale_str);
     } else
-        LogMan::Msg::IFmt( "Error to parsing operand scale value.\n");
+        LogMan::Msg::IFmt( "Error to parsing operand scale value.");
 
     return idx;
 }
@@ -155,7 +153,10 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
                 while (line[idx] != ',' && line[idx] != ']' && line[idx] != '\n')
                   strncat(off_str, &line[idx++], 1);
 
-                set_arm_opd_mem_off_val(opd, off_str);
+                if (tfc == 'i')
+                  set_arm_opd_mem_off_str(opd, off_str);
+                else
+                  set_arm_opd_mem_off_val(opd, off_str);
             } else if (line[idx] == 'r') { /* This is an index register */
                 char index_reg_str[20] = "\0";
                 while (line[idx] != ',' && line[idx] != ']' && line[idx] != '\n')
@@ -169,7 +170,7 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
         }
         while (line[idx] != ']' && line[idx] != '\n')
             idx++;
-        // LogMan::Msg::IFmt( "%c %c\n", line[idx], line[idx+1]);
+
         //pre-index
         if ((line[idx] == ']') && (line[idx+1] == '!')){
             set_arm_instr_opd_mem_index_type(instr, opd_idx, ARM_MEM_INDEX_TYPE_PRE);

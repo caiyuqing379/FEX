@@ -263,6 +263,7 @@ private:
   DEF_OPC(LDP);
   DEF_OPC(STR);
   DEF_OPC(STP);
+  DEF_OPC(SXTW);
   DEF_OPC(MOV);
   DEF_OPC(MVN);
   DEF_OPC(AND);
@@ -282,6 +283,9 @@ private:
   DEF_OPC(BL);
   DEF_OPC(CBNZ);
   DEF_OPC(SET_JUMP);
+  DEF_OPC(SET_CALL);
+  DEF_OPC(PC_L);
+  DEF_OPC(PC_S);
 #undef DEF_OPC
 };
 

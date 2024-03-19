@@ -70,6 +70,7 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_STRH]  = "strh",
     [ARM_OPC_STR]   = "str",
     [ARM_OPC_STP]   = "stp",
+    [ARM_OPC_SXTW]  = "sxtw",
     [ARM_OPC_MOV]   = "mov",
     [ARM_OPC_MVN]   = "mvn",
     [ARM_OPC_AND]   = "and",
@@ -101,7 +102,10 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_CBNZ]  = "cbnz",
     [ARM_OPC_SET_JUMP] = "set_jump",
     [ARM_OPC_SET_CALL] = "set_call",
-    [ARM_OPC_PC_REL] = "pc_rel",
+    [ARM_OPC_PC_L]  = "pc_l",
+    [ARM_OPC_PC_LB] = "pc_lb",
+    [ARM_OPC_PC_S]  = "pc_s",
+    [ARM_OPC_PC_SB] = "pc_sb",
     [ARM_OPC_OP1]   = "op1",
     [ARM_OPC_OP2]   = "op2",
     [ARM_OPC_OP3]   = "op3",
@@ -119,21 +123,21 @@ static const char *arm_opc_str[] = {
 static void print_instr_cc(ARMInstruction *instr)
 {
     if (instr->cc != ARM_CC_INVALID)
-        LogMan::Msg::IFmt( "{} ", arm_cc_str[instr->cc]);
+        fprintf(stderr,"cc:%s \n", arm_cc_str[instr->cc]);
 }
 
 void print_imm_opd(ARMImmOperand *opd)
 {
     if (opd->type == ARM_IMM_TYPE_VAL)
-        LogMan::Msg::IFmt( "0x{:x} ", opd->content.val);
+        fprintf(stderr,"0x%x \n", opd->content.val);
     else if (opd->type == ARM_IMM_TYPE_SYM)
-        LogMan::Msg::IFmt( "{} ", opd->content.sym);
+        fprintf(stderr,"%s \n", opd->content.sym);
 }
 
 static void print_opd_index_type(ARMMemIndexType pre_post)
 {
     if (pre_post != ARM_MEM_INDEX_TYPE_NONE)
-         LogMan::Msg::IFmt( ", index type: {}", arm_index_type_str[pre_post]);
+        fprintf(stderr,", index type: %s\n", arm_index_type_str[pre_post]);
 }
 
 void print_opd_scale(ARMOperandScale *scale)
@@ -142,29 +146,29 @@ void print_opd_scale(ARMOperandScale *scale)
         ARMImm *imm = &scale->imm;
         if (imm->type == ARM_IMM_TYPE_VAL) {
             if (imm->content.val != 0)
-                LogMan::Msg::IFmt( ", {} {} ", arm_direct_str[scale->content.direct], imm->content.val);
+                fprintf(stderr,", %s %d ", arm_direct_str[scale->content.direct], imm->content.val);
         } else
-            LogMan::Msg::IFmt( ", {} {} ", arm_direct_str[scale->content.direct], imm->content.sym);
+            fprintf(stderr,", %s %s ", arm_direct_str[scale->content.direct], imm->content.sym);
     }
     else
-        LogMan::Msg::IFmt("none scale");
+        fprintf(stderr," none scale\n");
 }
 
 void print_reg_opd(ARMRegOperand *opd)
 {
-    LogMan::Msg::IFmt( "{} ", arm_reg_str[opd->num]);
+    fprintf(stderr,"%s ", arm_reg_str[opd->num]);
     print_opd_scale(&opd->scale);
 }
 
 void print_mem_opd(ARMMemOperand *opd)
 {
-    LogMan::Msg::IFmt( "[base: {}", arm_reg_str[opd->base]);
+    fprintf(stderr,"[base: %s", arm_reg_str[opd->base]);
     if (opd->index != ARM_REG_INVALID)
-        LogMan::Msg::IFmt( ", index: {}", arm_reg_str[opd->index]);
+        fprintf(stderr,", index: %s", arm_reg_str[opd->index]);
     if (opd->offset.type == ARM_IMM_TYPE_VAL)
-        LogMan::Msg::IFmt( ", offset: 0x{:x}", opd->offset.content.val);
+        fprintf(stderr,", offset: 0x%x", opd->offset.content.val);
     else if (opd->offset.type == ARM_IMM_TYPE_SYM)
-        LogMan::Msg::IFmt( ", offset: {}", opd->offset.content.sym);
+        fprintf(stderr,", offset: %s", opd->offset.content.sym);
     print_opd_scale(&opd->scale);
     print_opd_index_type(opd->pre_post);
 }
@@ -173,11 +177,11 @@ static void print_reg_liveness(bool *reg_liveness)
 {
     int reg;
 
-     LogMan::Msg::IFmt("    ");
+    fprintf(stderr,"    ");
     for (reg = ARM_REG_CF; reg < ARM_REG_NUM; reg++)
-         LogMan::Msg::IFmt(" {}: {} ",
+        fprintf(stderr," %s: %s ",
                 arm_reg_str[reg], reg_liveness[reg] ? "true" : "false");
-     LogMan::Msg::IFmt("\n");
+    fprintf(stderr,"\n");
 }
 
 void print_arm_instr_seq(ARMInstruction *instr_seq)
@@ -186,7 +190,7 @@ void print_arm_instr_seq(ARMInstruction *instr_seq)
     int i;
 
     while(head) {
-         LogMan::Msg::IFmt("0x{:x}: {} ({})", head->pc,
+        fprintf(stderr,"0x%lx: %s (%ld)", head->pc,
                 arm_opc_str[head->opc], head->opd_num);
 
         print_instr_cc(head);
@@ -213,7 +217,7 @@ void print_arm_instr(ARMInstruction *instr_seq)
     ARMInstruction *head = instr_seq;
     int i;
 
-    LogMan::Msg::IFmt("{} ", arm_opc_str[head->opc]);
+    fprintf(stderr,"%s ", arm_opc_str[head->opc]);
     print_instr_cc(head);
     for (i = 0; i < head->opd_num; i++) {
         ARMOperand *opd = &head->opd[i];
@@ -242,7 +246,7 @@ static ARMOpcode get_arm_opcode(char *opc_str)
         if (!strcmp(opc_str, arm_opc_str[i]))
             return static_cast<ARMOpcode>(i);
     }
-    LogMan::Msg::IFmt("[ARM] Error: unsupported opcode: {}\n", opc_str);
+    LogMan::Msg::EFmt("[ARM] Error: unsupported opcode: {}\n", opc_str);
     exit(0);
     return ARM_OPC_INVALID;
 }
@@ -328,7 +332,10 @@ void set_arm_instr_opd_size(ARMInstruction *instr)
       instr->OpdSize = 1;
     else if (instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_STRH)
       instr->OpdSize = 2;
-    else
+    else if (instr->opc == ARM_OPC_SXTW)
+      instr->OpdSize = 4;
+    else if (instr->opc == ARM_OPC_PC_L || instr->opc == ARM_OPC_PC_LB
+      || instr->opc == ARM_OPC_PC_S || instr->opc == ARM_OPC_PC_SB) // 64 bit system
       instr->OpdSize = 8;
 }
 
@@ -378,6 +385,10 @@ bool set_arm_instr_opd_scale_str(ARMOperandScale *pscale, char *direct_str)
 {
     pscale->content.direct = get_arm_direct(direct_str);
     pscale->content.extend = get_arm_extend(direct_str);
+    if (pscale->content.direct != ARM_OPD_DIRECT_NONE)
+        pscale->type = ARM_OPD_SCALE_TYPE_SHIFT;
+    else if (pscale->content.extend != ARM_OPD_EXTEND_NONE)
+        pscale->type = ARM_OPD_SCALE_TYPE_EXT;
 
     return (pscale->content.direct == ARM_OPD_DIRECT_NONE && pscale->content.extend == ARM_OPD_EXTEND_NONE);
 }
@@ -404,13 +415,7 @@ void set_arm_instr_opd_mem_base_str(ARMInstruction *instr, int opd_index, char *
 {
     ARMMemOperand *mopd = &(instr->opd[opd_index].content.mem);
 
-    if (reg_str[0] == 'w') {
-        if (!opd_index)
-          instr->OpdSize = 4;
-        reg_str[0] = 'r';
-    } else if (reg_str[0] == 'x'){
-        if (!opd_index)
-          instr->OpdSize = 8;
+    if (reg_str[0] == 'w' || reg_str[0] == 'x') {
         reg_str[0] = 'r';
     }
 
@@ -496,7 +501,7 @@ void set_arm_opd_mem_off_str(ARMOperand *opd, char *off_str)
     ARMMemOperand *mopd = &(opd->content.mem);
 
     mopd->offset.type = ARM_IMM_TYPE_SYM;
-    strcpy (mopd->offset.content.sym, off_str);
+    strcpy(mopd->offset.content.sym, off_str);
 }
 
 void set_arm_opd_mem_index_reg(ARMOperand *opd, int regno)

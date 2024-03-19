@@ -36,9 +36,11 @@ typedef enum {
 
 typedef enum {
     X86_OPC_INVALID = 0,
+    X86_OPC_NOP,
 
     X86_OPC_MOVZX,
     X86_OPC_MOVSX,
+    X86_OPC_MOVSXD,
     X86_OPC_MOV,
     X86_OPC_LEA,
 
@@ -119,6 +121,7 @@ typedef enum{
 
 typedef struct {
     X86ImmType type;
+    bool isRipLiteral;
     union {
         uint64_t val;
         char sym[20]; /* this symbol might contain expression */
@@ -198,7 +201,7 @@ void set_x86_instr_opd_size(X86Instruction *instr, uint32_t SrcSize, uint32_t De
 void set_x86_instr_size(X86Instruction *instr, size_t size);
 
 void set_x86_instr_opd_type(X86Instruction *instr, int opd_index, X86OperandType type);
-void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint64_t val);
+void set_x86_instr_opd_imm(X86Instruction *instr, int opd_index, uint64_t val, bool isRipLiteral = false);
 void set_x86_instr_opd_reg(X86Instruction *instr, int opd_index, int regno, bool HighBits);
 void set_x86_instr_opd_mem_base(X86Instruction *instr, int opd_index, int regno);
 void set_x86_instr_opd_mem_off(X86Instruction *instr, int opd_index, int32_t offset);
@@ -206,8 +209,8 @@ void set_x86_instr_opd_mem_scale(X86Instruction *instr, int opd_index, uint8_t s
 void set_x86_instr_opd_mem_index(X86Instruction *instr, int opd_index, int regno);
 
 void set_x86_opd_type(X86Operand *opd, X86OperandType type);
-void set_x86_opd_imm_val_str(X86Operand *opd, char *imm_str);
-void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str);
+void set_x86_opd_imm_val_str(X86Operand *opd, char *imm_str, bool isRipLiteral = false, bool neg = false);
+void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str, bool isRipLiteral = false);
 void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize);
 
 void set_x86_opd_mem_off(X86Operand *, int32_t val);

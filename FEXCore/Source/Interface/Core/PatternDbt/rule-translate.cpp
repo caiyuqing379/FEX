@@ -7,7 +7,6 @@
 #include <cstring>
 
 #include "rule-translate.h"
-#include "arm-asm.h"
 
 #define MAX_RULE_RECORD_BUF_LEN 800
 #define MAX_GUEST_INSTR_LEN 800
@@ -17,9 +16,11 @@
 #define MAX_HOST_RULE_INSTR_LEN 1000
 
 static const ARMOpcode X862ARM[] = {
+    [X86_OPC_NOP]   = ARM_OPC_INVALID,
+    [X86_OPC_MOVZX] = ARM_OPC_INVALID,
+    [X86_OPC_MOVSX] = ARM_OPC_INVALID,
+    [X86_OPC_MOVSXD] = ARM_OPC_INVALID,
     [X86_OPC_MOV]   = ARM_OPC_INVALID,
-    [X86_OPC_MOVZX] = ARM_OPC_LDRB,
-    [X86_OPC_MOVSX] = ARM_OPC_LDRSB,
     [X86_OPC_LEA]   = ARM_OPC_MOV,
     [X86_OPC_NOT]   = ARM_OPC_MVN,
     [X86_OPC_AND]   = ARM_OPC_ANDS,
@@ -323,7 +324,7 @@ static bool match_opd_imm(X86ImmOperand *gopd, X86ImmOperand *ropd)
         return match_imm(gopd->content.val, ropd->content.sym);
     else {
         if (debug)
-            LogMan::Msg::IFmt( "Unmatch imm: type error");
+            LogMan::Msg::IFmt("Unmatch imm: type error");
         return false;
     }
 }
@@ -353,19 +354,10 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
         return false;
     }
 
-	if (ginstr->opc == X86_OPC_CALL) {
-		unsigned int pc_val = ginstr->pc + ginstr->InstSize;
-		ImmMapping * imap = &imm_map_buf[imm_map_buf_index++];
-		assert(imm_map_buf_index < MAX_MAP_BUF_LEN);
-   		strcpy(imap->imm_str, "imm_pc");
-    	imap->imm_val = pc_val;
-    	imap->next = imm_map;
-    	imm_map = imap;
-	}
-
-
     if (ropd->type == X86_OPD_TYPE_IMM) {
-        if (x86_instr_test_branch(rinstr)) {
+        if(gopd->content.imm.isRipLiteral != ropd->content.imm.isRipLiteral)
+            return false;
+        if (x86_instr_test_branch(rinstr) || ropd->content.imm.isRipLiteral) {
             assert(ropd->content.imm.type == X86_IMM_TYPE_SYM);
             return match_label(ropd->content.imm.content.sym, gopd->content.imm.content.val, ginstr->pc + ginstr->InstSize);
         } else /* match imm operand */
@@ -375,12 +367,12 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
     } else if (ropd->type == X86_OPD_TYPE_MEM) {
         return match_opd_mem(&gopd->content.mem, &ropd->content.mem);
     } else
-        fprintf(stderr, "Error: unsupported arm operand type: %d\n", ropd->type);
+        fprintf(stderr,"Error: unsupported arm operand type: %d\n", ropd->type);
 
     return true;
 }
 
-
+// not used
 static bool check_instr(X86Instruction *ginstr){
     return true;
 }
@@ -389,7 +381,6 @@ static bool check_instr(X86Instruction *ginstr){
 // 0: not matched
 // 1: matched
 // 2: matched but condition is different
-
 static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
 {
     X86Instruction *p_rule_instr = rule->x86_guest;
@@ -407,6 +398,10 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
             return false;
         }
 
+        if (p_rule_instr->opc == X86_OPC_NOP && p_guest_instr->opc == X86_OPC_NOP){
+            goto next_check;
+        }
+
         /* check opcode and number of operands */
         if (((p_rule_instr->opc != p_guest_instr->opc) && (opc_set[p_guest_instr->opc] != p_rule_instr->opc)) ||  //opcode not equal
             ((p_rule_instr->opd_num != 0) && (p_rule_instr->opd_num != p_guest_instr->opd_num)) ||  //operand not equal
@@ -420,7 +415,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
                     LogMan::Msg::IFmt( "Different RULE dest size: {}, GUEST dest size: {}", p_rule_instr->DestSize, p_guest_instr->DestSize);
                 else if (p_rule_instr->SrcSize != p_guest_instr->SrcSize)
                     LogMan::Msg::IFmt( "different src operand size");
-                LogMan::Msg::IFmt("Unmatched operand :\n");
+                LogMan::Msg::IFmt("Unmatched operand :");
                 print_x86_instr(p_guest_instr);
                 print_x86_instr(p_rule_instr);
             }
@@ -452,6 +447,7 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
             }
         }
 
+        next_check:
         last_guest_instr = p_guest_instr;
 
         /* check next instruction */
@@ -507,7 +503,6 @@ uint64_t get_imm_map(char *sym)
     while(im) {
         char *p_str = strstr(t_str, im->imm_str);
         while (p_str) {
-            // LogMan::Msg::IFmt( "\t found a matched string for {}, value: {:x}\n", im->imm_str, im->imm_val);
             size_t len = (size_t)(p_str - t_str);
             strncpy(t_buf, t_str, len);
             sprintf(t_buf + len, "%lu", im->imm_val);
@@ -517,7 +512,7 @@ uint64_t get_imm_map(char *sym)
         }
         im = im->next;
     }
-    LogMan::Msg::IFmt("=============== val: {}\n", t_str);
+    LogMan::Msg::IFmt("get imm val: {}\n", t_str);
     return std::stoull(t_str);
 }
 
@@ -650,9 +645,8 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
     X86Instruction *cur_head = guest_instr;
     int guest_instr_num = 0;
     int i, j;
-    uint64_t tbpc = guest_instr->pc;
 
-    LogMan::Msg::IFmt( "=====Guest Instr Match Rule Start, match pc: {:x}=====\n", tbpc);
+    LogMan::Msg::IFmt( "=====Guest Instr Match Rule Start, Guest PC: {:x}=====\n", guest_instr->pc);
 
     reset_buffer();
 
@@ -666,7 +660,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
 
         bool opd_para = false;
 
-        if (guest_instr_num <= 0){
+        if (guest_instr_num <= 0) {
             X86Instruction *t_head = cur_head;
             guest_instr_num = 0;
             while (t_head){
@@ -685,7 +679,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
             TranslationRule *cur_rule = cache_rule_table[hindex];
 
             save_map_buf_index();
-            while(cur_rule) {
+            while (cur_rule) {
 
                 if (cur_rule->guest_instr_num != i)
                     goto next;
@@ -759,8 +753,10 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
 
                 break;
             }
-            // para_fault:
+
             recover_map_buf_index();
+
+            if(debug) goto final;
         }
 
         /* No matched rule found, also keep moving forward */
@@ -771,6 +767,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
             guest_instr_num--;
         }
     }
+    final:
     LogMan::Msg::IFmt( "=====Guest Instr Match Rule End=======\n");
 }
 
@@ -810,10 +807,6 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
     imm_map = rule_r->imm_map;
     g_reg_map = rule_r->g_reg_map;
     int i = 0;
-
-    LogMan::Msg::IFmt( "==========Applying rule: {}\n", rule->index);
-
-    reset_asm_buffer();
 
     ARMInstruction *arm_code = rule->arm_host;
     arm_host = arm_code;
