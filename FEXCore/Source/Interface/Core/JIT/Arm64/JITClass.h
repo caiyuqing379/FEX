@@ -254,11 +254,10 @@ private:
   void do_rule_translation(RuleRecord *rule_r, uint32_t *reg_liveness);
   void FlipCF();
   IR::IROp_Header const * FindIROp(IR::IROps tIROp);
-  void assemble_arm_instruction(ARMInstruction *instr, uint32_t *reg_liveness, RuleRecord *rrule);
+  void assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule);
   void assemble_arm_exit_tb(uint64_t target_pc);
 
-#define DEF_OPC(x) void Opc_##x(ARMInstruction *instr, \
-                                uint32_t *reg_liveness, RuleRecord *rrule)
+#define DEF_OPC(x) void Opc_##x(ARMInstruction *instr, RuleRecord *rrule)
   DEF_OPC(LDR);
   DEF_OPC(LDP);
   DEF_OPC(STR);

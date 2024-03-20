@@ -817,17 +817,16 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
             ARMOpcode temp = arm_code->opc;
             arm_code->opc = X862ARM[rule_r->para_opc[i]];
             ++i;
-            // LogMan::Msg::IFmt( "{}\n", arm_code->opc);
-            assemble_arm_instruction(arm_code, reg_liveness, rule_r);
+            assemble_arm_instruction(arm_code, rule_r);
             arm_code->opc = temp;
         }
         else
-            assemble_arm_instruction(arm_code, reg_liveness, rule_r);
+            assemble_arm_instruction(arm_code, rule_r);
         arm_code = arm_code->next;
     }
 
     if (rule_r->target_pc) {
-        LogMan::Msg::IFmt( "--------- pc: {:x}, target_pc: {:x}\n", rule_r->pc, rule_r->target_pc);
+        LogMan::Msg::IFmt("--------- pc: {:x}, target_pc: {:x}\n", rule_r->pc, rule_r->target_pc);
         assemble_arm_exit_tb(rule_r->target_pc);
     }
 }

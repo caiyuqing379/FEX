@@ -15,8 +15,7 @@
 
 using namespace FEXCore;
 
-#define DEF_OPC(x) void FEXCore::CPU::Arm64JITCore::Opc_##x(ARMInstruction *instr, \
-                                uint32_t *reg_liveness, RuleRecord *rrule)
+#define DEF_OPC(x) void FEXCore::CPU::Arm64JITCore::Opc_##x(ARMInstruction *instr, RuleRecord *rrule)
 
 
 static ARMEmitter::Condition MapBranchCC(ARMConditionCode Cond)
@@ -925,18 +924,25 @@ DEF_OPC(SET_CALL) {
       Mask = 0xFFFF'FFFFULL;
     }
 
-    if (opd->type == ARM_OPD_TYPE_IMM) {
-      get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
+    auto MemSrc = ARMEmitter::ExtendedMemOperand((ARMEmitter::Reg::r8).X(), ARMEmitter::IndexType::PRE, -0x8);
 
+    if (instr->opd_num && opd->type == ARM_OPD_TYPE_IMM) {
+      get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
       LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), fallthrough & Mask);
+
       if ((target >> 12) != 0) {
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), target);
         add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X());
       } else {
         add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), target);
       }
-      auto MemSrc = ARMEmitter::ExtendedMemOperand((ARMEmitter::Reg::r8).X(), ARMEmitter::IndexType::PRE, -0x8);
       str((ARMEmitter::Reg::r20).X(), MemSrc);
+    } else if (instr->opd_num && opd->type == ARM_OPD_TYPE_REG) {
+      LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), rrule->target_pc & Mask);
+      str((ARMEmitter::Reg::r20).X(), MemSrc);
+    } else if (!instr->opd_num) { // only push
+      LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), rrule->target_pc & Mask);
+      str((ARMEmitter::Reg::r21).X(), MemSrc);
     }
 }
 
@@ -998,7 +1004,7 @@ DEF_OPC(PC_S) {
     }
 }
 
-void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, uint32_t *reg_liveness, RuleRecord *rrule)
+void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule)
 {
     print_arm_instr(instr);
 
@@ -1008,97 +1014,97 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
         case ARM_OPC_LDRH:
         case ARM_OPC_LDRSH:
         case ARM_OPC_LDR:
-            Opc_LDR(instr, reg_liveness, rrule);
+            Opc_LDR(instr, rrule);
             break;
         case ARM_OPC_LDP:
-            Opc_LDP(instr, reg_liveness, rrule);
+            Opc_LDP(instr, rrule);
             break;
         case ARM_OPC_STR:
         case ARM_OPC_STRB:
         case ARM_OPC_STRH:
-            Opc_STR(instr, reg_liveness, rrule);
+            Opc_STR(instr, rrule);
             break;
         case ARM_OPC_STP:
-            Opc_STP(instr, reg_liveness, rrule);
+            Opc_STP(instr, rrule);
             break;
         case ARM_OPC_SXTW:
-            Opc_SXTW(instr, reg_liveness, rrule);
+            Opc_SXTW(instr, rrule);
             break;
         case ARM_OPC_MOV:
-            Opc_MOV(instr, reg_liveness, rrule);
+            Opc_MOV(instr, rrule);
             break;
         case ARM_OPC_MVN:
-            Opc_MVN(instr, reg_liveness, rrule);
+            Opc_MVN(instr, rrule);
             break;
         case ARM_OPC_AND:
         case ARM_OPC_ANDS:
-            Opc_AND(instr, reg_liveness, rrule);
+            Opc_AND(instr, rrule);
             break;
         case ARM_OPC_ORR:
-            Opc_ORR(instr, reg_liveness, rrule);
+            Opc_ORR(instr, rrule);
             break;
         case ARM_OPC_EOR:
-            Opc_EOR(instr, reg_liveness, rrule);
+            Opc_EOR(instr, rrule);
             break;
         case ARM_OPC_BIC:
         case ARM_OPC_BICS:
-            Opc_BIC(instr, reg_liveness, rrule);
+            Opc_BIC(instr, rrule);
             break;
         case ARM_OPC_LSL:
         case ARM_OPC_LSR:
         case ARM_OPC_ASR:
-            Opc_Shift(instr, reg_liveness, rrule);
+            Opc_Shift(instr, rrule);
             break;
         case ARM_OPC_ADD:
         case ARM_OPC_ADDS:
-            Opc_ADD(instr, reg_liveness, rrule);
+            Opc_ADD(instr, rrule);
             break;
         case ARM_OPC_ADC:
         case ARM_OPC_ADCS:
-            Opc_ADC(instr, reg_liveness, rrule);
+            Opc_ADC(instr, rrule);
             break;
         case ARM_OPC_SUB:
         case ARM_OPC_SUBS:
-            Opc_SUB(instr, reg_liveness, rrule);
+            Opc_SUB(instr, rrule);
             break;
         case ARM_OPC_SBC:
         case ARM_OPC_SBCS:
-            Opc_SBC(instr, reg_liveness, rrule);
+            Opc_SBC(instr, rrule);
             break;
         case ARM_OPC_MUL:
         case ARM_OPC_UMULL:
         case ARM_OPC_SMULL:
-            Opc_MUL(instr, reg_liveness, rrule);
+            Opc_MUL(instr, rrule);
             break;
         case ARM_OPC_CLZ:
-            Opc_CLZ(instr, reg_liveness, rrule);
+            Opc_CLZ(instr, rrule);
             break;
         case ARM_OPC_TST:
-            Opc_TST(instr, reg_liveness, rrule);
+            Opc_TST(instr, rrule);
             break;
         case ARM_OPC_CMP:
         case ARM_OPC_CMN:
-            Opc_COMPARE(instr, reg_liveness, rrule);
+            Opc_COMPARE(instr, rrule);
             break;
         case ARM_OPC_B:
-            Opc_B(instr, reg_liveness, rrule);
+            Opc_B(instr, rrule);
             break;
         case ARM_OPC_CBNZ:
-            Opc_CBNZ(instr, reg_liveness, rrule);
+            Opc_CBNZ(instr, rrule);
             break;
         case ARM_OPC_SET_JUMP:
-            Opc_SET_JUMP(instr, reg_liveness, rrule);
+            Opc_SET_JUMP(instr, rrule);
             break;
         case ARM_OPC_SET_CALL:
-            Opc_SET_CALL(instr, reg_liveness, rrule);
+            Opc_SET_CALL(instr, rrule);
             break;
         case ARM_OPC_PC_L:
         case ARM_OPC_PC_LB:
-            Opc_PC_L(instr, reg_liveness, rrule);
+            Opc_PC_L(instr, rrule);
             break;
         case ARM_OPC_PC_S:
         case ARM_OPC_PC_SB:
-            Opc_PC_S(instr, reg_liveness, rrule);
+            Opc_PC_S(instr, rrule);
             break;
         default:
             LogMan::Msg::IFmt("Unsupported x86 instruction in the assembler: {}, rule index: {}.",

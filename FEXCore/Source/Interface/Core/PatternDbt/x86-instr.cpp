@@ -951,7 +951,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
       num--;
     }
 
-    if ((instr->opc == X86_OPC_JMP) && (num == 2)) {
+    if ((instr->opc == X86_OPC_JMP || instr->opc == X86_OPC_CALL) && (num == 2)) {
       instr->opd[0] = instr->opd[1];
       num--;
     }
