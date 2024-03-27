@@ -124,14 +124,13 @@ static uint64_t get_imm_map_wrapper(ARMImm *imm)
 
 static ARMEmitter::ExtendedMemOperand  GenerateExtMemOperand(ARMEmitter::Register Base,
                                             ARMRegister Index,
-                                            ARMImm Offset,
+                                            int32_t Imm,
                                             ARMOperandScale OffsetScale,
                                             ARMMemIndexType OffsetType) {
 
     uint8_t amount = static_cast<uint8_t>(OffsetScale.imm.content.val);
 
     if (Index == ARM_REG_INVALID) {
-        int32_t Imm = get_imm_map_wrapper(&Offset);
         if (OffsetType == ARM_MEM_INDEX_TYPE_PRE)
           return ARMEmitter::ExtendedMemOperand(Base.X(), ARMEmitter::IndexType::PRE, Imm);
         else if (OffsetType == ARM_MEM_INDEX_TYPE_POST)
@@ -158,12 +157,18 @@ DEF_OPC(LDR) {
 
         if (opd1->content.mem.base != ARM_REG_INVALID) {
           ARMRegister      Index = opd1->content.mem.index;
-          ARMImm           Offset = opd1->content.mem.offset;
           ARMOperandScale  OffsetScale = opd1->content.mem.scale;
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
           auto Base = GetHostRegMap(opd1->content.mem.base);
+          int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
-          auto MemSrc = GenerateExtMemOperand(Base, Index, Offset, OffsetScale, PrePost);
+          auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
+
+          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && (Imm < 0)) {
+            const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+            sub(EmitSize, (ARMEmitter::Reg::r20).X(), Base, 0 - Imm);
+            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r20).X(), Index, 0, OffsetScale, PrePost);
+          }
 
           if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_LDR) {
             switch (OpSize) {
@@ -242,13 +247,13 @@ DEF_OPC(STR) {
         auto Src = GetHostRegMap(opd0->content.reg.num);
 
         if (opd1->content.mem.base != ARM_REG_INVALID) {
-          auto Base = GetHostRegMap(opd1->content.mem.base);
           ARMRegister      Index = opd1->content.mem.index;
-          ARMImm           Offset = opd1->content.mem.offset;
           ARMOperandScale  OffsetScale = opd1->content.mem.scale;
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
+          auto Base = GetHostRegMap(opd1->content.mem.base);
+          int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
-          auto MemSrc = GenerateExtMemOperand(Base, Index, Offset, OffsetScale, PrePost);
+          auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
           if (instr->opc == ARM_OPC_STRB || instr->opc == ARM_OPC_STRH || instr->opc == ARM_OPC_STR) {
             switch (OpSize) {
@@ -624,6 +629,13 @@ DEF_OPC(ADC) {
         LogMan::Msg::EFmt( "[arm] Unsupported operand type for ADC instruction.");
 }
 
+// behind cmp, sub instr
+void FEXCore::CPU::Arm64JITCore::FlipCF() {
+    mrs((ARMEmitter::Reg::r20).X(), ARMEmitter::SystemRegister::NZCV);
+    eor(ARMEmitter::Size::i32Bit, (ARMEmitter::Reg::r20).W(), (ARMEmitter::Reg::r20).W(), 0x20000000);
+    msr(ARMEmitter::SystemRegister::NZCV, (ARMEmitter::Reg::r20).X());
+}
+
 DEF_OPC(SUB) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
@@ -641,8 +653,10 @@ DEF_OPC(SUB) {
 
         if(instr->opc == ARM_OPC_SUB)
           sub(EmitSize, Dst, Src1, Imm);  // LSL12 default false
-        else
+        else {
           subs(EmitSize, Dst, Src1, Imm);
+          FlipCF();
+        }
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -653,8 +667,10 @@ DEF_OPC(SUB) {
 
         if(instr->opc == ARM_OPC_SUB)
           sub(EmitSize, Dst, Src1, Src2, Shift, amt);
-        else
+        else {
           subs(EmitSize, Dst, Src1, Src2, Shift, amt);
+          FlipCF();
+        }
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
         auto Src2 = GetHostRegMap(opd2->content.reg.num);
         auto Option = GetExtendType(opd2->content.reg.scale.content.extend);
@@ -662,15 +678,19 @@ DEF_OPC(SUB) {
 
         if(instr->opc == ARM_OPC_SUB)
           sub(EmitSize, Dst, Src1, Src2, Option, amt);
-        else
+        else {
           subs(EmitSize, Dst, Src1, Src2, Option, amt);
+          FlipCF();
+        }
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE){
         auto Src2 = GetHostRegMap(opd2->content.reg.num);
 
         if(instr->opc == ARM_OPC_SUB)
           sub(EmitSize, Dst, Src1, Src2);
-        else
+        else {
           subs(EmitSize, Dst, Src1, Src2);
+          FlipCF();
+        }
       }
 
     } else
@@ -774,13 +794,6 @@ DEF_OPC(TST) {
         LogMan::Msg::EFmt("[arm] Unsupported operand type for TST instruction.");
 }
 
-// behind cmp, sub instr
-void FEXCore::CPU::Arm64JITCore::FlipCF() {
-    mrs((ARMEmitter::Reg::r20).X(), ARMEmitter::SystemRegister::NZCV);
-    eor(ARMEmitter::Size::i32Bit, (ARMEmitter::Reg::r20).W(), (ARMEmitter::Reg::r20).W(), 0x20000000);
-    msr(ARMEmitter::SystemRegister::NZCV, (ARMEmitter::Reg::r20).X());
-}
-
 DEF_OPC(COMPARE) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
@@ -811,7 +824,7 @@ DEF_OPC(COMPARE) {
         auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
         uint32_t amt = opd1->content.reg.scale.imm.content.val;
 
-        if(instr->opc == ARM_OPC_CMP) {
+        if (instr->opc == ARM_OPC_CMP) {
           cmp(EmitSize, Dst, Src1, Shift, amt);
           FlipCF();
         } else
@@ -820,12 +833,18 @@ DEF_OPC(COMPARE) {
         auto Option = GetExtendType(opd1->content.reg.scale.content.extend);
         uint32_t amt = opd1->content.reg.scale.imm.content.val;
 
-        if(instr->opc == ARM_OPC_CMP)
+        if (instr->opc == ARM_OPC_CMP) {
           cmp(EmitSize, Dst, Src1, Option, amt);
-        else
+          FlipCF();
+        } else
           cmn(EmitSize, Dst, Src1, Option, amt);
-      } else
-        LogMan::Msg::EFmt("[arm] Unsupported reg for compare instruction.");
+      } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
+        if (instr->opc == ARM_OPC_CMP) {
+          cmp(EmitSize, Dst, Src1);
+          FlipCF();
+        } else
+          cmn(EmitSize, Dst, Src1);
+      }
 
     } else
         LogMan::Msg::EFmt("[arm] Unsupported operand type for compare instruction.");
@@ -844,10 +863,7 @@ IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
 DEF_OPC(B) {
     IR::IROp_Header const *IROp = nullptr;
     ARMConditionCode cond = instr->cc;
-    uint8_t  OpSize = instr->OpdSize;
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-    const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+    const auto EmitSize = ARMEmitter::Size::i64Bit;
 
     if (cond == ARM_CC_AL) {
       IROp = FindIROp(IR::IROps::OP_JUMP);
@@ -868,6 +884,11 @@ DEF_OPC(B) {
         mov((ARMEmitter::Reg::r20).W(), 1);
         cset(EmitSize, (ARMEmitter::Reg::r21).X(), MapBranchCC(ARM_CC_CS));
         csel(EmitSize, (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X(), MapBranchCC(ARM_CC_EQ));
+        cbnz(EmitSize, (ARMEmitter::Reg::r20).X(), TrueTargetLabel);
+      } else if (cond == ARM_CC_HI) {
+        // b.hi (CF=1 && ZF=0)
+        cset(EmitSize, (ARMEmitter::Reg::r20).X(), MapBranchCC(ARM_CC_CC));
+        csel(EmitSize, (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::zr).X(), MapBranchCC(ARM_CC_NE));
         cbnz(EmitSize, (ARMEmitter::Reg::r20).X(), TrueTargetLabel);
       } else
         b(MapBranchCC(cond), TrueTargetLabel);

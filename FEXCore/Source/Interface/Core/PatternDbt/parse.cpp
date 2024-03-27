@@ -296,7 +296,7 @@ void parse_translation_rules(void)
     /* 1. init environment */
     init_buf();
 
-    LogMan::Msg::IFmt( "== Loading translation rules from {}...\n", rule_file);
+    LogMan::Msg::IFmt("== Loading translation rules from {}...\n", rule_file);
     /* 2. open the rule file and parse it */
     fp = fopen(rule_file, "r");
     if (fp == NULL) {
@@ -334,10 +334,10 @@ void parse_translation_rules(void)
                 install_counter++;
             }
         } else
-            LogMan::Msg::IFmt( "Error in parsing rule file: {}.\n", line);
+            LogMan::Msg::IFmt("Error in parsing rule file: {}.\n", line);
     }
 
-    LogMan::Msg::IFmt( "== Ready: {} translation rules loaded, {} installed, {} cached.\n\n", counter, install_counter, cache_counter);
+    LogMan::Msg::IFmt("== Ready: {} translation rules loaded, {} installed, {} cached.\n\n", counter, install_counter, cache_counter);
     for (i = 0; i < MAX_GUEST_LEN;i++){
         if (cache_rule_table[i]){
             TranslationRule *temp = cache_rule_table[i];
@@ -370,8 +370,8 @@ void print_rule_hit_num(void)
         }
     }
 
-    LogMan::Msg::IFmt( "Rule hit information: {} rules has zero hit.\n", zero_counter);
-    LogMan::Msg::IFmt( "Index  #Guest  #Hit\n");
+    LogMan::Msg::IFmt("Rule hit information: {} rules has zero hit.", zero_counter);
+    LogMan::Msg::IFmt("Index  #Guest  #Hit");
     while(1) {
         cur_max = NULL;
         for (i = 0; i < MAX_GUEST_LEN; i++) {
@@ -385,7 +385,7 @@ void print_rule_hit_num(void)
             }
         }
         if (cur_max) {
-            LogMan::Msg::IFmt( "  {}\t{}\t%llu\n",
+            LogMan::Msg::IFmt( "  {}\t{}\t%llu",
                     cur_max->index, cur_max->guest_instr_num, cur_max->hit_num);
             cur_max->print_flag = 1;
             if (cur_max->guest_instr_num > 4)
@@ -396,11 +396,11 @@ void print_rule_hit_num(void)
         else
             break;
     }
-    LogMan::Msg::IFmt( "\n#Guest    #RuleCounter\n");
+    LogMan::Msg::IFmt("#Guest    #RuleCounter");
     for (i = 0; i < 5; i++)
         if (i == 4)
-            LogMan::Msg::IFmt( " >4           {}\n", counter[i]);
+            LogMan::Msg::IFmt( " >4           {}", counter[i]);
         else
-            LogMan::Msg::IFmt( "  {}           {}\n", i+1, counter[i]);
+            LogMan::Msg::IFmt( "  {}           {}", i+1, counter[i]);
 }
 #endif

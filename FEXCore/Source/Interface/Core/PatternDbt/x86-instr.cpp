@@ -354,6 +354,7 @@ void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
     } else if (!strcmp(reg_str, "eax") || !strcmp(reg_str, "ebx") || !strcmp(reg_str, "ecx") || !strcmp(reg_str, "edx")
         || !strcmp(reg_str, "esp") || !strcmp(reg_str, "ebp") || !strcmp(reg_str, "esi") || !strcmp(reg_str, "edi") || reg_str[length-1] == 'd') {
         *OpdSize = 3;
+        reg_str[0] = 'r';
         if (reg_str[length-1] == 'd')
           reg_str[length-1] = '\0';
     } else
@@ -865,8 +866,8 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
     uint8_t num = 0, count = 0;
     FEXCore::X86Tables::DecodedOperand *Opd = &DecodeInst->Dest;
 
-    while(Opd) {
-        if(!Opd->IsNone()) {
+    while (Opd) {
+        if (!Opd->IsNone()) {
           if (SingleSrc && num == 1)
             break;
 
@@ -946,7 +947,8 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
     }
 
     if ((instr->opc == X86_OPC_CMP || instr->opc == X86_OPC_ADD
-      || instr->opc == X86_OPC_OR || instr->opc == X86_OPC_MOV) && (num == 3)) {
+      || instr->opc == X86_OPC_OR || instr->opc == X86_OPC_MOV
+      || instr->opc == X86_OPC_TEST) && (num == 3)) {
       instr->opd[1] = instr->opd[2];
       num--;
     }

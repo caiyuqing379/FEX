@@ -806,7 +806,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
   else
     LogMan::Msg::EFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
 
-  bool IsRuleTrans = false;
+  bool IsRuleTrans = false, debug = true;
   uint64_t cur_ins_pc = IR->GetHeader()->OriginalRIP;
   uint32_t reg_liveness[100] = {0};
 
@@ -839,6 +839,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
     if (IsRuleTrans) {
       // Start translating by translation rules
       if (cur_ins_pc && instr_is_match(cur_ins_pc)) {
+        debug = false;
         auto RTBStartHostCode = GetCursorAddress<uint8_t *>();
         #ifdef PROFILE_RULE_TRANSLATION
           replace_tb_num++;
@@ -931,6 +932,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
   ClearICache(CodeData.BlockBegin, CodeOnlySize);
 
+if ((tBlockInfo->TotalInstructionCount < 4) && debug) {
 #ifdef VIXL_DISASSEMBLER
   if (Disassemble() & FEXCore::Config::Disassemble::STATS) {
     auto HeaderOp = IR->GetHeader();
@@ -953,6 +955,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
     LogMan::Msg::IFmt("Disassemble End \n");
   }
 #endif
+}
 
   if (DebugData) {
     DebugData->HostCodeSize = CodeData.Size;

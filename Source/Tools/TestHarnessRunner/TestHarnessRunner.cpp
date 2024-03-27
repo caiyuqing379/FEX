@@ -20,6 +20,7 @@ $end_info$
 #include "Common/ArgumentLoader.h"
 #include "TestHarnessRunner/HostRunner.h"
 #include "HarnessHelpers.h"
+#include "../../../FEXCore/Source/Interface/Core/PatternDbt/parse.h"
 
 #include <FEXCore/Config/Config.h>
 #include <FEXCore/Core/Context.h>
@@ -300,6 +301,8 @@ int main(int argc, char **argv, char **const envp) {
     if (!ParentThread) {
       return 1;
     }
+
+    parse_translation_rules();
 
     int LongJumpVal = setjmp(LongJumpHandler::LongJump);
     if (!LongJumpVal) {

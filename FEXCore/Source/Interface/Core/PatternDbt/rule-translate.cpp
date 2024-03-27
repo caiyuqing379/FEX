@@ -410,14 +410,11 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
 
             if (debug) {
                 if (p_rule_instr->opd_num != p_guest_instr->opd_num)
-                    LogMan::Msg::IFmt( "different operand number");
+                    LogMan::Msg::IFmt("Different operand number");
                 else if (p_rule_instr->DestSize != p_guest_instr->DestSize)
-                    LogMan::Msg::IFmt( "Different RULE dest size: {}, GUEST dest size: {}", p_rule_instr->DestSize, p_guest_instr->DestSize);
+                    LogMan::Msg::IFmt("Different RULE dest size: {}, GUEST dest size: {}", p_rule_instr->DestSize, p_guest_instr->DestSize);
                 else if (p_rule_instr->SrcSize != p_guest_instr->SrcSize)
-                    LogMan::Msg::IFmt( "different src operand size");
-                LogMan::Msg::IFmt("Unmatched operand :");
-                print_x86_instr(p_guest_instr);
-                print_x86_instr(p_rule_instr);
+                    LogMan::Msg::IFmt("Different src operand size");
             }
 
             return false;
@@ -512,7 +509,7 @@ uint64_t get_imm_map(char *sym)
         }
         im = im->next;
     }
-    LogMan::Msg::IFmt("get imm val: {}\n", t_str);
+    LogMan::Msg::IFmt("get imm val: 0x{:x}\n", std::stoull(t_str));
     return std::stoull(t_str);
 }
 
@@ -685,7 +682,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                     goto next;
 
                 if (match_rule_internal(cur_head, cur_rule, tb)) {
-                    LogMan::Msg::IFmt( "##### Match rule {} success #####\n", cur_rule->index);
+                    LogMan::Msg::IFmt("##### Match rule {} success #####\n", cur_rule->index);
                     break;
                 }
 
@@ -704,7 +701,8 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                   num_rules_hit++;
                   static_inst_rule_counter += i;
                   cur_rule->hit_num++;
-                  LogMan::Msg::IFmt( "##### Total hit rule num: {} #####\n", num_rules_hit);
+                  cur_rule->match_counter += i;
+                  LogMan::Msg::IFmt( "##### Index rule hit num {}, total hit num: {} #####\n", cur_rule->hit_num, num_rules_hit);
                 #endif
 
                 /* Check target_pc for this rule */

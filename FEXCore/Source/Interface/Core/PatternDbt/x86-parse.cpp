@@ -86,7 +86,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 
         if (line[idx] == ':')
             idx++; // skip ':'
-    } else if (fc == 'r' || fc == 't') {
+    } else if (fc == 'r' || fc == 'e') {
         /* Register operand */
         char reg_str[20] = "\0";
 
@@ -124,8 +124,8 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
         }
 
         if (fc == '[') {
-            idx+=2; // skip '[ '
-            while (line[idx] != ' ')
+            idx++; // skip '['
+            while (line[idx] != ' '&&line[idx] != ']')
                 strncat(reg_str, &line[idx++], 1);
 
             // rip literal
@@ -138,9 +138,8 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
                     idx+=2;
                     fc = line[idx];
 
-                    while(line[idx] != ' ')
+                    while(line[idx] != ']')
                         strncat(off_str, &line[idx++], 1);
-                    idx++; // skip " "
 
                     set_x86_opd_type(opd, X86_OPD_TYPE_IMM);
                     if (fc == 'i')
@@ -167,20 +166,20 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
                     if (line[idx] == '*') { // have scale value
                       char scale_str[20] = "\0";
                       idx+=2;
-                      while(line[idx] != ' ')
+                      while(line[idx] != ' ' && line[idx] != ']')
                         strncat(scale_str, &line[idx++], 1);
-                      idx++;
                       set_x86_opd_mem_scale_str(opd, scale_str);
                     }
+
+                    if (line[idx] == ' ') idx++;
                 }
                 if (line[idx] == '+' || line[idx] == '-') {
                     char off_str[20] = "\0"; // parse offset
                     bool neg = line[idx] == '-' ? true : false;
                     idx+=2; // skip '+ '
 
-                    while(line[idx] != ' ')
+                    while(line[idx] != ']')
                         strncat(off_str, &line[idx++], 1);
-                    idx++;
 
                     set_x86_opd_mem_off_str(opd, off_str, neg);
                 }
