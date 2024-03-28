@@ -333,33 +333,62 @@ void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str, bool isRipLiteral)
     iopd->isRipLiteral = isRipLiteral;
 }
 
-/* set register operand using given string */
-void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
+void insert_char_begin(char *reg_str, char new_char) {
+    size_t length = strlen(reg_str);
+    memmove(reg_str + 1, reg_str, length + 1);
+    reg_str[0] = new_char;
+}
+
+void proc_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
 {
     int length = strlen(reg_str);
     opd->content.reg.HighBits = false;
 
     if (!strcmp(reg_str, "ah") || !strcmp(reg_str, "bh")|| !strcmp(reg_str, "ch") || !strcmp(reg_str, "dh")) {
+        // byte
         *OpdSize = 1;
         opd->content.reg.HighBits = true;
-    } else if (!strcmp(reg_str, "al") || !strcmp(reg_str, "bl") || !strcmp(reg_str, "cl") || !strcmp(reg_str, "dl") || reg_str[length-1] == 'b') {
+        insert_char_begin(reg_str, 'r');
+        reg_str[length] = 'x';
+    } else if (!strcmp(reg_str, "al") || !strcmp(reg_str, "bl") || !strcmp(reg_str, "cl")
+        || !strcmp(reg_str, "dl") || !strcmp(reg_str, "sil") || !strcmp(reg_str, "dil")
+        || !strcmp(reg_str, "bpl") || !strcmp(reg_str, "spl") || reg_str[length-1] == 'b') {
+        // byte
         *OpdSize = 1;
-        if (reg_str[length-1] == 'b')
+        if (reg_str[length-1] == 'b') {
           reg_str[length-1] = '\0';
-    } else if (!strcmp(reg_str, "ax") || !strcmp(reg_str, "bx") || !strcmp(reg_str, "cx") || !strcmp(reg_str, "dx")
-        || !strcmp(reg_str, "sp") || !strcmp(reg_str, "bp") || !strcmp(reg_str, "si") || !strcmp(reg_str, "di") || reg_str[length-1] == 'w') {
+        } else {
+          insert_char_begin(reg_str, 'r');
+          if (length == 2)
+            reg_str[length] = 'x';
+          else
+            reg_str[length] = '\0';
+        }
+    } else if (!strcmp(reg_str, "ax") || !strcmp(reg_str, "bx") || !strcmp(reg_str, "cx")
+        || !strcmp(reg_str, "dx") || !strcmp(reg_str, "sp") || !strcmp(reg_str, "bp")
+        || !strcmp(reg_str, "si") || !strcmp(reg_str, "di") || reg_str[length-1] == 'w') {
+        // word
         *OpdSize = 2;
         if (reg_str[length-1] == 'w')
           reg_str[length-1] = '\0';
-    } else if (!strcmp(reg_str, "eax") || !strcmp(reg_str, "ebx") || !strcmp(reg_str, "ecx") || !strcmp(reg_str, "edx")
-        || !strcmp(reg_str, "esp") || !strcmp(reg_str, "ebp") || !strcmp(reg_str, "esi") || !strcmp(reg_str, "edi") || reg_str[length-1] == 'd') {
+        else
+          insert_char_begin(reg_str, 'r');
+    } else if (!strcmp(reg_str, "eax") || !strcmp(reg_str, "ebx") || !strcmp(reg_str, "ecx")
+        || !strcmp(reg_str, "edx") || !strcmp(reg_str, "esp") || !strcmp(reg_str, "ebp")
+        || !strcmp(reg_str, "esi") || !strcmp(reg_str, "edi") || reg_str[length-1] == 'd') {
+        // dword
         *OpdSize = 3;
         reg_str[0] = 'r';
         if (reg_str[length-1] == 'd')
           reg_str[length-1] = '\0';
     } else
         *OpdSize = 4;
+}
 
+/* set register operand using given string */
+void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
+{
+    proc_reg_str(opd, reg_str, OpdSize);
     opd->content.reg.num = get_x86_register(reg_str);
 }
 
@@ -946,9 +975,8 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
       }
     }
 
-    if ((instr->opc == X86_OPC_CMP || instr->opc == X86_OPC_ADD
-      || instr->opc == X86_OPC_OR || instr->opc == X86_OPC_MOV
-      || instr->opc == X86_OPC_TEST) && (num == 3)) {
+    // cmp, add, or, mov, test, sub
+    if (num == 3) {
       instr->opd[1] = instr->opd[2];
       num--;
     }

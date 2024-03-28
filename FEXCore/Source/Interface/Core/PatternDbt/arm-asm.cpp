@@ -105,6 +105,11 @@ static ARMEmitter::Register GetHostRegMap(ARMRegister reg)
     case ARM_REG_R29: return ARMEmitter::Reg::r29;
     case ARM_REG_R30: return ARMEmitter::Reg::r30;
     case ARM_REG_R31: return ARMEmitter::Reg::r31;
+
+    case ARM_REG_FP: return ARMEmitter::Reg::fp;
+    case ARM_REG_LR: return ARMEmitter::Reg::lr;
+    case ARM_REG_RSP: return ARMEmitter::Reg::rsp;
+    case ARM_REG_ZR: return ARMEmitter::Reg::zr;
     default:
       LOGMAN_MSG_A_FMT("Unsupported reg num");
       return reg_invalid;
@@ -199,6 +204,9 @@ DEF_OPC(LDR) {
                 ldrsh(Dest.W(), MemSrc);
             else
                 ldrsh(Dest.X(), MemSrc);
+          } else if (instr->opc == ARM_OPC_LDAR) {
+                ldar(Dest.X(), Base);
+                nop();
           }
         }
     } else
@@ -254,6 +262,12 @@ DEF_OPC(STR) {
           int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
+
+          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && (Imm < 0)) {
+            const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+            sub(EmitSize, (ARMEmitter::Reg::r20).X(), Base, 0 - Imm);
+            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r20).X(), Index, 0, OffsetScale, PrePost);
+          }
 
           if (instr->opc == ARM_OPC_STRB || instr->opc == ARM_OPC_STRH || instr->opc == ARM_OPC_STR) {
             switch (OpSize) {
@@ -794,6 +808,7 @@ DEF_OPC(TST) {
         LogMan::Msg::EFmt("[arm] Unsupported operand type for TST instruction.");
 }
 
+
 DEF_OPC(COMPARE) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
@@ -808,15 +823,26 @@ DEF_OPC(COMPARE) {
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
       uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
 
-      if(instr->opc == ARM_OPC_CMP) {
-        if ((Imm >> 12) != 0) {
-          LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), Imm);
-          cmp(EmitSize, Dst, (ARMEmitter::Reg::r20).X());
-        } else
-          cmp(EmitSize, Dst, Imm);
-        FlipCF();
-      } else
-        cmn(EmitSize, Dst, Imm);
+      if (instr->opc == ARM_OPC_CMP) {
+          if ((Imm >> 12) != 0) {
+              LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), Imm);
+              cmp(EmitSize, Dst, (ARMEmitter::Reg::r20).X());
+          } else
+              cmp(EmitSize, Dst, Imm);
+          FlipCF();
+      } else if (instr->opc == ARM_OPC_CMPB) {
+          sub(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r26, Dst, Imm);
+          cmn(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, 0x16);
+          mrs((ARMEmitter::Reg::r20).X(), ARMEmitter::SystemRegister::NZCV);
+          ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r26, 8, 1);
+          orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 29);
+          bic(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r27, ARMEmitter::Reg::r26);
+          ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r21, 7, 1);
+          orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 28);
+          msr(ARMEmitter::SystemRegister::NZCV, (ARMEmitter::Reg::r20).X());
+      } else if (instr->opc == ARM_OPC_CMN) {
+          cmn(EmitSize, Dst, Imm);
+      }
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
@@ -850,6 +876,7 @@ DEF_OPC(COMPARE) {
         LogMan::Msg::EFmt("[arm] Unsupported operand type for compare instruction.");
 }
 
+
 IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
 {
     for (auto [BlockNode, BlockHeader] : this->IR->GetBlocks()) {
@@ -859,6 +886,7 @@ IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
     }
     return nullptr;
 }
+
 
 DEF_OPC(B) {
     IR::IROp_Header const *IROp = nullptr;
@@ -897,6 +925,7 @@ DEF_OPC(B) {
     }
 }
 
+
 DEF_OPC(CBNZ) {
     ARMOperand *opd0 = &instr->opd[0];
     uint8_t OpSize = instr->OpdSize;
@@ -911,7 +940,10 @@ DEF_OPC(CBNZ) {
 
     auto TrueTargetLabel = &JumpTargets.try_emplace(Op->TrueBlock.ID()).first->second;
 
-    cbnz(EmitSize, Src, TrueTargetLabel);
+    if (instr->opc == ARM_OPC_CBNZ)
+      cbnz(EmitSize, Src, TrueTargetLabel);
+    else
+      cbz(EmitSize, Src, TrueTargetLabel);
 
     PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
 }
@@ -935,6 +967,7 @@ DEF_OPC(SET_JUMP) {
 
     // operand type is reg don't need to be processed.
 }
+
 
 DEF_OPC(SET_CALL) {
     ARMOperand *opd = &instr->opd[0];
@@ -967,6 +1000,7 @@ DEF_OPC(SET_CALL) {
     }
 }
 
+
 DEF_OPC(PC_L) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
@@ -998,6 +1032,7 @@ DEF_OPC(PC_L) {
     }
 }
 
+
 DEF_OPC(PC_S) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
@@ -1025,6 +1060,7 @@ DEF_OPC(PC_S) {
     }
 }
 
+
 void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule)
 {
     print_arm_instr(instr);
@@ -1034,6 +1070,7 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
         case ARM_OPC_LDRSB:
         case ARM_OPC_LDRH:
         case ARM_OPC_LDRSH:
+        case ARM_OPC_LDAR:
         case ARM_OPC_LDR:
             Opc_LDR(instr, rrule);
             break;
@@ -1104,12 +1141,14 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
             Opc_TST(instr, rrule);
             break;
         case ARM_OPC_CMP:
+        case ARM_OPC_CMPB:
         case ARM_OPC_CMN:
             Opc_COMPARE(instr, rrule);
             break;
         case ARM_OPC_B:
             Opc_B(instr, rrule);
             break;
+        case ARM_OPC_CBZ:
         case ARM_OPC_CBNZ:
             Opc_CBNZ(instr, rrule);
             break;

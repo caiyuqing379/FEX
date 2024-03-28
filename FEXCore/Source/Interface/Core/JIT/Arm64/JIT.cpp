@@ -932,7 +932,9 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
   ClearICache(CodeData.BlockBegin, CodeOnlySize);
 
-if ((tBlockInfo->TotalInstructionCount < 4) && debug) {
+if (tBlockInfo->TotalInstructionCount <= 4) {
+  if (debug)
+    LogMan::Msg::IFmt("Blocks that can use translation rules, please address!\n");
 #ifdef VIXL_DISASSEMBLER
   if (Disassemble() & FEXCore::Config::Disassemble::STATS) {
     auto HeaderOp = IR->GetHeader();

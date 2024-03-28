@@ -30,6 +30,7 @@ static const char *arm_reg_str[] = {
     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
     "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
     "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
+    "fp", "lr", "rsp", "zr",
     "cf", "nf", "vf", "zf",
     "reg0", "reg1", "reg2", "reg3", "reg4", "reg5", "reg6", "reg7",
     "reg8", "reg9", "reg10", "reg11", "reg12", "reg13", "reg14", "reg15",
@@ -65,6 +66,7 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_LDRH]  = "ldrh",
     [ARM_OPC_LDRSH] = "ldrsh",
     [ARM_OPC_LDR]   = "ldr",
+    [ARM_OPC_LDAR]  = "ldar",
     [ARM_OPC_LDP]   = "ldp",
     [ARM_OPC_STRB]  = "strb",
     [ARM_OPC_STRH]  = "strh",
@@ -96,9 +98,11 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_CLZ]   = "clz",
     [ARM_OPC_TST]   = "tst",
     [ARM_OPC_CMP]   = "cmp",
+    [ARM_OPC_CMPB]  = "cmpb",
     [ARM_OPC_CMN]   = "cmn",
     [ARM_OPC_B]     = "b",
     [ARM_OPC_BL]    = "bl",
+    [ARM_OPC_CBZ]   = "cbz",
     [ARM_OPC_CBNZ]  = "cbnz",
     [ARM_OPC_SET_JUMP] = "set_jump",
     [ARM_OPC_SET_CALL] = "set_call",
@@ -376,6 +380,9 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
           instr->OpdSize = 8;
         reg_str[0] = 'r';
     }
+
+    if(!strcmp("rzr", reg_str))
+       reg_str = "zr";
 
     opd->type = ARM_OPD_TYPE_REG;
     opd->content.reg.num = get_arm_register(reg_str);

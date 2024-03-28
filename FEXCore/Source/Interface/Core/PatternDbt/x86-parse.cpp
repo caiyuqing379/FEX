@@ -54,6 +54,24 @@ static int parse_rule_x86_opcode(char *line, X86Instruction *instr)
         return i;
 }
 
+bool has_substr(char *line, int idx) {
+    if (line == NULL) {
+        fprintf(stderr, "line is NULL!\n");
+        return 0;
+    }
+
+    char *substr = line + idx;
+
+    if((line[idx] == 'a' || line[idx] == 'b' || line[idx] == 'c'
+      || line[idx] == 'd' || line[idx] == 's') && (line[idx+1] == 'l'
+      || line[idx+1] == 'h' || line[idx+1] == 'x' || line[idx+1] == 'i'
+      || line[idx+1] == 'p')) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 /* If x86 instruction has temp register, currently not supported */
 static bool has_temp_register = false;
 
@@ -86,7 +104,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 
         if (line[idx] == ':')
             idx++; // skip ':'
-    } else if (fc == 'r' || fc == 'e') {
+    } else if (fc == 'r' || fc == 'e' || has_substr(line, idx)) {
         /* Register operand */
         char reg_str[20] = "\0";
 
@@ -158,7 +176,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
                 if (fc == '+' && line[idx+2] == 'r') { // have index register
                     char index_str[10] = "\0";
                     idx+=2;
-                    while(line[idx] != ' ')
+                    while(line[idx] != ' ' && line[idx] != ']')
                       strncat(index_str, &line[idx++], 1);
                     idx++;
                     set_x86_opd_mem_index_str(opd, index_str);
