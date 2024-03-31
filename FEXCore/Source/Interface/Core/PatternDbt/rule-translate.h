@@ -18,6 +18,7 @@ typedef struct ImmMapping {
 typedef struct GuestRegisterMapping {
     X86Register sym;    /* symbolic register in a rule */
     X86Register num;    /* real register in guest instruction */
+    uint32_t regsize;
 
     struct GuestRegisterMapping *next;
 } GuestRegisterMapping;
@@ -62,6 +63,6 @@ void do_rule_translation(RuleRecord *, uint32_t *);
 void get_label_map(char *, uint64_t *, uint64_t *);
 uint64_t get_imm_map(char *);
 int32_t get_offset_map(char *);
-X86Register get_guest_reg_map(ARMRegister);
+ARMRegister get_guest_reg_map(ARMRegister& reg, uint32_t& regsize);
 bool is_last_access(ARMInstruction *, ARMRegister);
 #endif

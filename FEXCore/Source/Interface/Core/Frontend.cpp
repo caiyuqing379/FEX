@@ -1172,11 +1172,11 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
     // Do a bit of pointer math to figure out where we are in code
     InstStream = AdjustAddrForSpecialRegion(_InstStream, EntryPoint, RIPToDecode);
 
-    std::ofstream file("/home/zzy/x86-raw-binary", std::ios::app);
-    if (!file.is_open()) {
-      LogMan::Msg::EFmt("Failed to open file!");
-      exit(0);
-    }
+    // std::ofstream file("/home/zzy/x86-raw-binary", std::ios::app);
+    // if (!file.is_open()) {
+    //   LogMan::Msg::EFmt("Failed to open file!");
+    //   exit(0);
+    // }
 
     while (1) {
       // MAX_INST_SIZE assumes worst case
@@ -1242,7 +1242,7 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
       for(uint8_t k=0; k < DecodeInst->InstSize; k++){
         uint8_t Byte = InstStream[k];
         LogMan::Msg::IFmt("Inst at 0x{:x}: size {} with {:x}", DecodeInst->PC, k, Byte);
-        file << Byte;
+        // file << Byte;
       }
       LogMan::Msg::IFmt("");
 
@@ -1253,8 +1253,8 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
       PCOffset += DecodeInst->InstSize;
       InstStream += DecodeInst->InstSize;
     }
-    file << "eb00";
-    file.close();
+    // file << "eb00";
+    // file.close();
 
     BlocksToDecode.erase(BlockDecodeIt);
     HasBlocks.emplace(RIPToDecode);

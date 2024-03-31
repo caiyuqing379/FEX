@@ -69,7 +69,7 @@ static ARMEmitter::ExtendedType GetExtendType(ARMOperandScaleExtend extend)
   }
 }
 
-static ARMEmitter::Register GetHostRegMap(ARMRegister reg)
+static ARMEmitter::Register GetHostRegMap(ARMRegister& reg)
 {
   ARMEmitter::Register reg_invalid(255);
   switch (reg) {
@@ -156,38 +156,42 @@ DEF_OPC(LDR) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t    OpSize = instr->OpdSize;
+    uint32_t   reg1size, reg2size;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_MEM) {
-        auto Dest = GetHostRegMap(opd0->content.reg.num);
+        auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+        auto Dst = GetHostRegMap(ARMReg);
+
+        if (reg1size) OpSize = 1 << (reg1size-1);
 
         if (opd1->content.mem.base != ARM_REG_INVALID) {
           ARMRegister      Index = opd1->content.mem.index;
           ARMOperandScale  OffsetScale = opd1->content.mem.scale;
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
-          auto Base = GetHostRegMap(opd1->content.mem.base);
+          auto ARMReg = get_guest_reg_map(opd1->content.mem.base, reg2size);
+          auto Base = GetHostRegMap(ARMReg);
           int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
           if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && (Imm < 0)) {
-            const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-            sub(EmitSize, (ARMEmitter::Reg::r20).X(), Base, 0 - Imm);
+            sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, 0 - Imm);
             MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r20).X(), Index, 0, OffsetScale, PrePost);
           }
 
           if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_LDR) {
             switch (OpSize) {
               case 1:
-                ldrb(Dest, MemSrc);
+                ldrb(Dst, MemSrc);
                 break;
               case 2:
-                ldrh(Dest, MemSrc);
+                ldrh(Dst, MemSrc);
                 break;
               case 4:
-                ldr(Dest.W(), MemSrc);
+                ldr(Dst.W(), MemSrc);
                 break;
               case 8:
-                ldr(Dest.X(), MemSrc); // LDR（literal) not support
+                ldr(Dst.X(), MemSrc); // LDR（literal) not support
                 break;
               default:
                 LOGMAN_MSG_A_FMT("Unhandled LoadMem size: {}", OpSize);
@@ -196,16 +200,16 @@ DEF_OPC(LDR) {
 
           } else if (instr->opc == ARM_OPC_LDRSB) {
             if (OpSize == 4)
-                ldrsb(Dest.W(), MemSrc);
+                ldrsb(Dst.W(), MemSrc);
             else
-                ldrsb(Dest.X(), MemSrc);
+                ldrsb(Dst.X(), MemSrc);
           } else if (instr->opc == ARM_OPC_LDRSH) {
             if (OpSize == 4)
-                ldrsh(Dest.W(), MemSrc);
+                ldrsh(Dst.W(), MemSrc);
             else
-                ldrsh(Dest.X(), MemSrc);
+                ldrsh(Dst.X(), MemSrc);
           } else if (instr->opc == ARM_OPC_LDAR) {
-                ldar(Dest.X(), Base);
+                ldar(Dst.X(), Base);
                 nop();
           }
         }
@@ -264,8 +268,7 @@ DEF_OPC(STR) {
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
           if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && (Imm < 0)) {
-            const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-            sub(EmitSize, (ARMEmitter::Reg::r20).X(), Base, 0 - Imm);
+            sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, 0 - Imm);
             MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r20).X(), Index, 0, OffsetScale, PrePost);
           }
 
@@ -347,25 +350,35 @@ DEF_OPC(MOV) {
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t     OpSize = instr->OpdSize;
 
+    ARMEmitter::Size EmitSize;
+    uint32_t   reg1size, reg2size;
+
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
-    const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto Dst = GetHostRegMap(ARMReg);
+
+    if ((reg1size & 0x3) || OpSize == 4)
+        EmitSize = ARMEmitter::Size::i32Bit;
+    else if (reg1size == 4 || OpSize == 8)
+        EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
       if (opd1->content.reg.num != ARM_REG_INVALID) {
-        auto SrcDst = GetHostRegMap(opd1->content.reg.num);
-        mov(EmitSize, Dst, SrcDst);  // move (register)
-                                     // move (to/from SP) not support
+          ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+          auto SrcDst = GetHostRegMap(ARMReg);
+
+          mov(EmitSize, Dst, SrcDst);  // move (register)
+                                       // move (to/from SP) not support
       } else
-        LogMan::Msg::EFmt( "[arm] Unsupported reg num for mov instruction.");
+          LogMan::Msg::EFmt( "[arm] Unsupported reg num for mov instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
         uint64_t Constant = get_imm_map_wrapper(&opd1->content.imm);
         LoadConstant(ARMEmitter::Size::i64Bit, Dst, Constant);
     } else
-      LogMan::Msg::EFmt( "[arm] Unsupported operand type for mov instruction.");
+        LogMan::Msg::EFmt( "[arm] Unsupported operand type for mov instruction.");
 }
 
 DEF_OPC(MVN) {
@@ -735,6 +748,7 @@ DEF_OPC(SBC) {
       LogMan::Msg::EFmt("[arm] Unsupported operand type for SBC instruction.");
 }
 
+
 DEF_OPC(MUL) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
@@ -746,19 +760,20 @@ DEF_OPC(MUL) {
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      auto Dst = GetHostRegMap(opd0->content.reg.num);
-      auto Src1 = GetHostRegMap(opd1->content.reg.num);
-      auto Src2 = GetHostRegMap(opd2->content.reg.num);
+        auto Dst = GetHostRegMap(opd0->content.reg.num);
+        auto Src1 = GetHostRegMap(opd1->content.reg.num);
+        auto Src2 = GetHostRegMap(opd2->content.reg.num);
 
-      if (instr->opc == ARM_OPC_MUL)
-        mul(EmitSize, Dst, Src1, Src2);
-      else if(instr->opc == ARM_OPC_UMULL)
-        umull(Dst.X(), Src1.W(), Src2.W());
-      else if(instr->opc == ARM_OPC_SMULL)
-        smull(Dst.X(), Src1.W(), Src2.W());
+        if (instr->opc == ARM_OPC_MUL)
+            mul(EmitSize, Dst, Src1, Src2);
+        else if(instr->opc == ARM_OPC_UMULL)
+            umull(Dst.X(), Src1.W(), Src2.W());
+        else if(instr->opc == ARM_OPC_SMULL)
+            smull(Dst.X(), Src1.W(), Src2.W());
     } else
         LogMan::Msg::EFmt("[arm] Unsupported operand type for MUL instruction.");
 }
+
 
 DEF_OPC(CLZ) {
     ARMOperand *opd0 = &instr->opd[0];
@@ -770,36 +785,51 @@ DEF_OPC(CLZ) {
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
-      auto Dst = GetHostRegMap(opd0->content.reg.num);
-      auto Src = GetHostRegMap(opd1->content.reg.num);
+        auto Dst = GetHostRegMap(opd0->content.reg.num);
+        auto Src = GetHostRegMap(opd1->content.reg.num);
 
-      clz(EmitSize, Dst, Src);
+        clz(EmitSize, Dst, Src);
     } else
         LogMan::Msg::EFmt("[arm] Unsupported operand type for CLZ instruction.");
 }
+
 
 DEF_OPC(TST) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t     OpSize = instr->OpdSize;
 
+    bool isRegSym = false;
+    ARMEmitter::Size EmitSize;
+    uint32_t reg1size, reg2size;
+    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto Dst = GetHostRegMap(ARMReg);
+
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
-    const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetHostRegMap(opd0->content.reg.num);
+    if ((reg1size & 0x3) || OpSize == 4)
+        EmitSize = ARMEmitter::Size::i32Bit;
+    else if (reg1size == 4 || OpSize == 8)
+        EmitSize = ARMEmitter::Size::i64Bit;
+
+    if (reg1size == 1 || reg1size == 2) isRegSym = true;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
-      auto Src = GetHostRegMap(opd1->content.reg.num);
+        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        auto Src = GetHostRegMap(ARMReg);
 
-      if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
-        uint32_t amt = opd1->content.reg.scale.imm.content.val;
-
-        tst(EmitSize, Dst, Src, Shift, amt);
-      } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
-        tst(EmitSize, Dst, Src);
-      } else
-        LogMan::Msg::EFmt("[arm] Unsupported reg for TST instruction.");
+        if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
+            auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
+            uint32_t amt = opd1->content.reg.scale.imm.content.val;
+            tst(EmitSize, Dst, Src, Shift, amt);
+        } else if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
+            tst(EmitSize, Dst, Src);
+        } else if (reg1size == 1) {
+            cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, 24);
+        } else if (reg1size == 2) {
+            cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, 16);
+        } else
+            LogMan::Msg::EFmt("[arm] Unsupported reg for TST instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
         int32_t Imm = get_imm_map_wrapper(&opd1->content.imm);
@@ -814,63 +844,106 @@ DEF_OPC(COMPARE) {
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t     OpSize = instr->OpdSize;
 
+    bool isRegSym = false;
+    ARMEmitter::Size EmitSize;
+    uint32_t reg1size, reg2size;
+    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto Dst = GetHostRegMap(ARMReg);
+
     LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
-    const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-    auto Dst = GetHostRegMap(opd0->content.reg.num);
-    auto Src1 = GetHostRegMap(opd1->content.reg.num);
+    if ((reg1size & 0x3) || OpSize == 4)
+        EmitSize = ARMEmitter::Size::i32Bit;
+    else if (reg1size == 4 || OpSize == 8)
+        EmitSize = ARMEmitter::Size::i64Bit;
+
+    if (reg1size == 1 || reg1size == 2) isRegSym = true;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
-      uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
+        uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
 
-      if (instr->opc == ARM_OPC_CMP) {
-          if ((Imm >> 12) != 0) {
-              LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), Imm);
-              cmp(EmitSize, Dst, (ARMEmitter::Reg::r20).X());
-          } else
-              cmp(EmitSize, Dst, Imm);
-          FlipCF();
-      } else if (instr->opc == ARM_OPC_CMPB) {
-          sub(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r26, Dst, Imm);
-          cmn(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, 0x16);
-          mrs((ARMEmitter::Reg::r20).X(), ARMEmitter::SystemRegister::NZCV);
-          ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r26, 8, 1);
-          orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 29);
-          bic(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r27, ARMEmitter::Reg::r26);
-          ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r21, 7, 1);
-          orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 28);
-          msr(ARMEmitter::SystemRegister::NZCV, (ARMEmitter::Reg::r20).X());
-      } else if (instr->opc == ARM_OPC_CMN) {
-          cmn(EmitSize, Dst, Imm);
-      }
+        if (!isRegSym && instr->opc == ARM_OPC_CMP) {
+            if ((Imm >> 12) != 0) {
+                LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), Imm);
+                cmp(EmitSize, Dst, (ARMEmitter::Reg::r20).X());
+            } else
+                cmp(EmitSize, Dst, Imm);
+            FlipCF();
+        } else if (instr->opc == ARM_OPC_CMPB || isRegSym) {
+            if (reg1size == 2) {
+              uxth(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r27, Dst);
+              LoadConstant(ARMEmitter::Size::i32Bit, (ARMEmitter::Reg::r20).X(), Imm);
+              sub(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, ARMEmitter::Reg::r20);
+              cmn(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, 16);
+            } else {
+              if (reg1size == 1)
+                uxtb(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r27, Dst);
+              sub(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, Imm);
+              cmn(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, 24);
+            }
+            mrs((ARMEmitter::Reg::r20).X(), ARMEmitter::SystemRegister::NZCV);
+            ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r26, 8, 1);
+            orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 29);
+            bic(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r27, ARMEmitter::Reg::r26);
+            ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r21, 7, 1);
+            orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 28);
+            msr(ARMEmitter::SystemRegister::NZCV, (ARMEmitter::Reg::r20).X());
+        } else if (instr->opc == ARM_OPC_CMN) {
+            cmn(EmitSize, Dst, Imm);
+        }
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
+        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        auto Src = GetHostRegMap(ARMReg);
 
-      if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
-        uint32_t amt = opd1->content.reg.scale.imm.content.val;
+        if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
+            auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
+            uint32_t amt = opd1->content.reg.scale.imm.content.val;
 
-        if (instr->opc == ARM_OPC_CMP) {
-          cmp(EmitSize, Dst, Src1, Shift, amt);
-          FlipCF();
-        } else
-          cmn(EmitSize, Dst, Src1, Shift, amt);
-      } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
-        auto Option = GetExtendType(opd1->content.reg.scale.content.extend);
-        uint32_t amt = opd1->content.reg.scale.imm.content.val;
+            if (instr->opc == ARM_OPC_CMP) {
+                cmp(EmitSize, Dst, Src, Shift, amt);
+                FlipCF();
+            } else
+                cmn(EmitSize, Dst, Src, Shift, amt);
 
-        if (instr->opc == ARM_OPC_CMP) {
-          cmp(EmitSize, Dst, Src1, Option, amt);
-          FlipCF();
-        } else
-          cmn(EmitSize, Dst, Src1, Option, amt);
-      } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
-        if (instr->opc == ARM_OPC_CMP) {
-          cmp(EmitSize, Dst, Src1);
-          FlipCF();
-        } else
-          cmn(EmitSize, Dst, Src1);
-      }
+        } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
+            auto Option = GetExtendType(opd1->content.reg.scale.content.extend);
+            uint32_t amt = opd1->content.reg.scale.imm.content.val;
+
+            if (instr->opc == ARM_OPC_CMP) {
+                cmp(EmitSize, Dst, Src, Option, amt);
+                FlipCF();
+            } else
+                cmn(EmitSize, Dst, Src, Option, amt);
+
+        } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
+            if (instr->opc == ARM_OPC_CMP) {
+                if (!isRegSym) {
+                    cmp(EmitSize, Dst, Src);
+                    FlipCF();
+                } else {
+                    uxtb(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, Src);
+                    uxtb(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, Dst);
+                    sub(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r26, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
+                    //eor(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r27, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
+                    if (reg1size == 2)
+                        cmn(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, 16);
+                    else
+                        cmn(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, 24);
+                    mrs((ARMEmitter::Reg::r22).X(), ARMEmitter::SystemRegister::NZCV);
+                    ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r23, ARMEmitter::Reg::r26, 8, 1);
+                    orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r22, ARMEmitter::Reg::r22, ARMEmitter::Reg::r23, ARMEmitter::ShiftType::LSL, 29);
+                    eor(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
+                    eor(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, ARMEmitter::Reg::r26, ARMEmitter::Reg::r21);
+                    and_(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
+                    ubfx(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, 7, 1);
+                    orr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r22, ARMEmitter::Reg::r20, ARMEmitter::ShiftType::LSL, 28);
+                    msr(ARMEmitter::SystemRegister::NZCV, (ARMEmitter::Reg::r20).X());
+                }
+
+            } else
+                cmn(EmitSize, Dst, Src);
+        }
 
     } else
         LogMan::Msg::EFmt("[arm] Unsupported operand type for compare instruction.");

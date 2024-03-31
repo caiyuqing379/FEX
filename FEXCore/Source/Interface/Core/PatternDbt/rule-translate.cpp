@@ -205,7 +205,7 @@ static bool match_label(char *lab_str, uint64_t t, uint64_t f)
     return true;
 }
 
-static bool match_register(X86Register greg, X86Register rreg)
+static bool match_register(X86Register greg, X86Register rreg, uint32_t regsize = 0)
 {
     GuestRegisterMapping *gmap = g_reg_map;
 
@@ -218,11 +218,51 @@ static bool match_register(X86Register greg, X86Register rreg)
         return false;
     }
 
-    if(greg != rreg) {
-        if(debug)
-            LogMan::Msg::IFmt( "Unmatch reg: diffrent reg!");
+    /* use physical register */
+    if ((X86_REG_RAX <= rreg && rreg <= X86_REG_R15) && greg == rreg)
+        return true;
+
+    if (!(X86_REG_REG0 <= rreg && rreg <= X86_REG_REG15))
         return false;
+
+    /* check if we already have this map */
+    while (gmap)
+    {
+        if (gmap->sym != rreg)
+        {
+            gmap = gmap->next;
+            continue;
+        }
+        if (debug && (gmap->num != greg))
+            fprintf(stderr, "Unmatch reg: map conflict: %d %d\n", gmap->num, greg);
+        return (gmap->num == greg);
     }
+
+    /* check if this guest register has another map */
+    gmap = g_reg_map;
+    while (gmap)
+    {
+        if (gmap->num != greg)
+        {
+            gmap = gmap->next;
+            continue;
+        }
+
+        if (debug && (gmap->sym != rreg))
+            fprintf(stderr, "Unmatch reg: have anther map: %d %d %d\n", greg, gmap->sym, rreg);
+        return (gmap->sym == rreg);
+    }
+
+    /* append this map to register map buffer */
+    gmap = &g_reg_map_buf[g_reg_map_buf_index++];
+    assert(g_reg_map_buf_index < MAX_MAP_BUF_LEN);
+    gmap->sym = rreg;
+    gmap->num = greg;
+    if (regsize) gmap->regsize = regsize;
+    ++reg_map_num;
+
+    gmap->next = g_reg_map;
+    g_reg_map = gmap;
 
     return true;
 }
@@ -329,11 +369,12 @@ static bool match_opd_imm(X86ImmOperand *gopd, X86ImmOperand *ropd)
     }
 }
 
-static bool match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd)
+static bool match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd, uint32_t regsize = 0)
 {
-    if (gopd->HighBits != ropd->HighBits)
+    /* physical reg, but high bit not match */
+    if ((X86_REG_RAX <= ropd->num && ropd->num <= X86_REG_R15) && gopd->HighBits != ropd->HighBits)
         return false;
-    return match_register(gopd->num, ropd->num);
+    return match_register(gopd->num, ropd->num, regsize);
 }
 
 static bool match_opd_mem(X86MemOperand *gopd, X86MemOperand *ropd)
@@ -342,6 +383,16 @@ static bool match_opd_mem(X86MemOperand *gopd, X86MemOperand *ropd)
             match_register(gopd->index, ropd->index) &&
             match_offset(&gopd->offset, &ropd->offset) &&
             match_scale(&gopd->scale, &ropd->scale));
+}
+
+static bool check_opd_size(X86Operand *ropd, uint32_t gsize, uint32_t rsize)
+{
+    if ((ropd->type == X86_OPD_TYPE_REG && X86_REG_RAX <= ropd->content.reg.num && ropd->content.reg.num <= X86_REG_R15)
+      || (ropd->type == X86_OPD_TYPE_IMM && ropd->content.imm.isRipLiteral) || ropd->type == X86_OPD_TYPE_MEM) {
+        if (gsize != rsize)
+            return false;
+    }
+    return true;
 }
 
 /* Try to match operand in guest instruction (gopd) and and the rule (ropd) */
@@ -354,6 +405,16 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
         return false;
     }
 
+    if (!opd_idx && !check_opd_size(ropd, ginstr->DestSize, rinstr->DestSize)) {
+        LogMan::Msg::IFmt("Different dest size - RULE: {}, GUEST: {}", rinstr->DestSize, ginstr->DestSize);
+        return false;
+    }
+
+    if (opd_idx && !check_opd_size(ropd, ginstr->SrcSize, rinstr->SrcSize)) {
+        LogMan::Msg::IFmt("Different opd src size.");
+        return false;
+    }
+
     if (ropd->type == X86_OPD_TYPE_IMM) {
         if(gopd->content.imm.isRipLiteral != ropd->content.imm.isRipLiteral)
             return false;
@@ -363,7 +424,8 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
         } else /* match imm operand */
             return match_opd_imm(&gopd->content.imm, &ropd->content.imm);
     } else if (ropd->type == X86_OPD_TYPE_REG) {
-        return match_opd_reg(&gopd->content.reg, &ropd->content.reg);
+        uint32_t regsize = opd_idx == 0 ? ginstr->DestSize : ginstr->SrcSize;
+        return match_opd_reg(&gopd->content.reg, &ropd->content.reg, regsize);
     } else if (ropd->type == X86_OPD_TYPE_MEM) {
         return match_opd_mem(&gopd->content.mem, &ropd->content.mem);
     } else
@@ -404,17 +466,11 @@ static bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FE
 
         /* check opcode and number of operands */
         if (((p_rule_instr->opc != p_guest_instr->opc) && (opc_set[p_guest_instr->opc] != p_rule_instr->opc)) ||  //opcode not equal
-            ((p_rule_instr->opd_num != 0) && (p_rule_instr->opd_num != p_guest_instr->opd_num)) ||  //operand not equal
-            (p_rule_instr->DestSize != p_guest_instr->DestSize) ||
-            ((p_rule_instr->opd_num > 1) && (p_rule_instr->opd[1].type != X86_OPD_TYPE_IMM) && (p_rule_instr->SrcSize != p_guest_instr->SrcSize))) {
+            ((p_rule_instr->opd_num != 0) && (p_rule_instr->opd_num != p_guest_instr->opd_num))) {  //operand not equal
 
             if (debug) {
                 if (p_rule_instr->opd_num != p_guest_instr->opd_num)
                     LogMan::Msg::IFmt("Different operand number");
-                else if (p_rule_instr->DestSize != p_guest_instr->DestSize)
-                    LogMan::Msg::IFmt("Different RULE dest size: {}, GUEST dest size: {}", p_rule_instr->DestSize, p_guest_instr->DestSize);
-                else if (p_rule_instr->SrcSize != p_guest_instr->SrcSize)
-                    LogMan::Msg::IFmt("Different src operand size");
             }
 
             return false;
@@ -513,22 +569,53 @@ uint64_t get_imm_map(char *sym)
     return std::stoull(t_str);
 }
 
-
-X86Register get_guest_reg_map(ARMRegister reg)
+static ARMRegister guest_host_reg_map(X86Register& reg)
 {
+  switch (reg) {
+    case X86_REG_RAX:  return ARM_REG_R4;
+    case X86_REG_RCX:  return ARM_REG_R5;
+    case X86_REG_RDX:  return ARM_REG_R6;
+    case X86_REG_RBX:  return ARM_REG_R7;
+    case X86_REG_RSP:  return ARM_REG_R8;
+    case X86_REG_RBP:  return ARM_REG_R9;
+    case X86_REG_RSI:  return ARM_REG_R10;
+    case X86_REG_RDI:  return ARM_REG_R11;
+    case X86_REG_R8:   return ARM_REG_R12;
+    case X86_REG_R9:   return ARM_REG_R13;
+    case X86_REG_R10:  return ARM_REG_R14;
+    case X86_REG_R11:  return ARM_REG_R15;
+    case X86_REG_R12:  return ARM_REG_R16;
+    case X86_REG_R13:  return ARM_REG_R17;
+    case X86_REG_R14:  return ARM_REG_R19;
+    case X86_REG_R15:  return ARM_REG_R29;
+    default:
+      LOGMAN_MSG_A_FMT("Unsupported reg num");
+      return ARM_REG_INVALID;
+  }
+}
+
+
+ARMRegister get_guest_reg_map(ARMRegister& reg, uint32_t& regsize)
+{
+    if (ARM_REG_R0 <= reg && reg <= ARM_REG_R31) {
+        regsize = 0;
+        return reg;
+    }
+
     GuestRegisterMapping *gmap = g_reg_map;
 
     while (gmap) {
         if (!strcmp(get_arm_reg_str(reg), get_x86_reg_str(gmap->sym))) {
             //LogMan::Msg::IFmt( "x86 reg: {}, arm reg: {}\n", reg, gmap->num);
-            return static_cast<X86Register>(gmap->num);
+            regsize = gmap->regsize;
+            return guest_host_reg_map(gmap->num);
         }
 
         gmap = gmap->next;
     }
 
     assert(0);
-    return X86_REG_INVALID;
+    return ARM_REG_INVALID;
 }
 
 bool instr_is_match(uint64_t pc)
