@@ -5,6 +5,8 @@
 #include <cstring>
 #include <assert.h>
 #include <cstdlib>
+#include <iostream>
+#include <filesystem>
 
 #include "arm-parse.h"
 #include "x86-parse.h"
@@ -284,7 +286,9 @@ TranslationRule *get_rule(void)
 
 void parse_translation_rules(void)
 {
-    const char rule_file[] = "/home/zzy/rules4all";
+    std::filesystem::path homeDir = std::filesystem::path(getenv("HOME"));
+    std::filesystem::path combinedPath = homeDir / "rules4all";
+    const char* rule_file = combinedPath.c_str();
     TranslationRule *rule = NULL;
     int counter = 0;
     int install_counter = 0;

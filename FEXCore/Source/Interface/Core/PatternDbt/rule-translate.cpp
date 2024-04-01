@@ -597,7 +597,7 @@ static ARMRegister guest_host_reg_map(X86Register& reg)
 
 ARMRegister get_guest_reg_map(ARMRegister& reg, uint32_t& regsize)
 {
-    if (ARM_REG_R0 <= reg && reg <= ARM_REG_R31) {
+    if (ARM_REG_R0 <= reg && reg <= ARM_REG_ZR) {
         regsize = 0;
         return reg;
     }

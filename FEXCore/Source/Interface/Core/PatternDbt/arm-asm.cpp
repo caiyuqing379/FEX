@@ -824,16 +824,30 @@ DEF_OPC(TST) {
             tst(EmitSize, Dst, Src, Shift, amt);
         } else if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
             tst(EmitSize, Dst, Src);
-        } else if (reg1size == 1) {
-            cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, 24);
-        } else if (reg1size == 2) {
-            cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, 16);
+        } else if (isRegSym && (Dst == Src)) {
+            unsigned Shift = 32 - (reg1size * 8);
+            cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, Shift);
         } else
             LogMan::Msg::EFmt("[arm] Unsupported reg for TST instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
-        int32_t Imm = get_imm_map_wrapper(&opd1->content.imm);
-        tst(EmitSize, Dst, Imm);
+        uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
+        const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
+
+        if (!isRegSym) {
+            if (IsImm)
+                tst(EmitSize, Dst, Imm);
+            else {
+                mov((ARMEmitter::Reg::r20).W(), Imm);
+                and_(EmitSize, ARMEmitter::Reg::r26, Dst, ARMEmitter::Reg::r20);
+                tst(EmitSize, ARMEmitter::Reg::r26, ARMEmitter::Reg::r26);
+            }
+        } else {
+            unsigned Shift = 32 - (reg1size * 8);
+            and_(EmitSize, ARMEmitter::Reg::r26, Dst, Imm);
+            cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
+        }
+
     } else
         LogMan::Msg::EFmt("[arm] Unsupported operand type for TST instruction.");
 }
@@ -908,13 +922,13 @@ DEF_OPC(COMPARE) {
 
         } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
             auto Option = GetExtendType(opd1->content.reg.scale.content.extend);
-            uint32_t amt = opd1->content.reg.scale.imm.content.val;
+            uint32_t Shift = opd1->content.reg.scale.imm.content.val;
 
             if (instr->opc == ARM_OPC_CMP) {
-                cmp(EmitSize, Dst, Src, Option, amt);
+                cmp(EmitSize, Dst, Src, Option, Shift);
                 FlipCF();
             } else
-                cmn(EmitSize, Dst, Src, Option, amt);
+                cmn(EmitSize, Dst, Src, Option, Shift);
 
         } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
             if (instr->opc == ARM_OPC_CMP) {

@@ -407,7 +407,7 @@ void set_arm_instr_opd_scale_imm_str(ARMOperandScale *pscale, char *scale_str)
         strcpy(pscale->imm.content.sym, scale_str);
     } else { /* this is a value scale */
         pscale->imm.type = ARM_IMM_TYPE_VAL;
-        pscale->imm.content.val = strtol(scale_str, NULL, 16);
+        pscale->imm.content.val = strtol(scale_str, NULL, 10);
     }
 }
 
