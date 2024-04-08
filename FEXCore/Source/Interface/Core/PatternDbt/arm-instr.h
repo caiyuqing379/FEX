@@ -79,6 +79,7 @@ typedef enum {
 
     ARM_OPC_MOV,
     ARM_OPC_MVN,
+    ARM_OPC_CSEL,
 
     ARM_OPC_AND,
     ARM_OPC_ANDS,

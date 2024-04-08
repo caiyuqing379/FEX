@@ -75,6 +75,7 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_SXTW]  = "sxtw",
     [ARM_OPC_MOV]   = "mov",
     [ARM_OPC_MVN]   = "mvn",
+    [ARM_OPC_CSEL]  = "csel",
     [ARM_OPC_AND]   = "and",
     [ARM_OPC_ANDS]  = "ands",
     [ARM_OPC_ORR]   = "orr",

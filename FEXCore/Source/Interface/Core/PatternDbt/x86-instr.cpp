@@ -595,6 +595,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         else if (!strcmp(DecodeInst->TableInfo->Name, "INC")
           && (DecodeInst->OP >= 0x40 && DecodeInst->OP <= 0x47)) {
             set_x86_instr_opc(instr, X86_OPC_INC);
+            SingleSrc = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "DEC")
           && (DecodeInst->OP == 0x48 && DecodeInst->OP <= 0x4F)) {
@@ -742,10 +743,12 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         else if (!strcmp(DecodeInst->TableInfo->Name, "NOT")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 2))) {
             set_x86_instr_opc(instr, X86_OPC_NOT);
+            SingleSrc = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "NEG")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_3, FEXCore::X86Tables::OpToIndex(0xF7), 3))) {
             set_x86_instr_opc(instr, X86_OPC_NEG);
+            SingleSrc = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "AND")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_1, FEXCore::X86Tables::OpToIndex(0x80), 4)
@@ -772,6 +775,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_4, FEXCore::X86Tables::OpToIndex(0xFE), 0)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_5, FEXCore::X86Tables::OpToIndex(0xFF), 0))) {
             set_x86_instr_opc(instr, X86_OPC_INC);
+            SingleSrc = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "DEC")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_4, FEXCore::X86Tables::OpToIndex(0xFE), 1)
@@ -981,7 +985,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
       num--;
     }
 
-    if ((instr->opc == X86_OPC_JMP || instr->opc == X86_OPC_CALL) && (num == 2)) {
+    if ((instr->opc == X86_OPC_JMP || instr->opc == X86_OPC_CALL || instr->opc == X86_OPC_PUSH) && (num == 2)) {
       instr->opd[0] = instr->opd[1];
       num--;
     }

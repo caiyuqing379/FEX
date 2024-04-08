@@ -174,8 +174,11 @@ DEF_OPC(LDR) {
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
-          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && (Imm < 0)) {
-            sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, 0 - Imm);
+          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && ((Imm < 0) || (Imm > 0 && (Imm >> 9) != 0))) {
+            if (Imm < 0)
+              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, 0 - Imm);
+            else
+              add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, Imm);
             MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r20).X(), Index, 0, OffsetScale, PrePost);
           }
 
@@ -234,24 +237,12 @@ DEF_OPC(LDP) {
         ARMMemIndexType  PrePost = opd2->content.mem.pre_post;
         int32_t Imm = get_imm_map_wrapper(&opd2->content.mem.offset);
 
-        if (reg1size) OpSize = 1 << (reg1size-1);
-
-        if (OpSize == 8) {
-          if (PrePost == ARM_MEM_INDEX_TYPE_PRE)
+        if (PrePost == ARM_MEM_INDEX_TYPE_PRE)
             ldp<ARMEmitter::IndexType::PRE>(RegPair1.X(), RegPair2.X(), Base, Imm);
-          else if (PrePost == ARM_MEM_INDEX_TYPE_POST)
+        else if (PrePost == ARM_MEM_INDEX_TYPE_POST)
             ldp<ARMEmitter::IndexType::POST>(RegPair1.X(), RegPair2.X(), Base, Imm);
-          else
+        else
             ldp<ARMEmitter::IndexType::OFFSET>(RegPair1.X(), RegPair2.X(), Base, Imm);
-        } else if (OpSize == 4) {
-          if (PrePost == ARM_MEM_INDEX_TYPE_PRE)
-            ldp<ARMEmitter::IndexType::PRE>(RegPair1.W(), RegPair2.W(), Base, Imm);
-          else if (PrePost == ARM_MEM_INDEX_TYPE_POST)
-            ldp<ARMEmitter::IndexType::POST>(RegPair1.W(), RegPair2.W(), Base, Imm);
-          else
-            ldp<ARMEmitter::IndexType::OFFSET>(RegPair1.W(), RegPair2.W(), Base, Imm);
-        } else
-          LOGMAN_MSG_A_FMT("Unhandled LoadMem size: {}", OpSize);
     } else
       LogMan::Msg::EFmt( "[arm] Unsupported operand type for ldp instruction.");
 }
@@ -685,10 +676,23 @@ DEF_OPC(ADD) {
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
         int32_t Imm = get_imm_map_wrapper(&opd2->content.imm);
 
-        if(instr->opc == ARM_OPC_ADD)
-          add(EmitSize, Dst, Src1, Imm);  // LSL12 default false
-        else
-          adds(EmitSize, Dst, Src1, Imm);
+        if (Imm < 0) {
+          if (instr->opc == ARM_OPC_ADD)
+            sub(EmitSize, Dst, Src1, 0 - Imm);
+          else
+            subs(EmitSize, Dst, Src1, 0 - Imm);
+        } else if (Imm > 0 && ((Imm >> 12) > 0)) {
+          LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
+          if (instr->opc == ARM_OPC_ADD)
+            add(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);
+          else
+            adds(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);
+        } else {
+          if (instr->opc == ARM_OPC_ADD)
+            add(EmitSize, Dst, Src1, Imm);  // LSL12 default false
+          else
+            adds(EmitSize, Dst, Src1, Imm);
+        }
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -934,8 +938,8 @@ DEF_OPC(CLZ) {
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
-      ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
-      auto Src = GetHostRegMap(ARMReg);
+        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        auto Src = GetHostRegMap(ARMReg);
 
         clz(EmitSize, Dst, Src);
     } else
@@ -1071,7 +1075,7 @@ DEF_OPC(COMPARE) {
 
         if (!isRegSym && instr->opc == ARM_OPC_CMP) {
             if ((Imm >> 12) != 0) {
-                LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), Imm);
+                LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
                 cmp(EmitSize, Dst, (ARMEmitter::Reg::r20).X());
             } else
                 cmp(EmitSize, Dst, Imm);
@@ -1088,6 +1092,11 @@ DEF_OPC(COMPARE) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
         ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
         auto Src = GetHostRegMap(ARMReg);
+
+        if ((reg2size & 0x3))
+            EmitSize = ARMEmitter::Size::i32Bit;
+        else if (reg2size == 4)
+            EmitSize = ARMEmitter::Size::i64Bit;
 
         if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
             auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
@@ -1209,9 +1218,9 @@ DEF_OPC(SET_JUMP) {
     if (opd->type == ARM_OPD_TYPE_IMM) {
       get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
 
-      LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), fallthrough & Mask);
-      LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), target);
-      add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X());
+      LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, fallthrough & Mask);
+      LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, target);
+      add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
     }
 
     // operand type is reg don't need to be processed.
@@ -1259,7 +1268,7 @@ DEF_OPC(PC_L) {
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
 
-    if (instr->OpdSize == 4 || reg1size == 3) {
+    if (instr->OpdSize == 4) {
       Mask = 0xFFFF'FFFFULL;
     }
 
@@ -1293,7 +1302,7 @@ DEF_OPC(PC_S) {
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Src = GetHostRegMap(ARMReg);
 
-    if (instr->OpdSize == 4 || reg1size == 3) {
+    if (instr->OpdSize == 4) {
       Mask = 0xFFFF'FFFFULL;
     }
 
@@ -1420,7 +1429,7 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
             Opc_PC_S(instr, rrule);
             break;
         default:
-            LogMan::Msg::IFmt("Unsupported x86 instruction in the assembler: {}, rule index: {}.",
+            LogMan::Msg::EFmt("Unsupported arm instruction in the assembler: {}, rule index: {}.",
                     get_arm_instr_opc(instr->opc), rrule->rule->index);
     }
 }

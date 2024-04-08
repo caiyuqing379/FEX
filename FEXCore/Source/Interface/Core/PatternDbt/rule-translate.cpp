@@ -98,7 +98,7 @@ static int label_map_buf_index_pre = 0;
 static ImmMapping *imm_map;
 static GuestRegisterMapping *g_reg_map;
 static LabelMapping *l_map;
-static int debug = 1;
+static int debug = 0;
 static int match_insts = 0;
 static int match_counter = 10;
 
@@ -406,12 +406,14 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
     }
 
     if (!opd_idx && !check_opd_size(ropd, ginstr->DestSize, rinstr->DestSize)) {
-        LogMan::Msg::IFmt("Different dest size - RULE: {}, GUEST: {}", rinstr->DestSize, ginstr->DestSize);
+        if (debug)
+            LogMan::Msg::IFmt("Different dest size - RULE: {}, GUEST: {}", rinstr->DestSize, ginstr->DestSize);
         return false;
     }
 
     if (opd_idx && !check_opd_size(ropd, ginstr->SrcSize, rinstr->SrcSize)) {
-        LogMan::Msg::IFmt("Different opd src size.");
+        if (debug)
+            LogMan::Msg::IFmt("Different opd src size.");
         return false;
     }
 
@@ -565,7 +567,8 @@ uint64_t get_imm_map(char *sym)
         }
         im = im->next;
     }
-    LogMan::Msg::IFmt("get imm val: 0x{:x}\n", std::stoull(t_str));
+    if (debug)
+        LogMan::Msg::IFmt("get imm val: 0x{:x}\n", std::stoull(t_str));
     return std::stoull(t_str);
 }
 
@@ -730,6 +733,9 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
     int guest_instr_num = 0;
     int i, j;
 
+    // ofstream_x86_instr(guest_instr);
+    // ofstream_rule_arm_instr(guest_instr);
+
     LogMan::Msg::IFmt( "=====Guest Instr Match Rule Start, Guest PC: {:x}=====\n", guest_instr->pc);
 
     reset_buffer();
@@ -841,7 +847,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
 
             recover_map_buf_index();
 
-            if(debug) goto final;
+            if(1) goto final;
         }
 
         /* No matched rule found, also keep moving forward */
