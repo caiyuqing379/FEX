@@ -278,6 +278,7 @@ private:
   DEF_OPC(CLZ);
   DEF_OPC(TST);
   DEF_OPC(COMPARE);
+  DEF_OPC(CSEX);
   DEF_OPC(B);
   DEF_OPC(BL);
   DEF_OPC(CBNZ);

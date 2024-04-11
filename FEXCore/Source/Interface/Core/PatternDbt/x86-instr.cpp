@@ -554,6 +554,8 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
 {
     bool SingleSrc = false;
 
+    if (DecodeInst->Flags & (FEXCore::X86Tables::DecodeFlags::FLAG_SEGMENTS)) return;
+
     if (!strcmp(DecodeInst->TableInfo->Name, "NOP"))
       set_x86_instr_opc(instr, X86_OPC_NOP);
 
@@ -890,6 +892,8 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         }
 #undef OPD
     }
+
+    if (instr->opc == X86_OPC_INVALID) return;
 
     uint32_t SrcSize = FEXCore::X86Tables::DecodeFlags::GetSizeSrcFlags(DecodeInst->Flags);
     uint32_t DestSize = FEXCore::X86Tables::DecodeFlags::GetSizeDstFlags(DecodeInst->Flags);

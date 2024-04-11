@@ -7,6 +7,7 @@
 #include <cstring>
 
 #include "rule-translate.h"
+// #include "rule-auto-gen.h"
 
 #define MAX_RULE_RECORD_BUF_LEN 800
 #define MAX_GUEST_INSTR_LEN 800
@@ -239,19 +240,19 @@ static bool match_register(X86Register greg, X86Register rreg, uint32_t regsize 
     }
 
     /* check if this guest register has another map */
-    gmap = g_reg_map;
-    while (gmap)
-    {
-        if (gmap->num != greg)
-        {
-            gmap = gmap->next;
-            continue;
-        }
+    // gmap = g_reg_map;
+    // while (gmap)
+    // {
+    //     if (gmap->num != greg)
+    //     {
+    //         gmap = gmap->next;
+    //         continue;
+    //     }
 
-        if (debug && (gmap->sym != rreg))
-            fprintf(stderr, "Unmatch reg: have anther map: %d %d %d\n", greg, gmap->sym, rreg);
-        return (gmap->sym == rreg);
-    }
+    //     if (debug && (gmap->sym != rreg))
+    //         fprintf(stderr, "Unmatch reg: have anther map: %d %d %d\n", greg, gmap->sym, rreg);
+    //     return (gmap->sym == rreg);
+    // }
 
     /* append this map to register map buffer */
     gmap = &g_reg_map_buf[g_reg_map_buf_index++];
@@ -282,16 +283,16 @@ static bool match_imm(uint64_t val, char *sym)
     }
 
     /* check if another immediate symbol map to the same value */
-    imap = imm_map;
-    while(imap) {
-        if (imap->imm_val == val){
-            if (debug)
-                LogMan::Msg::IFmt( "Unmatch imm: another symbol map {}", val);
-            return false;
-        }
+    // imap = imm_map;
+    // while(imap) {
+    //     if (imap->imm_val == val){
+    //         if (debug)
+    //             LogMan::Msg::IFmt( "Unmatch imm: another symbol map {}", val);
+    //         return false;
+    //     }
 
-        imap = imap->next;
-    }
+    //     imap = imap->next;
+    // }
 
     /* add this map to immediate map buffer */
     imap = &imm_map_buf[imm_map_buf_index++];
@@ -400,6 +401,7 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
 {
     X86Operand *gopd = &ginstr->opd[opd_idx];
     X86Operand *ropd = &rinstr->opd[opd_idx];
+    uint32_t regsize = opd_idx == 0 ? ginstr->DestSize : ginstr->SrcSize;
 
     if (gopd->type != ropd->type) {
         return false;
@@ -426,7 +428,6 @@ static bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int op
         } else /* match imm operand */
             return match_opd_imm(&gopd->content.imm, &ropd->content.imm);
     } else if (ropd->type == X86_OPD_TYPE_REG) {
-        uint32_t regsize = opd_idx == 0 ? ginstr->DestSize : ginstr->SrcSize;
         return match_opd_reg(&gopd->content.reg, &ropd->content.reg, regsize);
     } else if (ropd->type == X86_OPD_TYPE_MEM) {
         return match_opd_mem(&gopd->content.mem, &ropd->content.mem);
@@ -568,7 +569,7 @@ uint64_t get_imm_map(char *sym)
         im = im->next;
     }
     if (debug)
-        LogMan::Msg::IFmt("get imm val: 0x{:x}\n", std::stoull(t_str));
+        LogMan::Msg::IFmt("get imm val: {}", t_str);
     return std::stoull(t_str);
 }
 
@@ -695,7 +696,8 @@ static bool is_save_cc(X86Instruction *pins, int icount)
     return false;
 }
 
-static ARMRegister generate_matched_reg(X86Register greg){
+static ARMRegister generate_matched_reg(X86Register greg)
+{
     GuestRegisterMapping *gmap = g_reg_map;
 
     /* check if this guest register has a map */
@@ -810,7 +812,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                 memset(pa_opc, X86_OPC_INVALID, sizeof(int)*20);
                 j = 0;
 
-                while (p_rule_instr){
+                while (p_rule_instr) {
                     if ((p_rule_instr->opc >= X86_OPC_OP1) && (p_rule_instr->opc < X86_OPC_END)){
                         if (p_rule_instr->opd_num == 0){
                             opd_para = true;
@@ -822,13 +824,13 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
                     p_rule_instr = p_rule_instr->next;
                     p_guest_instr = p_guest_instr->next;
                 }
-                if (!opd_para){
+                if (!opd_para) {
                     add_rule_record(cur_rule , cur_head->pc, target_pc, i,
                         true, is_save_cc(cur_head, i), pa_opc);
                 }
 
                 /* We get a matched rule, keep moving forward */
-                if (opd_para){
+                if (opd_para) {
                   for (j = 0; j < i; j++) {
                     add_matched_para_pc(cur_head->pc);
                     cur_head = cur_head->next;
@@ -859,7 +861,7 @@ void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
         }
     }
     final:
-    LogMan::Msg::IFmt( "=====Guest Instr Match Rule End=======\n");
+    return;
 }
 
 void remove_guest_instruction(FEXCore::Frontend::Decoder::DecodedBlocks *tb, uint64_t pc)

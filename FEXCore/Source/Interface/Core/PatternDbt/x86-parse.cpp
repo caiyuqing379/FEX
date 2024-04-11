@@ -276,8 +276,8 @@ void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
     if (has_temp_register)
         ret = false;
 
-    LogMan::Msg::IFmt( "**** Guest {} ****", rule->index);
-    print_x86_instr_seq(code_head);
+    // LogMan::Msg::IFmt( "**** Guest {} ****", rule->index);
+    // print_x86_instr_seq(code_head);
 
     rule->x86_guest = code_head;
 }

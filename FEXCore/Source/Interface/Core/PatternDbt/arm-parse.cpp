@@ -46,6 +46,10 @@ static int parse_rule_arm_opcode(char *line, ARMInstruction *instr)
 
     set_arm_instr_opc_str(instr, opc_str);
 
+    if (instr->opc == ARM_OPC_CSEL || instr->opc == ARM_OPC_CSET) {
+        instr->cc = get_arm_cc(line);
+    }
+
     if (line[i] == ' ')
         return i+1;
     else
@@ -177,7 +181,7 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
             idx += 2;
         }
     } else
-        LogMan::Msg::IFmt( "Error in parsing arm operand: unknown operand type: {}.\n", line);
+        LogMan::Msg::EFmt("Error in parsing arm operand: unknown operand type: {}.", line[idx]);
 
     if (line[idx] == ',')
         return idx+2;
@@ -228,15 +232,16 @@ static ARMInstruction *parse_rule_arm_instruction(char *line, uint64_t pc)
 
     i = parse_rule_arm_opcode(line, instr);
 
+    size_t len = strlen(line);
+
     opd_idx = 0;
-    while (line[i] != '\n')
+    while (i < len && line[i] != '\n')
         i = parse_rule_arm_operand(line, i, instr, opd_idx++);
 
     set_arm_instr_opd_size(instr);
     set_arm_instr_opd_num(instr, opd_idx);
 
     /* adjust lsl, asr, and etc instructions to mov instructions with two operands */
-    adjust_arm_instr(instr);
 
     return instr;
 }
@@ -289,8 +294,8 @@ bool parse_rule_arm_code(FILE *fp, TranslationRule *rule)
         pc += 4; // fake value
     }
 
-    LogMan::Msg::IFmt( "**** Host {} ****", rule->index);
-    print_arm_instr_seq(code_head);
+    // LogMan::Msg::IFmt( "**** Host {} ****", rule->index);
+    // print_arm_instr_seq(code_head);
 
     rule->arm_host = code_head;
 

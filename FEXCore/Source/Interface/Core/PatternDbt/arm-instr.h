@@ -80,7 +80,9 @@ typedef enum {
     ARM_OPC_MOV,
     ARM_OPC_MVN,
     ARM_OPC_CSEL,
+    ARM_OPC_CSET,
 
+    ARM_OPC_NEG,
     ARM_OPC_AND,
     ARM_OPC_ANDS,
     ARM_OPC_ORR,
@@ -109,6 +111,7 @@ typedef enum {
     ARM_OPC_TST,
     ARM_OPC_CMP,
     ARM_OPC_CMPB,
+    ARM_OPC_CMPW,
     ARM_OPC_CMN,
 
     ARM_OPC_B,
@@ -297,5 +300,6 @@ void set_arm_opd_mem_scale_imm(ARMOperand *, uint32_t, uint32_t);
 const char *get_arm_instr_opc(ARMOpcode);
 const char *get_arm_reg_str(ARMRegister);
 ARMRegister get_arm_reg(int regno);
+ARMConditionCode get_arm_cc(char *opc_str);
 ARMInstruction *get_arm_insn(ARMInstruction *, uint64_t);
 #endif

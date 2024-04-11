@@ -76,6 +76,8 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_MOV]   = "mov",
     [ARM_OPC_MVN]   = "mvn",
     [ARM_OPC_CSEL]  = "csel",
+    [ARM_OPC_CSET]  = "cset",
+    [ARM_OPC_NEG]   = "neg",
     [ARM_OPC_AND]   = "and",
     [ARM_OPC_ANDS]  = "ands",
     [ARM_OPC_ORR]   = "orr",
@@ -100,6 +102,7 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_TST]   = "tst",
     [ARM_OPC_CMP]   = "cmp",
     [ARM_OPC_CMPB]  = "cmpb",
+    [ARM_OPC_CMPW]  = "cmpw",
     [ARM_OPC_CMN]   = "cmn",
     [ARM_OPC_B]     = "b",
     [ARM_OPC_BL]    = "bl",
@@ -286,7 +289,7 @@ static ARMOperandScaleExtend get_arm_extend(char *extend_str)
     return ARM_OPD_EXTEND_NONE;
 }
 
-static ARMConditionCode get_arm_cc(char *opc_str)
+ARMConditionCode get_arm_cc(char *opc_str)
 {
     int i;
     size_t len = strlen(opc_str);
@@ -296,7 +299,14 @@ static ARMConditionCode get_arm_cc(char *opc_str)
         return ARM_CC_AL;
 
     for (i = ARM_CC_INVALID; i < ARM_CC_END; i++) {
-        if(!strcmp(arm_cc_str[i], &opc_str[len-2])) {
+        if (opc_str[len-1] == '\n') {
+            char ccStr[2];
+            strncpy(ccStr, opc_str + len - 3, 2);
+            if (!strcmp(arm_cc_str[i], ccStr)) {
+               opc_str[len-5] = '\n';
+               return static_cast<ARMConditionCode>(i);
+            }
+        } else if (!strcmp(arm_cc_str[i], &opc_str[len-2])) {
             opc_str[len-3] = '\0';
             return static_cast<ARMConditionCode>(i);
         }
@@ -371,18 +381,24 @@ void set_arm_instr_opd_reg(ARMInstruction *instr, int opd_index, int regno)
 void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_str)
 {
     ARMOperand *opd = &instr->opd[opd_index];
+    size_t len = strlen(reg_str);
 
-    if (reg_str[0] == 'w') {
+    if (reg_str[0] == 'w' || (reg_str[0] == 'r' && reg_str[len-1] == 'w')) {
         if (!opd_index)
           instr->OpdSize = 4;
         reg_str[0] = 'r';
-    } else if (reg_str[0] == 'x'){
+    } else if (reg_str[0] == 'x' || (reg_str[0] == 'r' && reg_str[len-1] == 'x')) {
         if (!opd_index)
           instr->OpdSize = 8;
         reg_str[0] = 'r';
     }
 
-    if(!strcmp("rzr", reg_str))
+    char *dotPosition = std::strchr(reg_str, '.');
+    if (dotPosition != nullptr) {
+        *dotPosition = '\0';
+    }
+
+    if (!strcmp("rzr", reg_str))
        reg_str = "zr";
 
     opd->type = ARM_OPD_TYPE_REG;
