@@ -3,6 +3,7 @@
 
 #include "Common/JitSymbols.h"
 #include "Interface/Core/CPUID.h"
+#include "Interface/Core/Frontend.h"
 #include "Interface/Core/X86HelperGen.h"
 #include "Interface/Core/ObjectCache/ObjectCacheService.h"
 #include "Interface/Core/Dispatcher/Dispatcher.h"

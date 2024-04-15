@@ -38,6 +38,8 @@ $end_info$
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <iostream>
+#include <fstream>
 
 static constexpr size_t INITIAL_CODE_SIZE = 1024 * 1024 * 16;
 // We don't want to move above 128MB atm because that means we will have to encode longer jumps
@@ -706,12 +708,7 @@ bool Arm64JITCore::IsGPRPair(IR::NodeID Node) const {
   return Class == IR::GPRPairClass;
 }
 
-#ifdef PROFILE_RULE_TRANSLATION
-static uint32_t replace_tb_num = 0;
-#endif
-
 CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
-                                const void *BlockInfo,
                                 FEXCore::IR::IRListView const *IR,
                                 FEXCore::Core::DebugData *DebugData,
                                 FEXCore::IR::RegisterAllocationData *RAData) {
@@ -797,16 +794,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
   /*
     Perform translation rule match
   */
-  auto   *tBlockInfo = static_cast<const FEXCore::Frontend::Decoder::DecodedBlockInformation*>(BlockInfo);
-  auto   CodeBlocks = &tBlockInfo->Blocks;
-  auto   Block = CodeBlocks->at(0);
-
-  if(CodeBlocks->size() <= 1)
-		match_translation_rule(&Block);
-  else
-    LogMan::Msg::EFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
-
-  bool IsRuleTrans = false, debug = true;
+  bool   IsRuleTrans = false, debug = true;
   uint64_t cur_ins_pc = IR->GetHeader()->OriginalRIP;
   uint32_t reg_liveness[100] = {0};
 
@@ -841,10 +829,6 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
       if (cur_ins_pc && instr_is_match(cur_ins_pc)) {
         debug = false;
         auto RTBStartHostCode = GetCursorAddress<uint8_t *>();
-        #ifdef PROFILE_RULE_TRANSLATION
-          replace_tb_num++;
-          LogMan::Msg::IFmt("##### Total replace tb num: {} #####\n", replace_tb_num);
-        #endif
         do_rule_translation(get_translation_rule(cur_ins_pc), reg_liveness);
         if (DebugData) {
           DebugData->Subblocks.push_back({
@@ -932,9 +916,13 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
   ClearICache(CodeData.BlockBegin, CodeOnlySize);
 
-if (tBlockInfo->TotalInstructionCount <= 4) {
-  if (debug)
-    LogMan::Msg::IFmt("Blocks that can use translation rules, please address!\n");
+  std::ofstream file("/home/zzy/x86-assembly-code", std::ios::app);
+  if (!file.is_open()) {
+      LogMan::Msg::EFmt("Failed to open file!");
+      exit(0);
+  }
+  file<<"#IR: ";
+  bool comein = false, comeout = false;
 #ifdef VIXL_DISASSEMBLER
   if (Disassemble() & FEXCore::Config::Disassemble::STATS) {
     auto HeaderOp = IR->GetHeader();
@@ -953,11 +941,20 @@ if (tBlockInfo->TotalInstructionCount <= 4) {
       DisasmDecoder->Decode(PCToDecode);
       auto Output = Disasm->GetOutput();
       LogMan::Msg::IFmt("{}", Output);
+      if (!strcmp(Output, "str x0, [x28, #184]")) {
+          comein = true;
+          continue;
+      }
+      if (!strcmp(Output, "ldr x0, [x28, #2080]") || strstr(Output, "ldr x0, pc+8") != nullptr)
+          comeout = true;
+      if (comein && !comeout)
+          file<<Output<<"| ";
     }
     LogMan::Msg::IFmt("Disassemble End \n");
   }
 #endif
-}
+  file<<std::endl;
+  file.close();
 
   if (DebugData) {
     DebugData->HostCodeSize = CodeData.Size;

@@ -133,10 +133,11 @@ namespace CPU {
      * @return Information about the compiled code block.
      */
     [[nodiscard]] virtual CompiledCode CompileCode(uint64_t Entry,
-                                            const void *BlockInfo,
                                             FEXCore::IR::IRListView const *IR,
                                             FEXCore::Core::DebugData *DebugData,
                                             FEXCore::IR::RegisterAllocationData *RAData) = 0;
+
+    [[nodiscard]] virtual bool MatchTranslationRule(const void *BlockInfo) = 0;
 
     /**
      * @brief Relocates a block of code from the JIT code object cache

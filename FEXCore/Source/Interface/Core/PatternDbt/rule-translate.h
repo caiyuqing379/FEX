@@ -57,7 +57,7 @@ bool check_translation_rule(uint64_t);
 void remove_guest_instruction(FEXCore::Frontend::Decoder::DecodedBlocks *, uint64_t);
 
 /* Try to match instructions in this tb to existing rules */
-void match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *);
+bool match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *);
 void do_rule_translation(RuleRecord *, uint32_t *);
 
 void get_label_map(char *, uint64_t *, uint64_t *);

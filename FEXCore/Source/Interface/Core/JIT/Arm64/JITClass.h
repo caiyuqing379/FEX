@@ -45,7 +45,6 @@ public:
   [[nodiscard]] fextl::string GetName() override { return "JIT"; }
 
   [[nodiscard]] CPUBackend::CompiledCode CompileCode(uint64_t Entry,
-                                  const void *BlockInfo,
                                   FEXCore::IR::IRListView const *IR,
                                   FEXCore::Core::DebugData *DebugData,
                                   FEXCore::IR::RegisterAllocationData *RAData) override;
@@ -57,6 +56,8 @@ public:
   void ClearCache() override;
 
   void ClearRelocations() override { Relocations.clear(); }
+
+  bool MatchTranslationRule(const void *tb) override;
 
 private:
   FEX_CONFIG_OPT(ParanoidTSO, PARANOIDTSO);
@@ -251,9 +252,69 @@ private:
 #undef DEF_OP
 
 
+  /* Try to match instructions in this tb to existing rules */
+  ImmMapping imm_map_buf[1000];
+  int imm_map_buf_index;
+
+  LabelMapping label_map_buf[1000];
+  int label_map_buf_index;
+
+  GuestRegisterMapping g_reg_map_buf[1000];
+  int g_reg_map_buf_index;
+
+  RuleRecord rule_record_buf[800];
+  int rule_record_buf_index;
+
+  uint64_t pc_matched_buf[800];
+  int pc_matched_buf_index;
+
+  int imm_map_buf_index_pre;
+  int g_reg_map_buf_index_pre;
+  int label_map_buf_index_pre;
+
+  ImmMapping *imm_map;
+  GuestRegisterMapping *g_reg_map;
+  LabelMapping *l_map;
+
+  uint64_t pc_para_matched_buf[800];
+  int pc_para_matched_buf_index;
+
+  int reg_map_num;
+
+  inline void reset_buffer(void);
+  inline void save_map_buf_index(void);
+  inline void recover_map_buf_index(void);
+  inline void init_map_ptr(void);
+
+  inline void add_rule_record(TranslationRule *rule, uint64_t pc, uint64_t t_pc,
+                              int icount, bool update_cc, bool save_cc, int pa_opc[20]);
+  inline void add_matched_pc(uint64_t pc);
+  inline void add_matched_para_pc(uint64_t pc);
+  bool match_label(char *lab_str, uint64_t t, uint64_t f);
+  bool match_register(X86Register greg, X86Register rreg, uint32_t regsize = 0);
+  bool match_imm(uint64_t val, char *sym);
+  bool match_scale(X86Imm *gscale, X86Imm *rscale);
+  bool match_offset(X86Imm *goffset, X86Imm *roffset);
+  bool match_opd_imm(X86ImmOperand *gopd, X86ImmOperand *ropd);
+  bool match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd, uint32_t regsize = 0);
+  bool match_opd_mem(X86MemOperand *gopd, X86MemOperand *ropd);
+  bool check_opd_size(X86Operand *ropd, uint32_t gsize, uint32_t rsize);
+  bool match_operand(X86Instruction *ginstr, X86Instruction *rinstr, int opd_idx);
+  bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FEXCore::Frontend::Decoder::DecodedBlocks const *tb);
+  void get_label_map(char *lab_str, uint64_t *t, uint64_t *f);
+  uint64_t get_imm_map(char *sym);
+  uint64_t get_imm_map_wrapper(ARMImm *imm);
+  ARMRegister get_guest_reg_map(ARMRegister& reg, uint32_t& regsize);
+
+  bool instr_is_match(uint64_t pc);
+  bool instrs_is_match(uint64_t pc);
+  bool tb_rule_matched(void);
+  bool check_translation_rule(uint64_t pc);
+  RuleRecord* get_translation_rule(uint64_t pc);
   void do_rule_translation(RuleRecord *rule_r, uint32_t *reg_liveness);
+
   void FlipCF();
-  IR::IROp_Header const * FindIROp(IR::IROps tIROp);
+  IR::IROp_Header const* FindIROp(IR::IROps tIROp);
   void assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule);
   void assemble_arm_exit_tb(uint64_t target_pc);
 

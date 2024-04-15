@@ -90,7 +90,11 @@ private:
   uint8_t InstructionSize;
   std::array<uint8_t, MAX_INST_SIZE> Instruction;
   FEXCore::X86Tables::DecodedInst *DecodeInst;
+  // x86 instrs
+  X86Instruction *instr_buffer;
   X86Instruction *x86_instr;
+  int instr_buffer_index;
+  int instr_block_start;
 
   // This is for multiblock data tracking
   bool SymbolAvailable {false};

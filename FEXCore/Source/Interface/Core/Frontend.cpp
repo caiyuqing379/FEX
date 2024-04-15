@@ -586,15 +586,12 @@ bool Decoder::NormalOp(FEXCore::X86Tables::X86InstInfo const *Info, uint16_t Op,
     DecodeInst->Src[CurrentSrc].Data.Literal.Value = Literal;
   }
 
-  LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} '{}' Had an instruction of size {} with {} remaining",
-              DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
-
   DecodeInst->InstSize = InstructionSize;
 
   DecodeInstToX86Inst(DecodeInst, x86_instr);
 
-  // LOGMAN_THROW_AA_FMT(Bytes == 0, "Inst at 0x{:x}: 0x{:04x} '{}' Had an instruction of size {} with {} remaining",
-  //                    DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
+  LOGMAN_THROW_AA_FMT(Bytes == 0, "Inst at 0x{:x}: 0x{:04x} '{}' Had an instruction of size {} with {} remaining",
+                     DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
 
   return true;
 }
@@ -776,6 +773,33 @@ bool Decoder::DecodeInstruction(uint64_t PC) {
   DecodeInst = &DecodedBuffer[DecodedSize];
   memset(DecodeInst, 0, sizeof(DecodedInst));
   DecodeInst->PC = PC;
+
+  /* create an X86 instruction and insert it to tb */
+  auto create_x86_instr = [&](uint64_t pc) -> X86Instruction* {
+      X86Instruction* instr = &instr_buffer[instr_buffer_index];
+      if (instr_buffer_index >= 1000)
+          LogMan::Msg::IFmt("Instruction buffer is not enough!");
+
+      instr->pc = pc;
+      instr->next = nullptr;
+
+      if (instr_block_start == instr_buffer_index)
+          instr->prev = nullptr;
+      else {
+          instr->prev = &instr_buffer[instr_buffer_index-1];
+          instr->prev->next = instr;
+      }
+
+      for (int i = 0; i < X86_MAX_OPERAND_NUM; i++)
+          instr->opd[i].type = X86_OPD_TYPE_NONE;
+      instr->opc = X86_OPC_INVALID;
+      for (int i = 0; i < X86_REG_NUM; i++)
+          instr->reg_liveness[i] = true;
+
+      instr_buffer_index++;
+
+      return instr;
+  };
 
 	/* creat an instruction to save disasm results */
 	x86_instr = create_x86_instr(PC);
@@ -1117,6 +1141,16 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
   MaxCondBranchBackwards = ~0ULL;
   DecodedBuffer = PoolObject.ReownOrClaimBuffer();
 
+
+  auto x86_instr_buffer_init = [&]() {
+    instr_buffer = new X86Instruction[1000];
+    if (instr_buffer == nullptr)
+        LogMan::Msg::EFmt("Cannot allocate memory for instruction buffer!");
+
+    instr_buffer_index = 0;
+    instr_block_start = 0;
+  };
+
   x86_instr_buffer_init();
 
   // Decode operating mode from thread's CS segment.
@@ -1172,11 +1206,14 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
     // Do a bit of pointer math to figure out where we are in code
     InstStream = AdjustAddrForSpecialRegion(_InstStream, EntryPoint, RIPToDecode);
 
-    // std::ofstream file("/home/zzy/x86-raw-binary", std::ios::app);
-    // if (!file.is_open()) {
-    //   LogMan::Msg::EFmt("Failed to open file!");
-    //   exit(0);
-    // }
+    std::ofstream file1("/home/zzy/x86-assembly-code", std::ios::app);
+    if (!file1.is_open()) {
+      LogMan::Msg::EFmt("Failed to open file!");
+      exit(0);
+    }
+    file1 << "#### Current PC Block: "<< std::hex << RIPToDecode << std::endl;
+    file1 << "1.Guest:";
+    file1.close();
 
     while (1) {
       // MAX_INST_SIZE assumes worst case
@@ -1239,12 +1276,12 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
         CanContinue |= BranchTargetCanContinue(FinalInstruction);
       }
 
+      fprintf(stderr, "[INFO] Inst at 0x%lx with ", DecodeInst->PC);
       for(uint8_t k=0; k < DecodeInst->InstSize; k++){
         uint8_t Byte = InstStream[k];
-        LogMan::Msg::IFmt("Inst at 0x{:x}: size {} with {:x}", DecodeInst->PC, k, Byte);
-        // file << Byte;
+        fprintf(stderr, "%x ", Byte);
       }
-      LogMan::Msg::IFmt("");
+      fprintf(stderr, "\n\n");
 
       if (FinalInstruction || !CanContinue) {
         break;
@@ -1253,8 +1290,6 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
       PCOffset += DecodeInst->InstSize;
       InstStream += DecodeInst->InstSize;
     }
-    // file << "eb00";
-    // file.close();
 
     BlocksToDecode.erase(BlockDecodeIt);
     HasBlocks.emplace(RIPToDecode);

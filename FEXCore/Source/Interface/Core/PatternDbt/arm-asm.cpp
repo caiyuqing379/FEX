@@ -116,7 +116,7 @@ static ARMEmitter::Register GetHostRegMap(ARMRegister& reg)
   return reg_invalid;
 }
 
-static uint64_t get_imm_map_wrapper(ARMImm *imm)
+uint64_t FEXCore::CPU::Arm64JITCore::get_imm_map_wrapper(ARMImm *imm)
 {
     if (imm->type == ARM_IMM_TYPE_NONE)
         return 0;
@@ -147,7 +147,7 @@ static ARMEmitter::ExtendedMemOperand  GenerateExtMemOperand(ARMEmitter::Registe
         case ARM_OPD_EXTEND_UXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::UXTW, FEXCore::ilog2(amount) );
         case ARM_OPD_EXTEND_SXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::SXTW, FEXCore::ilog2(amount) );
         case ARM_OPD_EXTEND_SXTX: return ARMEmitter::ExtendedMemOperand(Base.X(), GetHostRegMap(Index).X(), ARMEmitter::ExtendedType::SXTX, FEXCore::ilog2(amount) );
-        default: LOGMAN_MSG_A_FMT("Unhandled GenerateExtMemOperand OffsetType: {}", OffsetScale.content.extend); break;
+        default: LOGMAN_MSG_A_FMT("Unhandled GenerateExtMemOperand OffsetType"); break;
       }
     }
 }
@@ -344,8 +344,6 @@ DEF_OPC(SXTW) {
     uint8_t     OpSize = instr->OpdSize;
     uint32_t   reg1size, reg2size;
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     const auto Dst = GetHostRegMap(ARMReg);
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
@@ -367,8 +365,6 @@ DEF_OPC(MOV) {
 
     ARMEmitter::Size EmitSize;
     uint32_t   reg1size, reg2size;
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
@@ -404,8 +400,6 @@ DEF_OPC(MVN) {
 
     ARMEmitter::Size EmitSize;
     uint32_t   reg1size, reg2size;
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
@@ -447,8 +441,6 @@ DEF_OPC(AND) {
     auto Dst = GetHostRegMap(ARMReg);
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
     auto Src1 = GetHostRegMap(ARMReg);
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
@@ -513,8 +505,6 @@ DEF_OPC(ORR) {
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
     auto Src1 = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -564,8 +554,6 @@ DEF_OPC(EOR) {
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
     auto Src1 = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -612,8 +600,6 @@ DEF_OPC(BIC) {
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
     auto Src1 = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -659,8 +645,6 @@ DEF_OPC(Shift) {
     auto Dst = GetHostRegMap(ARMReg);
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
     auto Src1 = GetHostRegMap(ARMReg);
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
@@ -715,8 +699,6 @@ DEF_OPC(ADD) {
     auto Dst  = GetHostRegMap(ARMReg);
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
     auto Src1 = GetHostRegMap(ARMReg);
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
@@ -795,8 +777,6 @@ DEF_OPC(ADC) {
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -838,8 +818,6 @@ DEF_OPC(SUB) {
     auto Dst  = GetHostRegMap(ARMReg);
     ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
     auto Src1 = GetHostRegMap(ARMReg);
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
@@ -922,8 +900,6 @@ DEF_OPC(SBC) {
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -955,8 +931,6 @@ DEF_OPC(MUL) {
     uint32_t reg1size, reg2size, reg3size;
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
@@ -990,8 +964,6 @@ DEF_OPC(CLZ) {
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -1018,8 +990,6 @@ DEF_OPC(TST) {
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -1037,9 +1007,14 @@ DEF_OPC(TST) {
             tst(EmitSize, Dst, Src, Shift, amt);
         } else if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
             tst(EmitSize, Dst, Src);
-        } else if (isRegSym && (Dst == Src)) {
+        } else if (isRegSym) {
             unsigned Shift = 32 - (reg1size * 8);
-            cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, Shift);
+            if (Dst == Src) {
+                cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, Shift);
+            } else {
+                and_(EmitSize, ARMEmitter::Reg::r26, Dst, Src);
+                cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
+            }
         } else
             LogMan::Msg::EFmt("[arm] Unsupported reg for TST instruction.");
 
@@ -1057,7 +1032,14 @@ DEF_OPC(TST) {
             }
         } else {
             unsigned Shift = 32 - (reg1size * 8);
-            and_(EmitSize, ARMEmitter::Reg::r26, Dst, Imm);
+            if (IsImm) {
+              //lsr(EmitSize, ARMEmitter::Reg::r20, Dst, reg1size * 8);
+              and_(EmitSize, ARMEmitter::Reg::r26, Dst, Imm);
+            } else {
+              mov((ARMEmitter::Reg::r20).W(), Imm);
+              //lsr(EmitSize, ARMEmitter::Reg::r21, Dst, reg1size * 8);
+              and_(EmitSize, ARMEmitter::Reg::r26, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20);
+            }
             cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
         }
 
@@ -1076,8 +1058,6 @@ DEF_OPC(COMPARE) {
     uint32_t reg1size, reg2size;
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
-
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
 
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
@@ -1207,8 +1187,6 @@ DEF_OPC(CSEX) {
     auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
     auto Dst = GetHostRegMap(ARMReg);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
-
     if ((reg1size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
     else if (reg1size == 4 || OpSize == 8)
@@ -1235,7 +1213,7 @@ DEF_OPC(CSEX) {
 }
 
 
-IR::IROp_Header const * FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
+IR::IROp_Header const* FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
 {
     for (auto [BlockNode, BlockHeader] : this->IR->GetBlocks()) {
       for (auto [CodeNode, IROp] : this->IR->GetCode(BlockNode))
@@ -1289,7 +1267,6 @@ DEF_OPC(CBNZ) {
     uint8_t OpSize = instr->OpdSize;
     auto Src = GetHostRegMap(opd0->content.reg.num);
 
-    LOGMAN_THROW_AA_FMT(OpSize == 4 || OpSize == 8, "Unsupported {} size: {}", __func__, OpSize);
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_CONDJUMP);
@@ -1342,12 +1319,12 @@ DEF_OPC(SET_CALL) {
         get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), fallthrough & Mask);
 
-        if ((target >> 12) != 0) {
+        // if ((target >> 12) != 0) {
           LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), target);
           add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X());
-        } else {
-          add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), target);
-        }
+        // } else {
+        //   add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), target);
+        // }
         str((ARMEmitter::Reg::r20).X(), MemSrc);
     } else if (instr->opd_num && opd->type == ARM_OPD_TYPE_REG) {
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), rrule->target_pc & Mask);

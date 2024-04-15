@@ -9,10 +9,6 @@
 
 #define MAX_INSTR_NUM 1000000
 
-X86Instruction *instr_buffer;
-int instr_buffer_index;
-int instr_block_start;
-
 static const char *x86_opc_str[] = {
     [X86_OPC_INVALID] = "**** unsupported (x86) ****",
     [X86_OPC_NOP] = "nop",
@@ -99,19 +95,11 @@ static const char *x86_reg_str[] = {
 
     "reg0", "reg1", "reg2", "reg3", "reg4", "reg5", "reg6", "reg7",
     "reg8", "reg9", "reg10", "reg11", "reg12", "reg13", "reg14", "reg15",
+    "reg16", "reg17", "reg18", "reg19", "reg20", "reg21", "reg22", "reg23",
+    "reg24", "reg25", "reg26", "reg27", "reg28", "reg29", "reg30", "reg31",
 
     "temp0", "temp1", "temp2", "temp3"
 };
-
-void x86_instr_buffer_init(void)
-{
-    instr_buffer = new X86Instruction[MAX_INSTR_NUM];
-    if (instr_buffer == NULL)
-        LogMan::Msg::IFmt( "Cannot allocate memory for instruction buffer!");
-
-    instr_buffer_index = 0;
-    instr_block_start = 0;
-}
 
 static X86Opcode get_x86_opcode(char *opc_str)
 {
@@ -139,37 +127,11 @@ const char *get_x86_opc_str(X86Opcode opc)
     return x86_opc_str[opc];
 }
 
-/* create an X86 instruction and insert it to tb */
-X86Instruction *create_x86_instr(uint64_t pc)
-{
-    X86Instruction *instr = &instr_buffer[instr_buffer_index];
-    if (instr_buffer_index >= MAX_INSTR_NUM)
-        LogMan::Msg::IFmt( "Instruction buffer is not enough!\n");
-
-    instr->pc = pc;
-    instr->next = nullptr;
-
-    if (instr_block_start == instr_buffer_index)
-        instr->prev = nullptr;
-    else {
-        instr->prev = &instr_buffer[instr_buffer_index-1];
-        instr->prev->next = instr;
-    }
-
-    for (int i = 0; i < X86_MAX_OPERAND_NUM; i++)
-        instr->opd[i].type = X86_OPD_TYPE_NONE;
-    instr->opc = X86_OPC_INVALID;
-    for (int i = 0; i < X86_REG_NUM; i++)
-        instr->reg_liveness[i] = true;
-
-    instr_buffer_index++;
-
-    return instr;
-}
-
 void print_x86_instr(X86Instruction *instr)
 {
-    LogMan::Msg::IFmt("0x{:x}: opcode: {} destsize:{} srcsize:{}", instr->pc, x86_opc_str[instr->opc], instr->DestSize, instr->SrcSize);
+    LogMan::Msg::IFmt("0x{:x}: opcode: {} destsize:{} srcsize:{}",
+        instr->pc, x86_opc_str[instr->opc], instr->DestSize, instr->SrcSize);
+
     for (int i = 0; i < instr->opd_num; i++) {
       X86Operand *opd = &instr->opd[i];
       if (opd->type == X86_OPD_TYPE_IMM) {
@@ -552,9 +514,24 @@ void decide_reg_liveness(int succ_define_cc, X86Instruction *insn_seq)
 
 void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruction *instr)
 {
+    uint32_t SrcSize = FEXCore::X86Tables::DecodeFlags::GetSizeSrcFlags(DecodeInst->Flags);
+    uint32_t DestSize = FEXCore::X86Tables::DecodeFlags::GetSizeDstFlags(DecodeInst->Flags);
+
+    LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} '{}' with DS: {}, SS: {}, InstSize: {}",
+              DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", DestSize, SrcSize, DecodeInst->InstSize);
+
+    if (instr->prev) {
+        uint64_t prepc = instr->prev->pc + instr->prev->InstSize;
+        uint64_t curpc = instr->pc;
+        if (prepc != curpc)
+            LogMan::Msg::EFmt("Expected PC 0x{:x}, but Cur PC 0x{:x} invalid!", prepc, curpc);
+    }
+
     bool SingleSrc = false;
 
-    if (DecodeInst->Flags & (FEXCore::X86Tables::DecodeFlags::FLAG_SEGMENTS)) return;
+    if (DecodeInst->Flags & (FEXCore::X86Tables::DecodeFlags::FLAG_SEGMENTS |
+        FEXCore::X86Tables::DecodeFlags::FLAG_REP_PREFIX | FEXCore::X86Tables::DecodeFlags::FLAG_REPNE_PREFIX))
+      return;
 
     if (!strcmp(DecodeInst->TableInfo->Name, "NOP"))
       set_x86_instr_opc(instr, X86_OPC_NOP);
@@ -894,9 +871,6 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
     }
 
     if (instr->opc == X86_OPC_INVALID) return;
-
-    uint32_t SrcSize = FEXCore::X86Tables::DecodeFlags::GetSizeSrcFlags(DecodeInst->Flags);
-    uint32_t DestSize = FEXCore::X86Tables::DecodeFlags::GetSizeDstFlags(DecodeInst->Flags);
 
     set_x86_instr_opd_size(instr, SrcSize, DestSize);
 

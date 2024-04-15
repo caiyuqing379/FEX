@@ -894,7 +894,7 @@ public:
   }
 
 private:
-  static constexpr Condition InvertCondition(Condition cond) {
+  static Condition InvertCondition(Condition cond) {
     // These behave as always, so it makes no sense to allow inverting these.
     LOGMAN_THROW_AA_FMT(cond != Condition::CC_AL && cond != Condition::CC_NV,
                         "Cannot invert CC_AL or CC_NV");
