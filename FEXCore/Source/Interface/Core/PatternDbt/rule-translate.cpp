@@ -7,7 +7,7 @@
 #include <cstring>
 
 #include "rule-translate.h"
-// #include "rule-auto-gen.h"
+#include "rule-debug-log.h"
 
 #define MAX_RULE_RECORD_BUF_LEN 800
 #define MAX_GUEST_INSTR_LEN 800
@@ -77,36 +77,10 @@ static const ARMOpcode X862ARM[] = {
 };
 
 
-// static ImmMapping imm_map_buf[MAX_MAP_BUF_LEN];
-// static int imm_map_buf_index = 0;
-
-// static LabelMapping label_map_buf[MAX_MAP_BUF_LEN];
-// static int label_map_buf_index = 0;
-
-// static GuestRegisterMapping g_reg_map_buf[MAX_MAP_BUF_LEN];
-// static int g_reg_map_buf_index = 0;
-
-// static RuleRecord rule_record_buf[MAX_RULE_RECORD_BUF_LEN];
-// static int rule_record_buf_index = 0;
-
-// static uint64_t pc_matched_buf[MAX_GUEST_INSTR_LEN];
-// static int pc_matched_buf_index = 0;
-
-// static int imm_map_buf_index_pre = 0;
-// static int g_reg_map_buf_index_pre = 0;
-// static int label_map_buf_index_pre = 0;
-
-// static ImmMapping *imm_map;
-// static GuestRegisterMapping *g_reg_map;
-// static LabelMapping *l_map;
-static int debug = 1;
+static int debug = 0;
 static int match_insts = 0;
 static int match_counter = 10;
 
-// static uint64_t pc_para_matched_buf[MAX_GUEST_INSTR_LEN];
-// static int pc_para_matched_buf_index = 0;
-
-// static int reg_map_num = 0;
 
 inline void FEXCore::CPU::Arm64JITCore::reset_buffer(void)
 {
@@ -210,12 +184,15 @@ bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rr
 {
     GuestRegisterMapping *gmap = g_reg_map;
 
-    if (greg == X86_REG_INVALID && rreg == X86_REG_INVALID)
-        return false;
+    if (greg == X86_REG_INVALID && rreg == X86_REG_INVALID) {
+        if(debug)
+            LogMan::Msg::IFmt("Match reg: all invalid reg!");
+        return true;
+    }
 
     if (greg == X86_REG_INVALID || rreg == X86_REG_INVALID) {
         if(debug)
-            LogMan::Msg::IFmt( "Unmatch reg: invalid reg!");
+            LogMan::Msg::IFmt("Unmatch reg: one invalid reg!");
         return false;
     }
 
@@ -223,14 +200,15 @@ bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rr
     if ((X86_REG_RAX <= rreg && rreg <= X86_REG_R15) && greg == rreg)
         return true;
 
-    if (!(X86_REG_REG0 <= rreg && rreg <= X86_REG_REG15))
+    if (!(X86_REG_REG0 <= rreg && rreg <= X86_REG_REG15)) {
+        if(debug)
+            LogMan::Msg::IFmt("Unmatch reg: not reg sym!");
         return false;
+    }
 
     /* check if we already have this map */
-    while (gmap)
-    {
-        if (gmap->sym != rreg)
-        {
+    while (gmap) {
+        if (gmap->sym != rreg) {
             gmap = gmap->next;
             continue;
         }
@@ -241,8 +219,7 @@ bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rr
 
     /* check if this guest register has another map */
     // gmap = g_reg_map;
-    // while (gmap)
-    // {
+    // while (gmap) {
     //     if (gmap->num != greg)
     //     {
     //         gmap = gmap->next;
@@ -314,7 +291,7 @@ bool FEXCore::CPU::Arm64JITCore::match_scale(X86Imm *gscale, X86Imm *rscale)
 
     if (rscale->type == X86_IMM_TYPE_VAL){
         if (debug && (gscale->content.val != rscale->content.val))
-            LogMan::Msg::IFmt( "Unmatch scale value: {} {}", gscale->content.val, rscale->content.val);
+            LogMan::Msg::IFmt("Unmatch scale value: {} {}", gscale->content.val, rscale->content.val);
         return gscale->content.val == rscale->content.val;
     }
     else if (rscale->type == X86_IMM_TYPE_NONE)
@@ -373,8 +350,11 @@ bool FEXCore::CPU::Arm64JITCore::match_opd_imm(X86ImmOperand *gopd, X86ImmOperan
 bool FEXCore::CPU::Arm64JITCore::match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd, uint32_t regsize)
 {
     /* physical reg, but high bit not match */
-    if ((X86_REG_RAX <= ropd->num && ropd->num <= X86_REG_R15) && gopd->HighBits != ropd->HighBits)
+    if ((X86_REG_RAX <= ropd->num && ropd->num <= X86_REG_R15) && gopd->HighBits != ropd->HighBits) {
+        if (debug)
+            LogMan::Msg::IFmt("Unmatch reg: phy reg, but high bit error.");
         return false;
+    }
     return match_register(gopd->num, ropd->num, regsize);
 }
 
@@ -446,7 +426,8 @@ static bool check_instr(X86Instruction *ginstr){
 // 0: not matched
 // 1: matched
 // 2: matched but condition is different
-bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, TranslationRule *rule, FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
+bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, TranslationRule *rule,
+                    FEXCore::Frontend::Decoder::DecodedBlocks const *tb)
 {
     X86Instruction *p_rule_instr = rule->x86_guest;
     X86Instruction *p_guest_instr = instr;
@@ -473,7 +454,7 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
 
             if (debug) {
                 if (p_rule_instr->opd_num != p_guest_instr->opd_num)
-                    LogMan::Msg::IFmt("Different operand number");
+                    LogMan::Msg::IFmt("Different operand number, rule index {}", rule->index);
             }
 
             return false;
@@ -482,7 +463,7 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
         /*check parameterized instructions*/
         if ((p_rule_instr->opd_num == 0) && !check_instr(p_guest_instr)){
             if (debug){
-                LogMan::Msg::IFmt( "parameterization check error!");
+                LogMan::Msg::IFmt("parameterization check error!");
             }
             return false;
         }
@@ -490,14 +471,14 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
         /* match each operand */
         for(i = 0; i < p_rule_instr->opd_num; i++) {
             if (!match_operand(p_guest_instr, p_rule_instr, i)) {
-                if (debug){
-                    fprintf(stderr, "guest->type: %d\n", p_guest_instr->opd[i].type);
-                    fprintf(stderr, "rule->type: %d\n", p_rule_instr->opd[i].type);
+                if (debug) {
                     if (p_guest_instr->opd[i].type != p_rule_instr->opd[i].type){
-                        LogMan::Msg::IFmt("Unmatched operand :\n");
-                        print_x86_instr(p_guest_instr);
-                        print_x86_instr(p_rule_instr);
+                        fprintf(stderr, "guest->type: %d ", p_guest_instr->opd[i].type);
+                        fprintf(stderr, "rule->type: %d\n", p_rule_instr->opd[i].type);
                     }
+                    LogMan::Msg::IFmt("Rule index {}, unmatched operand index: {}", rule->index, i);
+                    print_x86_instr(p_guest_instr);
+                    print_x86_instr(p_rule_instr);
                 }
                 return false;
             }
@@ -716,8 +697,10 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
     int i, j;
     bool ismatch = false;
 
-    // ofstream_x86_instr2(guest_instr);
-    // ofstream_rule_arm_instr2(guest_instr);
+    #ifdef DEBUG_RULE_LOG
+      ofstream_x86_instr2(guest_instr);
+      ofstream_rule_arm_instr2(guest_instr);
+    #endif
 
     LogMan::Msg::IFmt("=====Guest Instr Match Rule Start, Guest PC: 0x{:x}=====\n", guest_instr->pc);
 
@@ -725,11 +708,6 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
 
     /* Try from the longest rule */
     while (cur_head) {
-        if (cur_head->opc == X86_OPC_INVALID) {
-            cur_head = cur_head->next;
-            guest_instr_num--;
-            continue;
-        }
 
         bool opd_para = false;
 
@@ -886,8 +864,15 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
 
     #ifdef PROFILE_RULE_TRANSLATION
         num_rules_replace++;
-        LogMan::Msg::IFmt( "##### PC: 0x{:x}, Rule index {}, Total replace num: {} #####\n",
-          rule_guest_pc, rule->index, num_rules_replace);
+        #ifdef DEBUG_RULE_LOG
+          std::string logContent = "[INFO] ##### PC: 0x" + intToHex(rule_guest_pc) + ", Rule index " +
+                                   std::to_string(rule->index) + ", Total replace num:" +
+                                   std::to_string(num_rules_replace) + "#####\n\n";
+          writeToLogFile("fex-debug-log", logContent);
+        #else
+          LogMan::Msg::IFmt( "##### PC: 0x{:x}, Rule index {}, Total replace num: {} #####\n",
+            rule_guest_pc, rule->index, num_rules_replace);
+        #endif
     #endif
 
     ARMInstruction *arm_code = rule->arm_host;
@@ -901,15 +886,34 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
             ++i;
             assemble_arm_instruction(arm_code, rule_r);
             arm_code->opc = temp;
-        }
-        else
+        } else
             assemble_arm_instruction(arm_code, rule_r);
         arm_code = arm_code->next;
     }
 
-    if (rule_r->target_pc) {
-        LogMan::Msg::IFmt("--------- target_pc: {:x}\n", rule_r->target_pc);
-        assemble_arm_exit_tb(rule_r->target_pc);
+    if (rule_r->target_pc != 0) {
+        if (debug)
+          LogMan::Msg::IFmt("--------- target_pc: 0x{:x}\n", rule_r->target_pc);
+
+        X86Instruction* last_x86 = rule->x86_guest;
+        while(last_x86->next) {
+            last_x86 = last_x86->next;
+        }
+
+        if (last_x86->opc == X86_OPC_CALL) {
+            assemble_arm_exit2_tb(rule_r->target_pc);
+        } else if (last_x86->opc == X86_OPC_RET) {
+            this->RipReg = ARM_REG_R20;
+            assemble_arm_exit2_tb(rule_r->target_pc);
+        } else if (last_x86->opc == X86_OPC_JMP) {
+            if (last_x86->opd_num && last_x86->opd[0].type == X86_OPD_TYPE_IMM
+                    && last_x86->opd[0].content.imm.isRipLiteral) {
+                this->RipReg = ARM_REG_R20;
+            }
+            assemble_arm_exit2_tb(rule_r->target_pc);
+        } else if (x86_instr_test_branch(last_x86)){
+            assemble_arm_exit1_tb(rule_r->target_pc);
+        }
     }
 }
 

@@ -6,11 +6,11 @@
 #include <assert.h>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 #include <filesystem>
 
 #include "arm-parse.h"
 #include "x86-parse.h"
-
 #include "parse.h"
 
 #define RULE_BUF_LEN 10000
@@ -241,8 +241,6 @@ static void install_rule(TranslationRule *rule)
 {
     int index = rule_hash_key(rule->x86_guest, rule->guest_instr_num);
 
-
-    // LogMan::Msg::IFmt( "{}\n", index);
     assert(index < MAX_GUEST_LEN);
 
     int i;
@@ -260,6 +258,19 @@ static void install_rule(TranslationRule *rule)
         rule_table[index]->prev = rule;
     rule_table[index] = rule;
 
+}
+
+int ruleindex = 0;
+static void install_rule2(TranslationRule *rule)
+{
+    assert(ruleindex < MAX_GUEST_LEN);
+    if (ruleindex) {
+      rule->prev = rule_table[ruleindex-1];
+      rule_table[ruleindex-1]->next = rule;
+    }
+    rule_table[ruleindex] = rule;
+    rule->next = nullptr;
+    ruleindex++;
 }
 
 int rule_hash_key(X86Instruction *x86_insn, int num)
@@ -284,6 +295,28 @@ TranslationRule *get_rule(void)
     return &rule_buf[0];
 }
 
+void flush_file()
+{
+    std::filesystem::path homeDir = std::filesystem::path(getenv("HOME"));
+    std::filesystem::path combinedPath = homeDir / "fex-x86-asm";
+    std::string inputFile = combinedPath.string();
+    std::ofstream file(inputFile, std::ios::trunc);
+    if (!file.is_open()) {
+      LogMan::Msg::EFmt("Failed to open file!");
+      exit(0);
+    }
+    file.close();
+
+    std::filesystem::path combinedPath2 = homeDir / "fex-debug-log";
+    std::string inputFile2 = combinedPath2.string();
+    std::ofstream file2(inputFile2, std::ios::trunc);
+    if (!file2.is_open()) {
+      LogMan::Msg::EFmt("Failed to open file!");
+      exit(0);
+    }
+    file2.close();
+}
+
 void parse_translation_rules(void)
 {
     std::filesystem::path homeDir = std::filesystem::path(getenv("HOME"));
@@ -299,12 +332,13 @@ void parse_translation_rules(void)
 
     /* 1. init environment */
     init_buf();
+    flush_file();
 
     LogMan::Msg::IFmt("== Loading translation rules from {}...\n", rule_file);
     /* 2. open the rule file and parse it */
     fp = fopen(rule_file, "r");
     if (fp == NULL) {
-        LogMan::Msg::IFmt( "== No translation rule file found.\n");
+        LogMan::Msg::IFmt("== No translation rule file found.\n");
         return;
     }
 

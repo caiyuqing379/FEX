@@ -9,10 +9,11 @@ $end_info$
 #include "Interface/Context/Context.h"
 #include "Interface/Core/Frontend.h"
 #include "Interface/Core/X86Tables/X86Tables.h"
+#include "Interface/Core/PatternDbt/rule-debug-log.h"
 
 #include <cstring>
 #include <iostream>
-#include <fstream>
+
 #include <FEXCore/Config/Config.h>
 #include <FEXCore/Core/X86Enums.h>
 #include <FEXCore/HLE/SyscallHandler.h>
@@ -1206,14 +1207,10 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
     // Do a bit of pointer math to figure out where we are in code
     InstStream = AdjustAddrForSpecialRegion(_InstStream, EntryPoint, RIPToDecode);
 
-    std::ofstream file1("/home/zzy/x86-assembly-code", std::ios::app);
-    if (!file1.is_open()) {
-      LogMan::Msg::EFmt("Failed to open file!");
-      exit(0);
-    }
-    file1 << "#### Current PC Block: "<< std::hex << RIPToDecode << std::endl;
-    file1 << "1.Guest:";
-    file1.close();
+    #ifdef DEBUG_RULE_LOG
+      std::string logContent = "#### Current PC Block: " + intToHex(RIPToDecode) + "\n" + "1.Guest:";
+      writeToLogFile("fex-x86-asm", logContent);
+    #endif
 
     while (1) {
       // MAX_INST_SIZE assumes worst case
@@ -1276,12 +1273,15 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
         CanContinue |= BranchTargetCanContinue(FinalInstruction);
       }
 
-      fprintf(stderr, "[INFO] Inst at 0x%lx with ", DecodeInst->PC);
-      for(uint8_t k=0; k < DecodeInst->InstSize; k++){
-        uint8_t Byte = InstStream[k];
-        fprintf(stderr, "%x ", Byte);
-      }
-      fprintf(stderr, "\n\n");
+      #ifdef DEBUG_RULE_LOG
+        std::string logContent = "[INFO] Inst at 0x" + std::to_string(DecodeInst->PC) + " with ";
+        for(uint8_t k=0; k < DecodeInst->InstSize; k++){
+          uint8_t Byte = InstStream[k];
+          logContent += (intToHex(static_cast<int>(Byte)) + " ");
+        }
+        logContent += "\n\n";
+        writeToLogFile("fex-debug-log", logContent);
+      #endif
 
       if (FinalInstruction || !CanContinue) {
         break;

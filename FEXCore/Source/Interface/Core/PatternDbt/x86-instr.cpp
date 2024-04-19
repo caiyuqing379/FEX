@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include "x86-instr.h"
+#include "rule-debug-log.h"
 
 #define MAX_INSTR_NUM 1000000
 
@@ -156,7 +157,7 @@ void print_x86_instr(X86Instruction *instr)
           fprintf(stderr,", offset(%s)", opd->content.mem.offset.content.sym);
         else if (opd->content.mem.offset.type == X86_IMM_TYPE_VAL)
           fprintf(stderr,", offset(0x%lx)", opd->content.mem.offset.content.val);
-        fprintf(stderr,"\n");
+        LogMan::Msg::EFmt("");
       }
     }
 }
@@ -517,20 +518,21 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
     uint32_t SrcSize = FEXCore::X86Tables::DecodeFlags::GetSizeSrcFlags(DecodeInst->Flags);
     uint32_t DestSize = FEXCore::X86Tables::DecodeFlags::GetSizeDstFlags(DecodeInst->Flags);
 
-    LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} '{}' with DS: {}, SS: {}, InstSize: {}",
+    #ifdef DEBUG_RULE_LOG
+      std::string logContent = "[INFO] Inst at 0x" + intToHex(DecodeInst->PC) +
+                             ": 0x" + std::to_string(DecodeInst->OP) +
+                             " \'" + DecodeInst->TableInfo->Name + "\' with DS: " +
+                             std::to_string(DestSize) + ", SS: " + std::to_string(SrcSize) +
+                             ", InstSize: " + std::to_string(static_cast<int>(DecodeInst->InstSize)) + "\n";
+      writeToLogFile("fex-debug-log", logContent);
+    #else
+      LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} '{}' with DS: {}, SS: {}, InstSize: {}",
               DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", DestSize, SrcSize, DecodeInst->InstSize);
+    #endif
 
-    if (instr->prev) {
-        uint64_t prepc = instr->prev->pc + instr->prev->InstSize;
-        uint64_t curpc = instr->pc;
-        if (prepc != curpc)
-            LogMan::Msg::EFmt("Expected PC 0x{:x}, but Cur PC 0x{:x} invalid!", prepc, curpc);
-    }
+    bool SingleSrc = false, MutiplyOnce = false;
 
-    bool SingleSrc = false;
-
-    if (DecodeInst->Flags & (FEXCore::X86Tables::DecodeFlags::FLAG_SEGMENTS |
-        FEXCore::X86Tables::DecodeFlags::FLAG_REP_PREFIX | FEXCore::X86Tables::DecodeFlags::FLAG_REPNE_PREFIX))
+    if (DecodeInst->Flags & (FEXCore::X86Tables::DecodeFlags::FLAG_SEGMENTS))
       return;
 
     if (!strcmp(DecodeInst->TableInfo->Name, "NOP"))
@@ -817,6 +819,9 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD1), 5)
           || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD3), 5))) {
             set_x86_instr_opc(instr, X86_OPC_SHR);
+            if (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD0), 5)
+            || DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xD1), 5))
+                MutiplyOnce = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SAR")
           && (DecodeInst->OP == OPD(FEXCore::X86Tables::TYPE_GROUP_2, FEXCore::X86Tables::OpToIndex(0xC0), 7)
@@ -882,12 +887,20 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
           if (SingleSrc && num == 1)
             break;
 
-          LogMan::Msg::IFmt( "====Operand Num: 0x{:x}", num+1);
+          #ifdef DEBUG_RULE_LOG
+            writeToLogFile("fex-debug-log", "[INFO] ====Operand Num: " + std::to_string(num+1) + "\n");
+          #else
+            LogMan::Msg::IFmt("====Operand Num: {:x}", num+1);
+          #endif
           if (Opd->IsGPR()){
               uint8_t GPR = Opd->Data.GPR.GPR;
               bool HighBits = Opd->Data.GPR.HighBits;
 
-              LogMan::Msg::IFmt( "     GPR: 0x{:x}", GPR);
+              #ifdef DEBUG_RULE_LOG
+                writeToLogFile("fex-debug-log", "[INFO]      GPR: 0x" + std::to_string(GPR) + "\n");
+              #else
+                LogMan::Msg::IFmt("     GPR: 0x{:x}", GPR);
+              #endif
 
               if(GPR <= FEXCore::X86State::REG_R15)
                 set_x86_instr_opd_reg(instr, num, GPR, HighBits);
@@ -896,17 +909,35 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
           }
           else if(Opd->IsRIPRelative()){
               uint32_t Literal = Opd->Data.RIPLiteral.Value.u;
-              LogMan::Msg::IFmt( "     RIPLiteral: 0x{:x}", Literal);
+
+              #ifdef DEBUG_RULE_LOG
+                writeToLogFile("fex-debug-log", "[INFO]      RIPLiteral: 0x" + intToHex(Literal) + "\n");
+              #else
+                LogMan::Msg::IFmt( "     RIPLiteral: 0x{:x}", Literal);
+              #endif
+
               set_x86_instr_opd_imm(instr, num, Literal, true);
           }
           else if(Opd->IsLiteral()){
               uint64_t Literal = Opd->Data.Literal.Value;
-              LogMan::Msg::IFmt( "     Literal: 0x{:x}", Literal);
+
+              #ifdef DEBUG_RULE_LOG
+                writeToLogFile("fex-debug-log", "[INFO]      Literal: 0x" + intToHex(Literal) + "\n");
+              #else
+                LogMan::Msg::IFmt( "     Literal: 0x{:x}", Literal);
+              #endif
+
               set_x86_instr_opd_imm(instr, num, Literal);
           }
           else if(Opd->IsGPRDirect()) {
               uint8_t GPR = Opd->Data.GPR.GPR;
-              LogMan::Msg::IFmt( "     GPRDirect: 0x{:x}", GPR);
+
+              #ifdef DEBUG_RULE_LOG
+                writeToLogFile("fex-debug-log", "[INFO]      GPRDirect: 0x" + std::to_string(GPR) + "\n");
+              #else
+                LogMan::Msg::IFmt( "     GPRDirect: 0x{:x}", GPR);
+              #endif
+
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
               if(GPR <= FEXCore::X86State::REG_R15)
                 set_x86_instr_opd_mem_base(instr, num, GPR);
@@ -917,7 +948,12 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               uint8_t GPR = Opd->Data.GPRIndirect.GPR;
               int32_t Displacement = Opd->Data.GPRIndirect.Displacement;
 
-              LogMan::Msg::IFmt( "     GPRIndirect - GPR: 0x{:x}, Displacement: 0x{:x}", GPR, Displacement);
+              #ifdef DEBUG_RULE_LOG
+                writeToLogFile("fex-debug-log", "[INFO]      GPRIndirect - GPR: 0x" + std::to_string(GPR)
+                                             + ", Displacement: 0x" + std::to_string(Displacement) + "\n");
+              #else
+                LogMan::Msg::IFmt( "     GPRIndirect - GPR: 0x{:x}, Displacement: 0x{:x}", GPR, Displacement);
+              #endif
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
               if(GPR <= FEXCore::X86State::REG_R15)
@@ -932,7 +968,15 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               uint8_t Index = Opd->Data.SIB.Index;
               uint8_t Scale = Opd->Data.SIB.Scale;
 
-              LogMan::Msg::IFmt( "     SIB - Base: 0x{:x}, Offset: 0x{:x}, Index: 0x{:x}, Scale: 0x{:x}", Base, Offset, Index, Scale);
+              #ifdef DEBUG_RULE_LOG
+                writeToLogFile("fex-debug-log", "[INFO]      SIB - Base: 0x" + std::to_string(Base)
+                                              + ", Offset: 0x" + std::to_string(Offset)
+                                              + ", Index: 0x" + std::to_string(Index)
+                                              + ", Scale: 0x" + std::to_string(Scale) + "\n");
+              #else
+                LogMan::Msg::IFmt( "     SIB - Base: 0x{:x}, Offset: 0x{:x}, Index: 0x{:x}, Scale: 0x{:x}",
+                                Base, Offset, Index, Scale);
+              #endif
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
               if (Base <= FEXCore::X86State::REG_R15) {
@@ -968,8 +1012,15 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
       num--;
     }
 
+    if ((instr->opc == X86_OPC_SHR) && MutiplyOnce) {
+      set_x86_instr_opd_imm(instr, 1, 1);
+    }
+
     set_x86_instr_opd_num(instr, num);
     set_x86_instr_size(instr, DecodeInst->InstSize);
 
-    print_x86_instr(instr);
+    #ifdef DEBUG_RULE_LOG
+      output_x86_instr(instr);
+    #endif
+    // print_x86_instr(instr);
 }

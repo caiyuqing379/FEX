@@ -74,6 +74,7 @@ private:
   CPUBackend::CompiledCode CodeData{};
 
   fextl::map<IR::NodeID, ARMEmitter::BiDirectionalLabel> JumpTargets;
+  fextl::map<uint64_t, ARMEmitter::BiDirectionalLabel> JumpTargets2;
 
   [[nodiscard]] FEXCore::ARMEmitter::Register GetReg(IR::NodeID Node) const {
     const auto Reg = GetPhys(Node);
@@ -261,6 +262,7 @@ private:
 
   GuestRegisterMapping g_reg_map_buf[1000];
   int g_reg_map_buf_index;
+  int reg_map_num;
 
   RuleRecord rule_record_buf[800];
   int rule_record_buf_index;
@@ -279,7 +281,9 @@ private:
   uint64_t pc_para_matched_buf[800];
   int pc_para_matched_buf_index;
 
-  int reg_map_num;
+  ARMRegister RipReg;
+  uint64_t TrueNewRip;
+  uint64_t FalseNewRip;
 
   inline void reset_buffer(void);
   inline void save_map_buf_index(void);
@@ -314,9 +318,9 @@ private:
   void do_rule_translation(RuleRecord *rule_r, uint32_t *reg_liveness);
 
   void FlipCF();
-  IR::IROp_Header const* FindIROp(IR::IROps tIROp);
   void assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule);
-  void assemble_arm_exit_tb(uint64_t target_pc);
+  void assemble_arm_exit1_tb(uint64_t target_pc);
+  void assemble_arm_exit2_tb(uint64_t target_pc);
 
 #define DEF_OPC(x) void Opc_##x(ARMInstruction *instr, RuleRecord *rrule)
   DEF_OPC(LDR);

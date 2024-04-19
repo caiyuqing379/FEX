@@ -175,11 +175,16 @@ DEF_OPC(LDR) {
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
           if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && ((Imm < 0) || (Imm > 0 && (Imm >> 9) != 0))) {
-            if (Imm < 0)
-              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, 0 - Imm);
-            else
-              add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, Imm);
-            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r20).X(), Index, 0, OffsetScale, PrePost);
+            if (Imm < 0) {
+              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - Imm);
+            } else {
+              if ((Imm >> 12) != 0) {
+                LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r22, Imm);
+                add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, ARMEmitter::Reg::r22);
+              } else
+                add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, Imm);
+            }
+            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
           }
 
           if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_LDR) {
@@ -269,9 +274,17 @@ DEF_OPC(STR) {
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
-          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && (Imm < 0)) {
-            sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Base, 0 - Imm);
-            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r20).X(), Index, 0, OffsetScale, PrePost);
+          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && ((Imm < 0) || (Imm > 0 && (Imm >> 9) != 0))) {
+            if (Imm < 0) {
+              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - Imm);
+            } else {
+              if ((Imm >> 12) != 0) {
+                LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r22, Imm);
+                add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, ARMEmitter::Reg::r22);
+              } else
+                add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, Imm);
+            }
+            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
           }
 
           if (instr->opc == ARM_OPC_STRB || instr->opc == ARM_OPC_STRH || instr->opc == ARM_OPC_STR) {
@@ -1010,10 +1023,10 @@ DEF_OPC(TST) {
         } else if (isRegSym) {
             unsigned Shift = 32 - (reg1size * 8);
             if (Dst == Src) {
-                cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, Shift);
+              cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, Shift);
             } else {
-                and_(EmitSize, ARMEmitter::Reg::r26, Dst, Src);
-                cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
+              and_(EmitSize, ARMEmitter::Reg::r26, Dst, Src);
+              cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
             }
         } else
             LogMan::Msg::EFmt("[arm] Unsupported reg for TST instruction.");
@@ -1033,11 +1046,9 @@ DEF_OPC(TST) {
         } else {
             unsigned Shift = 32 - (reg1size * 8);
             if (IsImm) {
-              //lsr(EmitSize, ARMEmitter::Reg::r20, Dst, reg1size * 8);
               and_(EmitSize, ARMEmitter::Reg::r26, Dst, Imm);
             } else {
               mov((ARMEmitter::Reg::r20).W(), Imm);
-              //lsr(EmitSize, ARMEmitter::Reg::r21, Dst, reg1size * 8);
               and_(EmitSize, ARMEmitter::Reg::r26, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20);
             }
             cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
@@ -1213,35 +1224,22 @@ DEF_OPC(CSEX) {
 }
 
 
-IR::IROp_Header const* FEXCore::CPU::Arm64JITCore::FindIROp(IR::IROps tIROp)
-{
-    for (auto [BlockNode, BlockHeader] : this->IR->GetBlocks()) {
-      for (auto [CodeNode, IROp] : this->IR->GetCode(BlockNode))
-        if (IROp->Op == tIROp) return IROp;
-      break;
-    }
-    return nullptr;
-}
-
-
 DEF_OPC(B) {
-    IR::IROp_Header const *IROp = nullptr;
+    ARMOperand *opd = &instr->opd[0];
     ARMConditionCode cond = instr->cc;
     const auto EmitSize = ARMEmitter::Size::i64Bit;
 
+    // get new rip
+    uint64_t target, fallthrough;
+    get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
+    this->TrueNewRip = fallthrough + target;
+    this->FalseNewRip = fallthrough;
+
     if (cond == ARM_CC_AL) {
-      IROp = FindIROp(IR::IROps::OP_JUMP);
-
-      const auto Op = IROp->C<IR::IROp_Jump>();
-
-      PendingTargetLabel = &JumpTargets.try_emplace(Op->TargetBlock.ID()).first->second;
+      PendingTargetLabel = &JumpTargets2.try_emplace(this->TrueNewRip).first->second;
     } else {
 
-      IROp = FindIROp(IR::IROps::OP_CONDJUMP);
-
-      const auto Op = IROp->C<IR::IROp_CondJump>();
-
-      auto TrueTargetLabel = &JumpTargets.try_emplace(Op->TrueBlock.ID()).first->second;
+      auto TrueTargetLabel = &JumpTargets2.try_emplace(this->TrueNewRip).first->second;
 
       if (cond == ARM_CC_LS) {
         // b.ls (CF=0 || ZF=1)
@@ -1257,31 +1255,40 @@ DEF_OPC(B) {
       } else
         b(MapBranchCC(cond), TrueTargetLabel);
 
-        PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
+      PendingTargetLabel = &JumpTargets2.try_emplace(this->FalseNewRip).first->second;
     }
+
+    PendingTargetLabel = nullptr;
 }
 
 
 DEF_OPC(CBNZ) {
-    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd = &instr->opd[0];
     uint8_t OpSize = instr->OpdSize;
-    auto Src = GetHostRegMap(opd0->content.reg.num);
+
+    uint32_t reg1size;
+    auto ARMReg = get_guest_reg_map(opd->content.reg.num, reg1size);
+    auto Src = GetHostRegMap(ARMReg);
+
+    // get new rip
+    uint64_t target, fallthrough;
+    get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
+    this->TrueNewRip = fallthrough + target;
+    this->FalseNewRip = fallthrough;
 
     const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
-    IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_CONDJUMP);
-
-    auto Op = IROp->C<IR::IROp_CondJump>();
-
-    auto TrueTargetLabel = &JumpTargets.try_emplace(Op->TrueBlock.ID()).first->second;
+    auto TrueTargetLabel = &JumpTargets2.try_emplace(this->TrueNewRip).first->second;
 
     if (instr->opc == ARM_OPC_CBNZ)
       cbnz(EmitSize, Src, TrueTargetLabel);
     else
       cbz(EmitSize, Src, TrueTargetLabel);
 
-    PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
+    // PendingTargetLabel = &JumpTargets.try_emplace(Op->FalseBlock.ID()).first->second;
+    PendingTargetLabel = &JumpTargets2.try_emplace(this->FalseNewRip).first->second;
 }
+
 
 DEF_OPC(SET_JUMP) {
     ARMOperand *opd = &instr->opd[0];
@@ -1293,11 +1300,18 @@ DEF_OPC(SET_JUMP) {
     }
 
     if (opd->type == ARM_OPD_TYPE_IMM) {
-      get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
+        get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
 
-      LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, fallthrough & Mask);
-      LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, target);
-      add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
+        LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, fallthrough & Mask);
+        LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, target);
+        add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
+        // Set New RIP Reg
+        RipReg = ARM_REG_R20;
+    } else if (opd->type == ARM_OPD_TYPE_REG) {
+        uint32_t reg1size;
+        auto Src = get_guest_reg_map(opd->content.reg.num, reg1size);
+        // Set New RIP Reg
+        RipReg = Src;
     }
 
     // operand type is reg don't need to be processed.
@@ -1319,19 +1333,27 @@ DEF_OPC(SET_CALL) {
         get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), fallthrough & Mask);
 
-        // if ((target >> 12) != 0) {
+        if ((target >> 12) != 0) {
           LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), target);
           add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X());
-        // } else {
-        //   add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), target);
-        // }
+        } else {
+          add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), target);
+        }
         str((ARMEmitter::Reg::r20).X(), MemSrc);
+        // Set New RIP Reg
+        RipReg = ARM_REG_R21;
     } else if (instr->opd_num && opd->type == ARM_OPD_TYPE_REG) {
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), rrule->target_pc & Mask);
         str((ARMEmitter::Reg::r20).X(), MemSrc);
+        // Set New RIP Reg
+        uint32_t reg1size;
+        auto Src = get_guest_reg_map(opd->content.reg.num, reg1size);
+        RipReg = Src;
     } else if (!instr->opd_num) { // only push
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), rrule->target_pc & Mask);
         str((ARMEmitter::Reg::r21).X(), MemSrc);
+        // Set New RIP Reg
+        RipReg = ARM_REG_R20;
     }
 }
 
@@ -1514,31 +1536,39 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
     }
 }
 
-void FEXCore::CPU::Arm64JITCore::assemble_arm_exit_tb(uint64_t target_pc)
+void FEXCore::CPU::Arm64JITCore::assemble_arm_exit1_tb(uint64_t target_pc)
 {
-  IR::IROp_Header const *IROp = FindIROp(IR::IROps::OP_EXITFUNCTION);
+    ResetStack();
+    // False Block
+    const auto IsTarget1 = JumpTargets2.try_emplace(this->FalseNewRip).first;
+    Bind(&IsTarget1->second);
 
-  if (!IROp) return;
-
-  auto Op = IROp->C<IR::IROp_ExitFunction>();
-
-  ResetStack();
-
-  uint64_t NewRIP;
-
-  if (IsInlineConstant(Op->NewRIP, &NewRIP) || IsInlineEntrypointOffset(Op->NewRIP, &NewRIP)) {
-    ARMEmitter::SingleUseForwardLabel l_BranchHost;
-
-    ldr(TMP1, &l_BranchHost);
+    ARMEmitter::SingleUseForwardLabel l_BranchHost_f;
+    ldr(TMP1, &l_BranchHost_f);
     blr(TMP1);
 
-    Bind(&l_BranchHost);
+    Bind(&l_BranchHost_f);
     dc64(ThreadState->CurrentFrame->Pointers.Common.ExitFunctionLinker);
-    dc64(NewRIP);
-  } else {
+    dc64(this->FalseNewRip);
+    // True Block
+    const auto IsTarget2 = JumpTargets2.try_emplace(this->TrueNewRip).first;
+    Bind(&IsTarget2->second);
+
+    ARMEmitter::SingleUseForwardLabel l_BranchHost_t;
+    ldr(TMP1, &l_BranchHost_t);
+    blr(TMP1);
+
+    Bind(&l_BranchHost_t);
+    dc64(ThreadState->CurrentFrame->Pointers.Common.ExitFunctionLinker);
+    dc64(this->TrueNewRip);
+}
+
+void FEXCore::CPU::Arm64JITCore::assemble_arm_exit2_tb(uint64_t target_pc)
+{
+    ResetStack();
 
     ARMEmitter::SingleUseForwardLabel FullLookup;
-    auto RipReg = GetReg(Op->NewRIP.ID());
+    auto RipReg = GetHostRegMap(this->RipReg);
 
     // L1 Cache
     ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.L1Pointer));
@@ -1556,7 +1586,6 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_exit_tb(uint64_t target_pc)
     ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.DispatcherLoopTop));
     str(RipReg.X(), STATE, offsetof(FEXCore::Core::CpuStateFrame, State.rip));
     br(TMP1);
-  }
 }
 
 #undef DEF_OP

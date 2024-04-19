@@ -307,6 +307,7 @@ namespace FEXCore::Context {
 
     struct GenerateIRResult {
       FEXCore::IR::IRListView* IRList;
+      bool IsRuleTrans;
       FEXCore::IR::RegisterAllocationData::UniquePtr RAData;
       uint64_t TotalInstructions;
       uint64_t TotalInstructionsLength;
