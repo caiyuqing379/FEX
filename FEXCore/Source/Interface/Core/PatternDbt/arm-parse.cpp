@@ -152,7 +152,6 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
 
                 idx++;
                 tfc = line[idx];
-                assert(tfc == 'i');
 
                 while (line[idx] != ',' && line[idx] != ']' && line[idx] != '\n')
                   strncat(off_str, &line[idx++], 1);
