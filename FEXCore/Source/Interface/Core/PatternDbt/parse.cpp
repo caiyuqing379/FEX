@@ -9,86 +9,12 @@
 #include <fstream>
 #include <filesystem>
 
+#include "rule-debug-log.h"
 #include "arm-parse.h"
 #include "x86-parse.h"
 #include "parse.h"
 
 #define RULE_BUF_LEN 10000
-
-const X86Opcode opc_set[] = {
-    [X86_OPC_NOP]   = X86_OPC_INVALID,
-    [X86_OPC_MOVZX] = X86_OPC_OP3,
-    [X86_OPC_MOVSX] = X86_OPC_OP3,
-    [X86_OPC_MOVSXD] = X86_OPC_OP3,
-    [X86_OPC_MOV]   = X86_OPC_OP4,
-    [X86_OPC_LEA]   = X86_OPC_OP4,
-    [X86_OPC_NOT]   = X86_OPC_INVALID,
-    [X86_OPC_AND]   = X86_OPC_INVALID,
-    [X86_OPC_OR]    = X86_OPC_INVALID,
-    [X86_OPC_XOR]   = X86_OPC_INVALID,
-    [X86_OPC_NEG]   = X86_OPC_INVALID,
-    [X86_OPC_INC]   = X86_OPC_INVALID,
-    [X86_OPC_DEC]   = X86_OPC_INVALID,
-
-    [X86_OPC_ADD]   = X86_OPC_INVALID,
-    [X86_OPC_ADC]   = X86_OPC_OP8,
-    [X86_OPC_SUB]   = X86_OPC_OP7,
-    [X86_OPC_SBB]   = X86_OPC_OP9,
-	[X86_OPC_MULL]  = X86_OPC_INVALID,
-    [X86_OPC_IMUL]  = X86_OPC_OP1,
-
-    [X86_OPC_SHL]   = X86_OPC_INVALID,
-    [X86_OPC_SHR]   = X86_OPC_INVALID,
-    [X86_OPC_SAR]   = X86_OPC_INVALID,
-    [X86_OPC_SHLD]  = X86_OPC_INVALID,
-    [X86_OPC_SHRD]  = X86_OPC_INVALID,
-
-    [X86_OPC_BT]    = X86_OPC_INVALID,
-    [X86_OPC_TEST]  = X86_OPC_INVALID,
-    [X86_OPC_CMP]   = X86_OPC_INVALID,
-
-    [X86_OPC_CMOVNE]= X86_OPC_INVALID,
-    [X86_OPC_CMOVA] = X86_OPC_INVALID,
-    [X86_OPC_CMOVB] = X86_OPC_INVALID,
-    [X86_OPC_CMOVL] = X86_OPC_INVALID,
-
-    [X86_OPC_SETE]   = X86_OPC_INVALID,
-    [X86_OPC_CWT]    = X86_OPC_INVALID,
-
-    [X86_OPC_JMP]    = X86_OPC_INVALID,
-    [X86_OPC_JA]     = X86_OPC_INVALID,
-    [X86_OPC_JAE]    = X86_OPC_INVALID,
-    [X86_OPC_JB]     = X86_OPC_INVALID,
-    [X86_OPC_JBE]    = X86_OPC_INVALID,
-    [X86_OPC_JL]     = X86_OPC_INVALID,
-    [X86_OPC_JLE]    = X86_OPC_INVALID,
-    [X86_OPC_JG]     = X86_OPC_INVALID,
-    [X86_OPC_JGE]    = X86_OPC_INVALID,
-    [X86_OPC_JE]     = X86_OPC_INVALID,
-    [X86_OPC_JNE]    = X86_OPC_INVALID,
-    [X86_OPC_JS]     = X86_OPC_INVALID,
-    [X86_OPC_JNS]    = X86_OPC_INVALID,
-
-    [X86_OPC_PUSH]   = X86_OPC_INVALID,
-    [X86_OPC_POP]    = X86_OPC_INVALID,
-    [X86_OPC_CALL]   = X86_OPC_INVALID,
-    [X86_OPC_RET]    = X86_OPC_INVALID,
-    [X86_OPC_SET_LABEL] = X86_OPC_INVALID, // fake instruction to generate label
-
-    //parameterized opcode
-    [X86_OPC_OP1]    = X86_OPC_OP1,
-    [X86_OPC_OP2]    = X86_OPC_OP2,
-    [X86_OPC_OP3]    = X86_OPC_OP3,
-    [X86_OPC_OP4]    = X86_OPC_OP4,
-    [X86_OPC_OP5]    = X86_OPC_OP5,
-    [X86_OPC_OP6]    = X86_OPC_OP6,
-    [X86_OPC_OP7]    = X86_OPC_OP7,
-    [X86_OPC_OP8]    = X86_OPC_OP8,
-    [X86_OPC_OP9]    = X86_OPC_OP9,
-    [X86_OPC_OP10]   = X86_OPC_OP10,
-    [X86_OPC_OP11]   = X86_OPC_OP11,
-    [X86_OPC_OP12]   = X86_OPC_OP12,
-};
 
 static const int cache_index[] = {2483,
 896,
@@ -279,7 +205,7 @@ int rule_hash_key(X86Instruction *x86_insn, int num)
     int sum = 0, cnt = 0;
 
     while(p_x86_insn) {
-        sum += opc_set[p_x86_insn->opc];
+        sum += p_x86_insn->opc;
         p_x86_insn = p_x86_insn->next;
         cnt++;
     }
@@ -332,7 +258,9 @@ void parse_translation_rules(void)
 
     /* 1. init environment */
     init_buf();
-    flush_file();
+    #ifdef DEBUG_RULE_LOG
+      flush_file();
+    #endif
 
     LogMan::Msg::IFmt("== Loading translation rules from {}...\n", rule_file);
     /* 2. open the rule file and parse it */

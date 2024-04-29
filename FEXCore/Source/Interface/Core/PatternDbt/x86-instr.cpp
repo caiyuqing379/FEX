@@ -62,21 +62,75 @@ static const char *x86_opc_str[] = {
     [X86_OPC_POP] = "pop",
     [X86_OPC_CALL] = "call",
     [X86_OPC_RET] = "ret",
-    [X86_OPC_SET_LABEL] = "set label",
 
-    //parameterized opcode
-    [X86_OPC_OP1] = "op1",
-    [X86_OPC_OP2] = "op2",
-    [X86_OPC_OP3] = "op3",
-    [X86_OPC_OP4] = "op4",
-    [X86_OPC_OP5] = "op5",
-    [X86_OPC_OP6] = "op6",
-    [X86_OPC_OP7] = "op7",
-    [X86_OPC_OP8] = "op8",
-    [X86_OPC_OP9] = "op9",
-    [X86_OPC_OP10] = "op10",
-    [X86_OPC_OP11] = "op11",
-    [X86_OPC_OP12] = "op12",
+    // Load/Store
+    [X86_OPC_MOVUPS] = "movups",
+    [X86_OPC_MOVUPD] = "movupd",
+    [X86_OPC_MOVSS] = "movss",
+    [X86_OPC_MOVSD] = "movsd",
+    [X86_OPC_MOVLPS] = "movlps",
+    [X86_OPC_MOVLPD] = "movlpd",
+    [X86_OPC_MOVHPS] = "movhps",
+    [X86_OPC_MOVHPD] = "movhpd",
+    [X86_OPC_MOVAPS] = "movaps",
+    [X86_OPC_MOVAPD] = "movapd",
+    [X86_OPC_MOVD] = "movd",
+    [X86_OPC_MOVQ] = "movq",
+    [X86_OPC_MOVDQA] = "movdqa",
+    [X86_OPC_MOVDQU] = "movdqu",
+    [X86_OPC_PMOVMSKB] = "pmovmskb",
+
+    [X86_OPC_PACKUSWB] = "packuswb",
+    [X86_OPC_PACKSSWB] = "packsswb",
+    [X86_OPC_PACKSSDW] = "packssdw",
+    [X86_OPC_PALIGNR] = "palignr",
+
+    // Logical
+    [X86_OPC_ANDPS] = "andps",
+    [X86_OPC_ANDPD] = "andpd",
+    [X86_OPC_ORPS] = "orps",
+    [X86_OPC_ORPD] = "orpd",
+    [X86_OPC_XORPS] = "xorps",
+    [X86_OPC_XORPD] = "xorpd",
+    [X86_OPC_PAND] = "pand",
+    [X86_OPC_PANDN] = "pandn",
+    [X86_OPC_POR] = "por",
+    [X86_OPC_PXOR] = "pxor",
+
+    // Shuffle
+    [X86_OPC_PUNPCKLBW] = "punpcklbw",
+    [X86_OPC_PUNPCKLWD] = "punpcklwd",
+    [X86_OPC_PUNPCKLDQ] = "punpckldq",
+    [X86_OPC_PUNPCKHBW] = "punpckhbw",
+    [X86_OPC_PUNPCKHWD] = "punpckhwd",
+    [X86_OPC_PUNPCKHDQ] = "punpckhdq",
+    [X86_OPC_PUNPCKLQDQ] = "punpcklqdq",
+    [X86_OPC_PUNPCKHQDQ] = "punpckhqdq",
+    [X86_OPC_PSHUFD] = "pshufd",
+    [X86_OPC_PSHUFLW] = "pshuflw",
+    [X86_OPC_PSHUFHW] = "pshufhw",
+
+    // Comparison
+    [X86_OPC_PCMPGTB] = "pcmpgtb",
+    [X86_OPC_PCMPGTW] = "pcmpctw",
+    [X86_OPC_PCMPGTD] = "pcmpgtd",
+    [X86_OPC_PCMPEQB] = "pcmpeqb",
+    [X86_OPC_PCMPEQW] = "pcmpeqw",
+    [X86_OPC_PCMPEQD] = "pcmpeqd",
+
+    // Algorithm
+    [X86_OPC_ADDPS] = "addps",
+    [X86_OPC_ADDPD] = "addpd",
+    [X86_OPC_ADDSS] = "addss",
+    [X86_OPC_ADDSD] = "addsd",
+    [X86_OPC_SUBPS] = "subps",
+    [X86_OPC_SUBPD] = "subpd",
+    [X86_OPC_SUBSS] = "subss",
+    [X86_OPC_SUBSD] = "subsd",
+    [X86_OPC_PSUBB] = "psubb",
+    [X86_OPC_PADDD] = "paddd",
+
+    [X86_OPC_SET_LABEL] = "set label",
 };
 
 static const X86Register x86_reg_table[] = {
@@ -84,6 +138,10 @@ static const X86Register x86_reg_table[] = {
     X86_REG_RSP, X86_REG_RBP, X86_REG_RSI, X86_REG_RDI,
     X86_REG_R8, X86_REG_R9, X86_REG_R10, X86_REG_R11,
     X86_REG_R12, X86_REG_R13, X86_REG_R14, X86_REG_R15,
+    X86_REG_XMM0, X86_REG_XMM1, X86_REG_XMM2, X86_REG_XMM3,
+    X86_REG_XMM4, X86_REG_XMM5, X86_REG_XMM6, X86_REG_XMM7,
+    X86_REG_XMM8, X86_REG_XMM9, X86_REG_XMM10, X86_REG_XMM11,
+    X86_REG_XMM12, X86_REG_XMM13, X86_REG_XMM14, X86_REG_XMM15,
     X86_REG_INVALID
 };
 
@@ -91,6 +149,8 @@ static const char *x86_reg_str[] = {
     "none",
     "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
+    "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
+    "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
 
     "of", "sf", "cf", "zf",
 
@@ -713,6 +773,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
             set_x86_instr_opc(instr, X86_OPC_RET);
         }
 
+
         // TYPE_GROUP_1~11
 #define OPD(group, prefix, Reg) (((group - FEXCore::X86Tables::TYPE_GROUP_1) << 6) | (prefix) << 3 | (Reg))
 
@@ -864,13 +925,415 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         }
 #undef OPD
 
-        // TYPE_VEX_TABLE_PREFIX
+
+        // SSE
+        if (!strcmp(DecodeInst->TableInfo->Name, "MOVUPS")
+          && ((DecodeInst->OP == 0x10) || (DecodeInst->OP == 0x11))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVUPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVUPD")
+          && ((DecodeInst->OP == 0x10) || (DecodeInst->OP == 0x11))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVUPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSS")
+          && ((DecodeInst->OP == 0x10) || (DecodeInst->OP == 0x11))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVSS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSD")
+          && ((DecodeInst->OP == 0x10) || (DecodeInst->OP == 0x11))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVSD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVLPS")
+          && ((DecodeInst->OP == 0x12) || (DecodeInst->OP == 0x13))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVLPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVLPD")
+          && ((DecodeInst->OP == 0x12) || (DecodeInst->OP == 0x13))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVLPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVHPS") && (DecodeInst->OP == 0x17)) {
+            set_x86_instr_opc(instr, X86_OPC_MOVHPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVHPD")
+          && ((DecodeInst->OP == 0x16) || (DecodeInst->OP == 0x17))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVHPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVAPS")
+          && ((DecodeInst->OP == 0x28) || (DecodeInst->OP == 0x29))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVAPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVAPD")
+          && ((DecodeInst->OP == 0x28) || (DecodeInst->OP == 0x29))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVAPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVD")
+          && ((DecodeInst->OP == 0x6E) || (DecodeInst->OP == 0x7E))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVQ")
+          && ((DecodeInst->OP == 0x6F) || (DecodeInst->OP == 0x7F)
+          || (DecodeInst->OP == 0x7E) || (DecodeInst->OP == 0xD6))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVDQA")
+          && ((DecodeInst->OP == 0x6F) || (DecodeInst->OP == 0x7F))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVDQA);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVDQU")
+          && ((DecodeInst->OP == 0x6F) || (DecodeInst->OP == 0x7F))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVDQU);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PMOVMSKB") && ((DecodeInst->OP == 0xD7))) {
+            set_x86_instr_opc(instr, X86_OPC_PMOVMSKB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PACKUSWB") && ((DecodeInst->OP == 0x67))) {
+            set_x86_instr_opc(instr, X86_OPC_PACKUSWB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PACKSSWB") && ((DecodeInst->OP == 0x63))) {
+            set_x86_instr_opc(instr, X86_OPC_PACKSSWB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PACKSSDW") && ((DecodeInst->OP == 0x6B))) {
+            set_x86_instr_opc(instr, X86_OPC_PACKSSDW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ANDPS") && ((DecodeInst->OP == 0x54))) {
+            set_x86_instr_opc(instr, X86_OPC_ANDPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ANDPD") && ((DecodeInst->OP == 0x54))) {
+            set_x86_instr_opc(instr, X86_OPC_ANDPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ORPS") && ((DecodeInst->OP == 0x56))) {
+            set_x86_instr_opc(instr, X86_OPC_ORPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ORPD") && ((DecodeInst->OP == 0x56))) {
+            set_x86_instr_opc(instr, X86_OPC_ORPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "XORPS") && ((DecodeInst->OP == 0x57))) {
+            set_x86_instr_opc(instr, X86_OPC_XORPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "XORPD") && ((DecodeInst->OP == 0x57))) {
+            set_x86_instr_opc(instr, X86_OPC_XORPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PAND") && ((DecodeInst->OP == 0xDB))) {
+            set_x86_instr_opc(instr, X86_OPC_PAND);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PANDN") && ((DecodeInst->OP == 0xDF))) {
+            set_x86_instr_opc(instr, X86_OPC_PANDN);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "POR") && ((DecodeInst->OP == 0xEB))) {
+            set_x86_instr_opc(instr, X86_OPC_POR);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PXOR") && ((DecodeInst->OP == 0xEF))) {
+            set_x86_instr_opc(instr, X86_OPC_PXOR);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLBW") && ((DecodeInst->OP == 0x60))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLBW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLWD") && ((DecodeInst->OP == 0x61))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLWD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLDQ") && ((DecodeInst->OP == 0x62))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHBW") && ((DecodeInst->OP == 0x68))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHBW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHWD") && ((DecodeInst->OP == 0x69))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHWD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHDQ") && ((DecodeInst->OP == 0x6A))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLQDQ") && ((DecodeInst->OP == 0x6C))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLQDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHQDQ") && ((DecodeInst->OP == 0x6D))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHQDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFD") && ((DecodeInst->OP == 0x70))) {
+            set_x86_instr_opc(instr, X86_OPC_PSHUFD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFLW") && ((DecodeInst->OP == 0x70))) {
+            set_x86_instr_opc(instr, X86_OPC_PSHUFLW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFHW") && ((DecodeInst->OP == 0x70))) {
+            set_x86_instr_opc(instr, X86_OPC_PSHUFHW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPGTB") && ((DecodeInst->OP == 0x64))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPGTB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPGTW") && ((DecodeInst->OP == 0x65))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPGTW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPGTD") && ((DecodeInst->OP == 0x66))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPGTD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPEQB") && ((DecodeInst->OP == 0x74))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPEQB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPEQW") && ((DecodeInst->OP == 0x75))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPEQW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPEQD") && ((DecodeInst->OP == 0x76))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPEQD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDPS") && ((DecodeInst->OP == 0x58))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDPD") && ((DecodeInst->OP == 0x58))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDSS") && ((DecodeInst->OP == 0x58))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDSS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDSD") && ((DecodeInst->OP == 0x58))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDSD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBPS") && ((DecodeInst->OP == 0x5C))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBPD") && ((DecodeInst->OP == 0x5C))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBSS") && ((DecodeInst->OP == 0x5C))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBSS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBSD") && ((DecodeInst->OP == 0x5C))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBSD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSUBB") && ((DecodeInst->OP == 0xF8))) {
+            set_x86_instr_opc(instr, X86_OPC_PSUBB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PADDD") && ((DecodeInst->OP == 0xFE))) {
+            set_x86_instr_opc(instr, X86_OPC_PADDD);
+        }
+
+        // VEX
 #define OPD(map_select, pp, opcode) (((map_select - 1) << 10) | (pp << 8) | (opcode))
         if (!strcmp(DecodeInst->TableInfo->Name, "SHLX") && (DecodeInst->OP == OPD(2, 0b01, 0xF7))) {
             set_x86_instr_opc(instr, X86_OPC_SHLD);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "SHRX") && (DecodeInst->OP == OPD(2, 0b11, 0xF7))) {
             set_x86_instr_opc(instr, X86_OPC_SHRD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVUPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x10)) || (DecodeInst->OP == OPD(1, 0b00, 0x11)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVUPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVUPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x10)) || (DecodeInst->OP == OPD(1, 0b01, 0x11)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVUPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSS")
+          && ((DecodeInst->OP == OPD(1, 0b10, 0x10)) || (DecodeInst->OP == OPD(1, 0b10, 0x11)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVSS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVSD")
+          && ((DecodeInst->OP == OPD(1, 0b11, 0x10)) || (DecodeInst->OP == OPD(1, 0b11, 0x11)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVSD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVLPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x12)) || (DecodeInst->OP == OPD(1, 0b00, 0x13)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVLPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVLPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x12)) || (DecodeInst->OP == OPD(1, 0b01, 0x13)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVLPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVHPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x16)) || (DecodeInst->OP == OPD(1, 0b00, 0x17)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVHPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVHPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x16)) || (DecodeInst->OP == OPD(1, 0b01, 0x17)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVHPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVAPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x28)) || (DecodeInst->OP == OPD(1, 0b00, 0x29)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVAPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVAPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x28)) || (DecodeInst->OP == OPD(1, 0b01, 0x29)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVAPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVQ")
+          && ((DecodeInst->OP == OPD(1, 0b10, 0x7E)) || (DecodeInst->OP == OPD(1, 0b01, 0xD6)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVDQA")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x6F)) || (DecodeInst->OP == OPD(1, 0b01, 0x7F)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVDQA);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "MOVDQU")
+          && ((DecodeInst->OP == OPD(1, 0b10, 0x6F)) || (DecodeInst->OP == OPD(1, 0b10, 0x7F)))) {
+            set_x86_instr_opc(instr, X86_OPC_MOVDQU);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PMOVMSKB")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xD7)))) {
+            set_x86_instr_opc(instr, X86_OPC_PMOVMSKB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PACKUSWB")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x67)))) {
+            set_x86_instr_opc(instr, X86_OPC_PACKUSWB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PACKSSWB")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x63)))) {
+            set_x86_instr_opc(instr, X86_OPC_PACKSSWB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PACKSSDW")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x6B)))) {
+            set_x86_instr_opc(instr, X86_OPC_PACKSSDW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PALIGNR")
+          && ((DecodeInst->OP == OPD(3, 0b01, 0x0F)))) {
+            set_x86_instr_opc(instr, X86_OPC_PALIGNR);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ANDPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x54)))) {
+            set_x86_instr_opc(instr, X86_OPC_ANDPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ANDPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x54)))) {
+            set_x86_instr_opc(instr, X86_OPC_ANDPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ORPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x56)))) {
+            set_x86_instr_opc(instr, X86_OPC_ORPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ORPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x56)))) {
+            set_x86_instr_opc(instr, X86_OPC_ORPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "XORPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x57)))) {
+            set_x86_instr_opc(instr, X86_OPC_XORPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "XORPS")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x57)))) {
+            set_x86_instr_opc(instr, X86_OPC_XORPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PAND")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xDB)))) {
+            set_x86_instr_opc(instr, X86_OPC_PAND);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PANDN")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xDF)))) {
+            set_x86_instr_opc(instr, X86_OPC_PANDN);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "POR")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xEB)))) {
+            set_x86_instr_opc(instr, X86_OPC_POR);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PXOR")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xEF)))) {
+            set_x86_instr_opc(instr, X86_OPC_PXOR);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLBW")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x60)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLBW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLWD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x61)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLWD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLDQ")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x62)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHBW")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x68)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHBW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHWD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x69)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHWD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHDQ")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x6A)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKLQDQ")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x6C)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKLQDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHQDQ")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x6D)))) {
+            set_x86_instr_opc(instr, X86_OPC_PUNPCKHQDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x70)))) {
+            set_x86_instr_opc(instr, X86_OPC_PSHUFD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFLW")
+          && ((DecodeInst->OP == OPD(1, 0b11, 0x70)))) {
+            set_x86_instr_opc(instr, X86_OPC_PSHUFLW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFHW")
+          && ((DecodeInst->OP == OPD(1, 0b10, 0x70)))) {
+            set_x86_instr_opc(instr, X86_OPC_PSHUFHW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPGTB")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x64)))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPGTB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPGTW")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x65)))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPGTW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPGTD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x66)))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPGTD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPEQB")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x74)))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPEQB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPEQW")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x75)))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPEQW);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PCMPEQD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x76)))) {
+            set_x86_instr_opc(instr, X86_OPC_PCMPEQD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x58)))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x58)))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDSS")
+          && ((DecodeInst->OP == OPD(1, 0b10, 0x58)))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDSS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "ADDSD")
+          && ((DecodeInst->OP == OPD(1, 0b11, 0x58)))) {
+            set_x86_instr_opc(instr, X86_OPC_ADDSD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBPS")
+          && ((DecodeInst->OP == OPD(1, 0b00, 0x5C)))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBPS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0x5C)))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBPD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBSS")
+          && ((DecodeInst->OP == OPD(1, 0b10, 0x5C)))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBSS);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SUBSD")
+          && ((DecodeInst->OP == OPD(1, 0b11, 0x5C)))) {
+            set_x86_instr_opc(instr, X86_OPC_SUBSD);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PSUBB")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xF8)))) {
+            set_x86_instr_opc(instr, X86_OPC_PSUBB);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "PADDD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xFE)))) {
+            set_x86_instr_opc(instr, X86_OPC_PADDD);
         }
 #undef OPD
     }
@@ -897,15 +1360,15 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               bool HighBits = Opd->Data.GPR.HighBits;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      GPR: 0x" + std::to_string(GPR) + "\n");
+                writeToLogFile("fex-debug-log", "[INFO]      GPR: " + std::to_string(GPR) + "\n");
               #else
                 LogMan::Msg::IFmt("     GPR: 0x{:x}", GPR);
               #endif
 
-              if(GPR <= FEXCore::X86State::REG_R15)
+              if(GPR <= FEXCore::X86State::REG_XMM_15)
                 set_x86_instr_opd_reg(instr, num, GPR, HighBits);
               else
-                set_x86_instr_opd_reg(instr, num, 0x10, false);
+                set_x86_instr_opd_reg(instr, num, 0x20, false);
           }
           else if(Opd->IsRIPRelative()){
               uint32_t Literal = Opd->Data.RIPLiteral.Value.u;
@@ -933,33 +1396,33 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               uint8_t GPR = Opd->Data.GPR.GPR;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      GPRDirect: 0x" + std::to_string(GPR) + "\n");
+                writeToLogFile("fex-debug-log", "[INFO]      GPRDirect: " + std::to_string(GPR) + "\n");
               #else
                 LogMan::Msg::IFmt( "     GPRDirect: 0x{:x}", GPR);
               #endif
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
-              if(GPR <= FEXCore::X86State::REG_R15)
+              if(GPR <= FEXCore::X86State::REG_XMM_15)
                 set_x86_instr_opd_mem_base(instr, num, GPR);
               else
-                set_x86_instr_opd_mem_base(instr, num, 0x10);
+                set_x86_instr_opd_mem_base(instr, num, 0x20);
           }
           else if(Opd->IsGPRIndirect()){
               uint8_t GPR = Opd->Data.GPRIndirect.GPR;
               int32_t Displacement = Opd->Data.GPRIndirect.Displacement;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      GPRIndirect - GPR: 0x" + std::to_string(GPR)
-                                             + ", Displacement: 0x" + std::to_string(Displacement) + "\n");
+                writeToLogFile("fex-debug-log", "[INFO]      GPRIndirect - GPR: " + std::to_string(GPR)
+                                             + ", Displacement: " + std::to_string(Displacement) + "\n");
               #else
                 LogMan::Msg::IFmt( "     GPRIndirect - GPR: 0x{:x}, Displacement: 0x{:x}", GPR, Displacement);
               #endif
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
-              if(GPR <= FEXCore::X86State::REG_R15)
+              if(GPR <= FEXCore::X86State::REG_XMM_15)
                 set_x86_instr_opd_mem_base(instr, num, GPR);
               else
-                set_x86_instr_opd_mem_base(instr, num, 0x10);
+                set_x86_instr_opd_mem_base(instr, num, 0x20);
               set_x86_instr_opd_mem_off(instr, num, Displacement);
           }
           else if(Opd->IsSIB()){
@@ -969,26 +1432,26 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               uint8_t Scale = Opd->Data.SIB.Scale;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      SIB - Base: 0x" + std::to_string(Base)
-                                              + ", Offset: 0x" + std::to_string(Offset)
-                                              + ", Index: 0x" + std::to_string(Index)
-                                              + ", Scale: 0x" + std::to_string(Scale) + "\n");
+                writeToLogFile("fex-debug-log", "[INFO]      SIB - Base: " + std::to_string(Base)
+                                              + ", Offset: " + std::to_string(Offset)
+                                              + ", Index: " + std::to_string(Index)
+                                              + ", Scale: " + std::to_string(Scale) + "\n");
               #else
                 LogMan::Msg::IFmt( "     SIB - Base: 0x{:x}, Offset: 0x{:x}, Index: 0x{:x}, Scale: 0x{:x}",
                                 Base, Offset, Index, Scale);
               #endif
 
               set_x86_instr_opd_type(instr, num, X86_OPD_TYPE_MEM);
-              if (Base <= FEXCore::X86State::REG_R15) {
+              if (Base <= FEXCore::X86State::REG_XMM_15) {
                 set_x86_instr_opd_mem_base(instr, num, Base);
                 set_x86_instr_opd_mem_off(instr, num, Offset);
-                if (Index <= FEXCore::X86State::REG_R15) {
+                if (Index <= FEXCore::X86State::REG_XMM_15) {
                   set_x86_instr_opd_mem_index(instr, num, Index);
                   set_x86_instr_opd_mem_scale(instr, num, Scale);
                 } else
-                  set_x86_instr_opd_mem_index(instr, num, 0x10);
+                  set_x86_instr_opd_mem_index(instr, num, 0x20);
               } else
-                set_x86_instr_opd_mem_base(instr, num, 0x10);
+                set_x86_instr_opd_mem_base(instr, num, 0x20);
           }
           num++;
         }

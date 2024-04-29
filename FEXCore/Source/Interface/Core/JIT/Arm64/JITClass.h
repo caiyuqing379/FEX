@@ -323,34 +323,8 @@ private:
   void assemble_arm_exit2_tb(uint64_t target_pc);
 
 #define DEF_OPC(x) void Opc_##x(ARMInstruction *instr, RuleRecord *rrule)
-  DEF_OPC(LDR);
-  DEF_OPC(LDP);
-  DEF_OPC(STR);
-  DEF_OPC(STP);
-  DEF_OPC(SXTW);
-  DEF_OPC(MOV);
-  DEF_OPC(MVN);
-  DEF_OPC(AND);
-  DEF_OPC(ORR);
-  DEF_OPC(EOR);
-  DEF_OPC(BIC);
-  DEF_OPC(Shift);
-  DEF_OPC(ADD);
-  DEF_OPC(ADC);
-  DEF_OPC(SUB);
-  DEF_OPC(SBC);
-  DEF_OPC(MUL);
-  DEF_OPC(CLZ);
-  DEF_OPC(TST);
-  DEF_OPC(COMPARE);
-  DEF_OPC(CSEX);
-  DEF_OPC(B);
-  DEF_OPC(BL);
-  DEF_OPC(CBNZ);
-  DEF_OPC(SET_JUMP);
-  DEF_OPC(SET_CALL);
-  DEF_OPC(PC_L);
-  DEF_OPC(PC_S);
+#define ARM_ASM_DEFS
+#include "Interface/Core/PatternDbt/arm-asm.inc"
 #undef DEF_OPC
 };
 

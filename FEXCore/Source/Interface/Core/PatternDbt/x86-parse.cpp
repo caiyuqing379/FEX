@@ -60,8 +60,6 @@ bool has_substr(char *line, int idx) {
         return 0;
     }
 
-    char *substr = line + idx;
-
     if((line[idx] == 'a' || line[idx] == 'b' || line[idx] == 'c'
       || line[idx] == 'd' || line[idx] == 's') && (line[idx+1] == 'l'
       || line[idx+1] == 'h' || line[idx+1] == 'x' || line[idx+1] == 'i'

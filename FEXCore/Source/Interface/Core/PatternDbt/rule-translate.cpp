@@ -16,71 +16,9 @@
 #define MAX_MAP_BUF_LEN 1000
 #define MAX_HOST_RULE_INSTR_LEN 1000
 
-static const ARMOpcode X862ARM[] = {
-    [X86_OPC_NOP]   = ARM_OPC_INVALID,
-    [X86_OPC_MOVZX] = ARM_OPC_INVALID,
-    [X86_OPC_MOVSX] = ARM_OPC_INVALID,
-    [X86_OPC_MOVSXD] = ARM_OPC_INVALID,
-    [X86_OPC_MOV]   = ARM_OPC_INVALID,
-    [X86_OPC_LEA]   = ARM_OPC_MOV,
-    [X86_OPC_NOT]   = ARM_OPC_MVN,
-    [X86_OPC_AND]   = ARM_OPC_ANDS,
-    [X86_OPC_OR]    = ARM_OPC_ORR,
-    [X86_OPC_XOR]   = ARM_OPC_EOR,
-    [X86_OPC_NEG]   = ARM_OPC_INVALID,
-    [X86_OPC_INC]   = ARM_OPC_ADDS,
-    [X86_OPC_DEC]   = ARM_OPC_SUBS,
-
-    [X86_OPC_ADD]   = ARM_OPC_ADDS,
-    [X86_OPC_ADC]   = ARM_OPC_ADCS,
-    [X86_OPC_SUB]   = ARM_OPC_SUBS,
-    [X86_OPC_SBB]   = ARM_OPC_SBCS,
-	[X86_OPC_MULL]  = ARM_OPC_UMULL,
-    [X86_OPC_IMUL]  = ARM_OPC_MUL,
-    [X86_OPC_SHL]   = ARM_OPC_LSL,
-    [X86_OPC_SHR]   = ARM_OPC_LSR,
-    [X86_OPC_SAR]   = ARM_OPC_ASR,
-    [X86_OPC_SHLD]  = ARM_OPC_LSL,
-    [X86_OPC_SHRD]  = ARM_OPC_LSR,
-
-    [X86_OPC_BT]    = ARM_OPC_INVALID,
-    [X86_OPC_TEST]  = ARM_OPC_ANDS,
-    [X86_OPC_CMP]   = ARM_OPC_CMP,
-
-    [X86_OPC_CMOVNE]= ARM_OPC_MOV,
-    [X86_OPC_CMOVA] = ARM_OPC_MOV,
-    [X86_OPC_CMOVB] = ARM_OPC_MOV,
-    [X86_OPC_CMOVL] = ARM_OPC_MOV,
-    [X86_OPC_SETE]   = ARM_OPC_INVALID,
-    [X86_OPC_CWT]    = ARM_OPC_INVALID,
-
-    [X86_OPC_JMP]    = ARM_OPC_SET_JUMP,
-    [X86_OPC_JA]     = ARM_OPC_B,
-    [X86_OPC_JAE]    = ARM_OPC_B,
-    [X86_OPC_JB]     = ARM_OPC_B,
-    [X86_OPC_JBE]    = ARM_OPC_B,
-    [X86_OPC_JL]     = ARM_OPC_B,
-    [X86_OPC_JLE]    = ARM_OPC_B,
-    [X86_OPC_JG]     = ARM_OPC_B,
-    [X86_OPC_JGE]    = ARM_OPC_B,
-    [X86_OPC_JE]     = ARM_OPC_B,
-    [X86_OPC_JNE]    = ARM_OPC_B,
-    [X86_OPC_JS]     = ARM_OPC_B,
-    [X86_OPC_JNS]    = ARM_OPC_B,
-
-    [X86_OPC_PUSH]   = ARM_OPC_INVALID,
-    [X86_OPC_POP]    = ARM_OPC_INVALID,
-    [X86_OPC_CALL]   = ARM_OPC_BL,
-    [X86_OPC_RET]    = ARM_OPC_INVALID,
-
-    [X86_OPC_SET_LABEL] = ARM_OPC_INVALID, // fake instruction to generate label
-};
-
-
 static int debug = 0;
 static int match_insts = 0;
 static int match_counter = 10;
-
 
 inline void FEXCore::CPU::Arm64JITCore::reset_buffer(void)
 {
@@ -133,8 +71,7 @@ inline void FEXCore::CPU::Arm64JITCore::add_rule_record(TranslationRule *rule, u
     p->imm_map = imm_map;
     p->g_reg_map = g_reg_map;
     p->l_map = l_map;
-    int i;
-    for (i = 0; i < 20; i++)
+    for (int i = 0; i < 20; i++)
         p->para_opc[i] = pa_opc[i];
 }
 
@@ -449,7 +386,7 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
         }
 
         /* check opcode and number of operands */
-        if (((p_rule_instr->opc != p_guest_instr->opc) && (opc_set[p_guest_instr->opc] != p_rule_instr->opc)) ||  //opcode not equal
+        if ((p_rule_instr->opc != p_guest_instr->opc) ||  //opcode not equal
             ((p_rule_instr->opd_num != 0) && (p_rule_instr->opd_num != p_guest_instr->opd_num))) {  //operand not equal
 
             if (debug) {
@@ -698,8 +635,8 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
     bool ismatch = false;
 
     #ifdef DEBUG_RULE_LOG
-      ofstream_x86_instr2(guest_instr);
-      ofstream_rule_arm_instr2(guest_instr);
+      ofstream_x86_instr(guest_instr);
+      ofstream_rule_arm_instr(guest_instr);
     #endif
 
     LogMan::Msg::IFmt("=====Guest Instr Match Rule Start, Guest PC: 0x{:x}=====\n", guest_instr->pc);
@@ -769,21 +706,7 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
                 X86Instruction *p_rule_instr = cur_rule->x86_guest;
                 X86Instruction *p_guest_instr = cur_head;
                 int pa_opc[20];
-                memset(pa_opc, X86_OPC_INVALID, sizeof(int)*20);
-                j = 0;
 
-                while (p_rule_instr) {
-                    if ((p_rule_instr->opc >= X86_OPC_OP1) && (p_rule_instr->opc < X86_OPC_END)){
-                        if (p_rule_instr->opd_num == 0){
-                            opd_para = true;
-                            break;
-                        }
-                        pa_opc[j] = p_guest_instr->opc;
-                        ++j;
-                    }
-                    p_rule_instr = p_rule_instr->next;
-                    p_guest_instr = p_guest_instr->next;
-                }
                 if (!opd_para) {
                     add_rule_record(cur_rule , cur_head->pc, target_pc, i,
                         true, is_save_cc(cur_head, i), pa_opc);
@@ -880,14 +803,7 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
 
     /* Assemble host instructions in the rule */
     while(arm_code) {
-        if ((arm_code->opc >= ARM_OPC_OP1) && (arm_code->opc < ARM_OPC_END)){
-            ARMOpcode temp = arm_code->opc;
-            arm_code->opc = X862ARM[rule_r->para_opc[i]];
-            ++i;
-            assemble_arm_instruction(arm_code, rule_r);
-            arm_code->opc = temp;
-        } else
-            assemble_arm_instruction(arm_code, rule_r);
+        assemble_arm_instruction(arm_code, rule_r);
         arm_code = arm_code->next;
     }
 

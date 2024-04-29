@@ -8,7 +8,7 @@
 
 #define X86_MAX_OPERAND_NUM 3 // 2 for integer and 3 for AVX
 
-#define X86_REG_NUM 21 /* invalid, r0 - r15, CF, NF, VF, and ZF */
+#define X86_REG_NUM 37 /* invalid, r0 - r15, CF, NF, VF, and ZF */
 
 typedef enum {
     X86_REG_INVALID = 0,
@@ -18,6 +18,10 @@ typedef enum {
     X86_REG_RSP, X86_REG_RBP, X86_REG_RSI, X86_REG_RDI,
     X86_REG_R8, X86_REG_R9, X86_REG_R10, X86_REG_R11,
     X86_REG_R12, X86_REG_R13, X86_REG_R14, X86_REG_R15,
+    X86_REG_XMM0, X86_REG_XMM1, X86_REG_XMM2, X86_REG_XMM3,
+    X86_REG_XMM4, X86_REG_XMM5, X86_REG_XMM6, X86_REG_XMM7,
+    X86_REG_XMM8, X86_REG_XMM9, X86_REG_XMM10, X86_REG_XMM11,
+    X86_REG_XMM12, X86_REG_XMM13, X86_REG_XMM14, X86_REG_XMM15,
 
     /* Eflags */
     X86_REG_OF, X86_REG_SF, X86_REG_CF, X86_REG_ZF,
@@ -41,7 +45,7 @@ typedef enum {
 typedef enum {
     X86_OPC_INVALID = 0,
     X86_OPC_NOP,
-
+    // BASE
     X86_OPC_MOVZX,
     X86_OPC_MOVSX,
     X86_OPC_MOVSXD,
@@ -86,10 +90,14 @@ typedef enum {
     X86_OPC_JAE,
     X86_OPC_JB,
     X86_OPC_JBE,
-    X86_OPC_JL, X86_OPC_JLE,
-    X86_OPC_JG, X86_OPC_JGE,
-    X86_OPC_JE, X86_OPC_JNE,
-    X86_OPC_JS, X86_OPC_JNS,
+    X86_OPC_JL,
+    X86_OPC_JLE,
+    X86_OPC_JG,
+    X86_OPC_JGE,
+    X86_OPC_JE,
+    X86_OPC_JNE,
+    X86_OPC_JS,
+    X86_OPC_JNS,
 
     X86_OPC_PUSH,
     X86_OPC_POP,
@@ -97,21 +105,75 @@ typedef enum {
     X86_OPC_CALL,
     X86_OPC_RET,
 
-    X86_OPC_SET_LABEL, // fake instruction to generate label
+    // SSE/AVX
+    // Load/Store
+    X86_OPC_MOVUPS,
+    X86_OPC_MOVUPD,
+    X86_OPC_MOVSS,
+    X86_OPC_MOVSD,
+    X86_OPC_MOVLPS,
+    X86_OPC_MOVLPD,
+    X86_OPC_MOVHPS,
+    X86_OPC_MOVHPD,
+    X86_OPC_MOVAPS,
+    X86_OPC_MOVAPD,
+    X86_OPC_MOVD,
+    X86_OPC_MOVQ,
+    X86_OPC_MOVDQA,
+    X86_OPC_MOVDQU,
+    X86_OPC_PMOVMSKB,
 
-    //parameterized opcode
-    X86_OPC_OP1,
-    X86_OPC_OP2,
-    X86_OPC_OP3,
-    X86_OPC_OP4,
-    X86_OPC_OP5,
-    X86_OPC_OP6,
-    X86_OPC_OP7,
-    X86_OPC_OP8,
-    X86_OPC_OP9,
-    X86_OPC_OP10,
-    X86_OPC_OP11,
-    X86_OPC_OP12,
+    X86_OPC_PACKUSWB,
+    X86_OPC_PACKSSWB,
+    X86_OPC_PACKSSDW,
+    X86_OPC_PALIGNR,
+
+    // Logical
+    X86_OPC_ANDPS,
+    X86_OPC_ANDPD,
+    X86_OPC_ORPS,
+    X86_OPC_ORPD,
+    X86_OPC_XORPS,
+    X86_OPC_XORPD,
+    X86_OPC_PAND,
+    X86_OPC_PANDN,
+    X86_OPC_POR,
+    X86_OPC_PXOR,
+
+    // Shuffle
+    X86_OPC_PUNPCKLBW,
+    X86_OPC_PUNPCKLWD,
+    X86_OPC_PUNPCKLDQ,
+    X86_OPC_PUNPCKHBW,
+    X86_OPC_PUNPCKHWD,
+    X86_OPC_PUNPCKHDQ,
+    X86_OPC_PUNPCKLQDQ,
+    X86_OPC_PUNPCKHQDQ,
+    X86_OPC_PSHUFD,
+    X86_OPC_PSHUFLW,
+    X86_OPC_PSHUFHW,
+
+    // Comparison
+    X86_OPC_PCMPGTB,
+    X86_OPC_PCMPGTW,
+    X86_OPC_PCMPGTD,
+    X86_OPC_PCMPEQB,
+    X86_OPC_PCMPEQW,
+    X86_OPC_PCMPEQD,
+
+    // Algorithm
+    X86_OPC_ADDPS,
+    X86_OPC_ADDPD,
+    X86_OPC_ADDSS,
+    X86_OPC_ADDSD,
+    X86_OPC_SUBPS,
+    X86_OPC_SUBPD,
+    X86_OPC_SUBSS,
+    X86_OPC_SUBSD,
+    X86_OPC_PSUBB,
+    X86_OPC_PADDD,
+
+    X86_OPC_SET_LABEL, // fake instruction to generate label
 
     X86_OPC_END
 } X86Opcode;

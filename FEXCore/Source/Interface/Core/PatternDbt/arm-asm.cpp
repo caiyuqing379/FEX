@@ -12,6 +12,7 @@
 #include "Interface/Core/Frontend.h"
 #include "Interface/Core/PatternDbt/arm-instr.h"
 #include "Interface/Core/PatternDbt/rule-translate.h"
+#include "Interface/Core/PatternDbt/rule-debug-log.h"
 
 using namespace FEXCore;
 
@@ -1039,7 +1040,7 @@ DEF_OPC(TST) {
             if (IsImm) {
               tst(EmitSize, Dst, Imm);
             } else {
-              mov((ARMEmitter::Reg::r20).W(), Imm);
+              LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
               and_(EmitSize, ARMEmitter::Reg::r26, Dst, ARMEmitter::Reg::r20);
               tst(EmitSize, ARMEmitter::Reg::r26, ARMEmitter::Reg::r26);
             }
@@ -1048,7 +1049,7 @@ DEF_OPC(TST) {
             if (IsImm) {
               and_(EmitSize, ARMEmitter::Reg::r26, Dst, Imm);
             } else {
-              mov((ARMEmitter::Reg::r20).W(), Imm);
+              LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
               and_(EmitSize, ARMEmitter::Reg::r26, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20);
             }
             cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
@@ -1086,6 +1087,7 @@ DEF_OPC(COMPARE) {
     auto adjust_8_16_cmp = [=] (bool isImm = false, uint32_t regsize = 0, uint64_t Imm = 0, ARMEmitter::Register Src = ARMEmitter::Reg::r20) -> void {
         ARMEmitter::Size s32 = ARMEmitter::Size::i32Bit, s64 = ARMEmitter::Size::i64Bit;
         unsigned Shift = 32 - (regsize * 8);
+        uint32_t lsb = regsize * 8;
         if (isImm) {
             if (regsize == 2) {
               uxth(s32, ARMEmitter::Reg::r27, Dst);
@@ -1098,10 +1100,10 @@ DEF_OPC(COMPARE) {
             }
             cmn(s32, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
             mrs((ARMEmitter::Reg::r20).X(), ARMEmitter::SystemRegister::NZCV);
-            ubfx(s64, ARMEmitter::Reg::r21, ARMEmitter::Reg::r26, 8, 1);
+            ubfx(s64, ARMEmitter::Reg::r21, ARMEmitter::Reg::r26, lsb, 1);
             orr(s32, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 29);
             bic(s32, ARMEmitter::Reg::r21, ARMEmitter::Reg::r27, ARMEmitter::Reg::r26);
-            ubfx(s64, ARMEmitter::Reg::r21, ARMEmitter::Reg::r21, 7, 1);
+            ubfx(s64, ARMEmitter::Reg::r21, ARMEmitter::Reg::r21, lsb - 1, 1);
             orr(s32, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::ShiftType::LSL, 28);
         } else {
             uxtb(s32, ARMEmitter::Reg::r20, Src);
@@ -1110,12 +1112,12 @@ DEF_OPC(COMPARE) {
             //eor(s32, ARMEmitter::Reg::r27, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
             cmn(s32, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
             mrs((ARMEmitter::Reg::r22).X(), ARMEmitter::SystemRegister::NZCV);
-            ubfx(s64, ARMEmitter::Reg::r23, ARMEmitter::Reg::r26, 8, 1);
+            ubfx(s64, ARMEmitter::Reg::r23, ARMEmitter::Reg::r26, lsb, 1);
             orr(s32, ARMEmitter::Reg::r22, ARMEmitter::Reg::r22, ARMEmitter::Reg::r23, ARMEmitter::ShiftType::LSL, 29);
             eor(s32, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
             eor(s32, ARMEmitter::Reg::r21, ARMEmitter::Reg::r26, ARMEmitter::Reg::r21);
             and_(s32, ARMEmitter::Reg::r20, ARMEmitter::Reg::r21, ARMEmitter::Reg::r20);
-            ubfx(s64, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, 7, 1);
+            ubfx(s64, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20, lsb - 1, 1);
             orr(s32, ARMEmitter::Reg::r20, ARMEmitter::Reg::r22, ARMEmitter::Reg::r20, ARMEmitter::ShiftType::LSL, 28);
         }
         msr(ARMEmitter::SystemRegister::NZCV, (ARMEmitter::Reg::r20).X());
@@ -1422,6 +1424,46 @@ DEF_OPC(PC_S) {
 }
 
 
+DEF_OPC(ADDP) {
+
+}
+
+
+DEF_OPC(CMEQ) {
+
+}
+
+
+DEF_OPC(CMLT) {
+
+}
+
+
+DEF_OPC(DUP) {
+
+}
+
+DEF_OPC(FMOV) {
+
+}
+
+DEF_OPC(LD1) {
+
+}
+
+DEF_OPC(SQXTUN) {
+
+}
+
+DEF_OPC(UMOV) {
+
+}
+
+DEF_OPC(ZIP) {
+
+}
+
+
 void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule)
 {
     switch (instr->opc) {
@@ -1529,6 +1571,35 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
         case ARM_OPC_PC_S:
         case ARM_OPC_PC_SB:
             Opc_PC_S(instr, rrule);
+            break;
+        case ARM_OPC_ADDP:
+            Opc_ADDP(instr, rrule);
+            break;
+        case ARM_OPC_CMEQ:
+            Opc_CMEQ(instr, rrule);
+            break;
+        case ARM_OPC_CMLT:
+            Opc_CMLT(instr, rrule);
+            break;
+        case ARM_OPC_DUP:
+            Opc_DUP(instr, rrule);
+            break;
+        case ARM_OPC_FMOV:
+            Opc_FMOV(instr, rrule);
+            break;
+        case ARM_OPC_LD1:
+            Opc_LD1(instr, rrule);
+            break;
+        case ARM_OPC_SQXTUN:
+        case ARM_OPC_SQXTUN2:
+            Opc_SQXTUN(instr, rrule);
+            break;
+        case ARM_OPC_UMOV:
+            Opc_UMOV(instr, rrule);
+            break;
+        case ARM_OPC_ZIP1:
+        case ARM_OPC_ZIP2:
+            Opc_ZIP(instr, rrule);
             break;
         default:
             LogMan::Msg::EFmt("Unsupported arm instruction in the assembler: {}, rule index: {}.",

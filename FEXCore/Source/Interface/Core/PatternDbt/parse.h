@@ -16,8 +16,6 @@
 
 #define MAX_GUEST_LEN 500
 
-extern const X86Opcode opc_set[];
-
 typedef struct TranslationRule {
     int index;                   /* index of this rule */
 

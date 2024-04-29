@@ -1274,7 +1274,7 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
       }
 
       #ifdef DEBUG_RULE_LOG
-        std::string logContent = "[INFO] Inst at 0x" + std::to_string(DecodeInst->PC) + " with ";
+        std::string logContent = "[INFO] ====Bin Inst: ";
         for(uint8_t k=0; k < DecodeInst->InstSize; k++){
           uint8_t Byte = InstStream[k];
           logContent += (intToHex(static_cast<int>(Byte)) + " ");

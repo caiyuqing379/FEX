@@ -15,6 +15,14 @@ static const ARMRegister arm_reg_table[] = {
     ARM_REG_R20, ARM_REG_R21, ARM_REG_R22, ARM_REG_R23,
     ARM_REG_R24, ARM_REG_R25, ARM_REG_R26, ARM_REG_R27,
     ARM_REG_R28, ARM_REG_R29, ARM_REG_R30, ARM_REG_R31,
+    ARM_REG_V0, ARM_REG_V1, ARM_REG_V2, ARM_REG_V3,
+    ARM_REG_V4, ARM_REG_V5, ARM_REG_V6, ARM_REG_V7,
+    ARM_REG_V8, ARM_REG_V9, ARM_REG_V10, ARM_REG_V11,
+    ARM_REG_V12, ARM_REG_V13, ARM_REG_V14, ARM_REG_V15,
+    ARM_REG_V16, ARM_REG_V17, ARM_REG_V18, ARM_REG_V19,
+    ARM_REG_V20, ARM_REG_V21, ARM_REG_V22, ARM_REG_V23,
+    ARM_REG_V24, ARM_REG_V25, ARM_REG_V26, ARM_REG_V27,
+    ARM_REG_V28, ARM_REG_V29, ARM_REG_V30, ARM_REG_V31,
 };
 
 static const ARMConditionCode arm_cc_table[] = {
@@ -30,8 +38,15 @@ static const char *arm_reg_str[] = {
     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
     "r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
     "r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31",
+
+    "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+    "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15",
+    "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+    "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
+
     "fp", "lr", "rsp", "zr",
     "cf", "nf", "vf", "zf",
+
     "reg0", "reg1", "reg2", "reg3", "reg4", "reg5", "reg6", "reg7",
     "reg8", "reg9", "reg10", "reg11", "reg12", "reg13", "reg14", "reg15",
     "reg16", "reg17", "reg18", "reg19", "reg20", "reg21", "reg22", "reg23",
@@ -108,24 +123,26 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_BL]    = "bl",
     [ARM_OPC_CBZ]   = "cbz",
     [ARM_OPC_CBNZ]  = "cbnz",
+
     [ARM_OPC_SET_JUMP] = "set_jump",
     [ARM_OPC_SET_CALL] = "set_call",
     [ARM_OPC_PC_L]  = "pc_l",
     [ARM_OPC_PC_LB] = "pc_lb",
     [ARM_OPC_PC_S]  = "pc_s",
     [ARM_OPC_PC_SB] = "pc_sb",
-    [ARM_OPC_OP1]   = "op1",
-    [ARM_OPC_OP2]   = "op2",
-    [ARM_OPC_OP3]   = "op3",
-    [ARM_OPC_OP4]   = "op4",
-    [ARM_OPC_OP5]   = "op5",
-    [ARM_OPC_OP6]   = "op6",
-    [ARM_OPC_OP7]   = "op7",
-    [ARM_OPC_OP8]   = "op8",
-    [ARM_OPC_OP9]   = "op9",
-    [ARM_OPC_OP10]  = "op10",
-    [ARM_OPC_OP11]  = "op11",
-    [ARM_OPC_OP12]  = "op12"
+
+    // FP/NEON
+    [ARM_OPC_ADDP]  = "addp",
+    [ARM_OPC_CMLT]  = "cmeq",
+    [ARM_OPC_CMLT]  = "cmlt",
+    [ARM_OPC_DUP]   = "dup",
+    [ARM_OPC_FMOV]  = "fmov",
+    [ARM_OPC_LD1]   = "ld1",
+    [ARM_OPC_SQXTUN] = "sqxtun",
+    [ARM_OPC_SQXTUN2] = "sqxtun2",
+    [ARM_OPC_UMOV]  = "umov",
+    [ARM_OPC_ZIP1]  = "zip1",
+    [ARM_OPC_ZIP2]  = "zip2"
 };
 
 static void print_instr_cc(ARMInstruction *instr)
