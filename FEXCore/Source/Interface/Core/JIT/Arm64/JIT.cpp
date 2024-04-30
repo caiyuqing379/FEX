@@ -920,11 +920,13 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
   const auto DisasmEnd = reinterpret_cast<const vixl::aarch64::Instruction*>(JITBlockTailLocation);
   writeToLogFile("fex-debug-log", "[INFO] Disassemble Begin\n");
   writeToLogFile("fex-x86-asm", "#IR: ");
+  int cnt = 0;
   for (auto PCToDecode = DisasmBegin; PCToDecode < DisasmEnd; PCToDecode += 4) {
     DisasmDecoder->Decode(PCToDecode);
     auto Output = Disasm->GetOutput();
     writeToLogFile("fex-debug-log", "[INFO] " + std::string(Output) + "\n");
-    writeToLogFile("fex-x86-asm", std::string(Output) + "| ");
+    if (++cnt > 2)
+      writeToLogFile("fex-x86-asm", std::string(Output) + "| ");
   }
   writeToLogFile("fex-debug-log", "[INFO] Disassemble End \n\n");
   writeToLogFile("fex-x86-asm", "\n");

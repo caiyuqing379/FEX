@@ -112,7 +112,7 @@ static const char *x86_opc_str[] = {
 
     // Comparison
     [X86_OPC_PCMPGTB] = "pcmpgtb",
-    [X86_OPC_PCMPGTW] = "pcmpctw",
+    [X86_OPC_PCMPGTW] = "pcmpgtw",
     [X86_OPC_PCMPGTD] = "pcmpgtd",
     [X86_OPC_PCMPEQB] = "pcmpeqb",
     [X86_OPC_PCMPEQW] = "pcmpeqw",
@@ -362,14 +362,14 @@ void insert_char_begin(char *reg_str, char new_char) {
     reg_str[0] = new_char;
 }
 
-void proc_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
+void proc_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpSize)
 {
     int length = strlen(reg_str);
     opd->content.reg.HighBits = false;
 
     if (!strcmp(reg_str, "ah") || !strcmp(reg_str, "bh")|| !strcmp(reg_str, "ch") || !strcmp(reg_str, "dh")) {
         // byte
-        *OpdSize = 1;
+        *OpSize = 1;
         opd->content.reg.HighBits = true;
         insert_char_begin(reg_str, 'r');
         reg_str[length] = 'x';
@@ -377,7 +377,7 @@ void proc_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
         || !strcmp(reg_str, "dl") || !strcmp(reg_str, "sil") || !strcmp(reg_str, "dil")
         || !strcmp(reg_str, "bpl") || !strcmp(reg_str, "spl") || reg_str[length-1] == 'b') {
         // byte
-        *OpdSize = 1;
+        *OpSize = 1;
         if (reg_str[length-1] == 'b') {
           reg_str[length-1] = '\0';
         } else {
@@ -391,7 +391,7 @@ void proc_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
         || !strcmp(reg_str, "dx") || !strcmp(reg_str, "sp") || !strcmp(reg_str, "bp")
         || !strcmp(reg_str, "si") || !strcmp(reg_str, "di") || reg_str[length-1] == 'w') {
         // word
-        *OpdSize = 2;
+        *OpSize = 2;
         if (reg_str[length-1] == 'w')
           reg_str[length-1] = '\0';
         else
@@ -400,18 +400,18 @@ void proc_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
         || !strcmp(reg_str, "edx") || !strcmp(reg_str, "esp") || !strcmp(reg_str, "ebp")
         || !strcmp(reg_str, "esi") || !strcmp(reg_str, "edi") || reg_str[length-1] == 'd') {
         // dword
-        *OpdSize = 3;
+        *OpSize = 3;
         reg_str[0] = 'r';
         if (reg_str[length-1] == 'd')
           reg_str[length-1] = '\0';
     } else
-        *OpdSize = 4;
+        *OpSize = 4;
 }
 
 /* set register operand using given string */
-void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize)
+void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpSize)
 {
-    proc_reg_str(opd, reg_str, OpdSize);
+    proc_reg_str(opd, reg_str, OpSize);
     opd->content.reg.num = get_x86_register(reg_str);
 }
 

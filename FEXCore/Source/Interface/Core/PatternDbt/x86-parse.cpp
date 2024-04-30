@@ -54,20 +54,17 @@ static int parse_rule_x86_opcode(char *line, X86Instruction *instr)
         return i;
 }
 
-bool has_substr(char *line, int idx) {
+static bool HasSuffix(char *line, int idx) {
     if (line == NULL) {
-        fprintf(stderr, "line is NULL!\n");
-        return 0;
-    }
-
-    if((line[idx] == 'a' || line[idx] == 'b' || line[idx] == 'c'
-      || line[idx] == 'd' || line[idx] == 's') && (line[idx+1] == 'l'
-      || line[idx+1] == 'h' || line[idx+1] == 'x' || line[idx+1] == 'i'
-      || line[idx+1] == 'p')) {
-        return true;
-    } else {
+        LogMan::Msg::EFmt( "line is NULL!");
         return false;
     }
+
+    if((line[idx] == 'a' || line[idx] == 'b' || line[idx] == 'c' || line[idx] == 'd' || line[idx] == 's')
+      && (line[idx+1] == 'l' || line[idx+1] == 'h' || line[idx+1] == 'x' || line[idx+1] == 'i' || line[idx+1] == 'p'))
+        return true;
+    else
+        return false;
 }
 
 /* If x86 instruction has temp register, currently not supported */
@@ -77,7 +74,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 {
     X86Operand *opd = &instr->opd[opd_idx];
     char fc = line[idx];
-    uint32_t OpdSize = 4;
+    uint32_t OpSize = 4;
 
     if (fc == '$') {
         /* Immediate Operand */
@@ -102,7 +99,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 
         if (line[idx] == ':')
             idx++; // skip ':'
-    } else if (fc == 'r' || fc == 'e' || has_substr(line, idx)) {
+    } else if (fc == 'r' || fc == 'e' || HasSuffix(line, idx)) {
         /* Register operand */
         char reg_str[20] = "\0";
 
@@ -113,7 +110,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
             strncat(reg_str, &line[idx++], 1);
 
         set_x86_opd_type(opd, X86_OPD_TYPE_REG);
-        set_x86_opd_reg_str(opd, reg_str, &OpdSize);
+        set_x86_opd_reg_str(opd, reg_str, &OpSize);
     } else if (fc == 'b' || fc == 'w' || fc == 'd' || fc == 'q' || fc == '[') {
         /* Memory operand with or without offset (imm_XXX) */
         char reg_str[10] = "\0";
@@ -122,17 +119,17 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
         if (fc == 'b' || fc == 'w') {
             idx += 4;
             if (fc == 'b')
-              OpdSize = 1;
+              OpSize = 1;
             else
-              OpdSize = 2;
+              OpSize = 2;
         } else if ((fc == 'd' || fc == 'q') && line[idx+1] == 'w') {
             idx += 5;
             if (fc == 'd')
-              OpdSize = 3;
+              OpSize = 3;
             else
-              OpdSize = 4;
+              OpSize = 4;
         } else
-            OpdSize = 4;
+            OpSize = 4;
 
         if (line[idx] == ' ') {
           idx++; // skip ' '
@@ -209,9 +206,9 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
         fprintf(stderr, "Error in parsing x86 operand: unknown operand type at idx %d char %c in line: %s", idx, line[idx], line);
 
     if (!opd_idx)
-        instr->DestSize = OpdSize;
+        instr->DestSize = OpSize;
     else
-        instr->SrcSize = OpdSize;
+        instr->SrcSize = OpSize;
 
     if (line[idx] == ',')
         return idx+2;

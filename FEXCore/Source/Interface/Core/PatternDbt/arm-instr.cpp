@@ -361,14 +361,14 @@ void set_arm_instr_opd_num(ARMInstruction *instr, size_t num)
 void set_arm_instr_opd_size(ARMInstruction *instr)
 {
     if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_STRB)
-      instr->OpdSize = 1;
+      instr->OpSize = 1;
     else if (instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_STRH)
-      instr->OpdSize = 2;
+      instr->OpSize = 2;
     else if (instr->opc == ARM_OPC_SXTW)
-      instr->OpdSize = 4;
+      instr->OpSize = 4;
     else if (instr->opc == ARM_OPC_PC_L || instr->opc == ARM_OPC_PC_LB
       || instr->opc == ARM_OPC_PC_S || instr->opc == ARM_OPC_PC_SB) // 64 bit system
-      instr->OpdSize = 8;
+      instr->OpSize = 8;
 }
 
 void set_arm_instr_opd_type(ARMInstruction *instr, int opd_index, ARMOperandType type)
@@ -402,18 +402,48 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
 
     if (reg_str[0] == 'w' || (reg_str[0] == 'r' && reg_str[len-1] == 'w')) {
         if (!opd_index)
-          instr->OpdSize = 4;
+          instr->OpSize = 4;
         reg_str[0] = 'r';
-    } else if (reg_str[0] == 'x' || (reg_str[0] == 'r' && reg_str[len-1] == 'x')) {
+    }
+    else if (reg_str[0] == 'x' || (reg_str[0] == 'r' && reg_str[len-1] == 'x')) {
         if (!opd_index)
-          instr->OpdSize = 8;
+          instr->OpSize = 8;
         reg_str[0] = 'r';
+    }
+    else if (!opd_index && len > 3) {
+        if (reg_str[len-2] == '6' && reg_str[len-1] == 'b') {
+          instr->OpSize = 16;
+          instr->ElementSize = 1;
+        }
+        else if (reg_str[len-2] == '8' && reg_str[len-1] == 'h') {
+          instr->OpSize = 16;
+          instr->ElementSize = 2;
+        }
+        else if (reg_str[len-2] == '4' && reg_str[len-1] == 's') {
+          instr->OpSize = 16;
+          instr->ElementSize = 4;
+        }
+        else if (reg_str[len-2] == '2' && reg_str[len-1] == 'd') {
+          instr->OpSize = 16;
+          instr->ElementSize = 8;
+        }
+        else if (reg_str[len-2] == '8' && reg_str[len-1] == 'b') {
+          instr->OpSize = 8;
+          instr->ElementSize = 1;
+        }
+        else if (reg_str[len-2] == '4' && reg_str[len-1] == 'h') {
+          instr->OpSize = 8;
+          instr->ElementSize = 2;
+        }
+        else if (reg_str[len-2] == '2' && reg_str[len-1] == 's') {
+          instr->OpSize = 8;
+          instr->ElementSize = 4;
+        }
     }
 
-    char *dotPosition = std::strchr(reg_str, '.');
-    if (dotPosition != nullptr) {
-        *dotPosition = '\0';
-    }
+    char *dotPos = std::strchr(reg_str, '.');
+    if (dotPos != nullptr)
+        *dotPos = '\0';
 
     if (!strcmp("rzr", reg_str))
        reg_str = "zr";

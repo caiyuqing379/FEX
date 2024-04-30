@@ -277,7 +277,7 @@ void set_x86_instr_opd_mem_index(X86Instruction *instr, int opd_index, int regno
 void set_x86_opd_type(X86Operand *opd, X86OperandType type);
 void set_x86_opd_imm_val_str(X86Operand *opd, char *imm_str, bool isRipLiteral = false, bool neg = false);
 void set_x86_opd_imm_sym_str(X86Operand *opd, char *imm_str, bool isRipLiteral = false);
-void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpdSize);
+void set_x86_opd_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpSize);
 
 void set_x86_opd_mem_off(X86Operand *, int32_t val);
 void set_x86_opd_mem_base_str(X86Operand *opd, char *reg_str);

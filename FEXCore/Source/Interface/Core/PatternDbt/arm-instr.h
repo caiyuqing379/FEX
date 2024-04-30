@@ -251,7 +251,8 @@ typedef struct ARMInstruction {
     ARMOpcode opc;      /* Opcode of this instruction */
     ARMOperand opd[ARM_MAX_OPERAND_NUM];    /* Operands of this instruction */
     size_t opd_num;     /* number of operands of this instruction */
-    size_t OpdSize;     /* size of operands: 1, 2, or 4 bytes */
+    size_t OpSize;     /* size of operands: 1, 2, or 4 bytes */
+    size_t ElementSize;
 
     struct ARMInstruction *prev; /* previous instruction in this block */
     struct ARMInstruction *next; /* next instruction in this block */

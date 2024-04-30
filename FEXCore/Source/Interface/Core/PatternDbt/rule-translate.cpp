@@ -494,22 +494,38 @@ uint64_t FEXCore::CPU::Arm64JITCore::get_imm_map(char *sym)
 static ARMRegister guest_host_reg_map(X86Register& reg)
 {
   switch (reg) {
-    case X86_REG_RAX:  return ARM_REG_R4;
-    case X86_REG_RCX:  return ARM_REG_R5;
-    case X86_REG_RDX:  return ARM_REG_R6;
-    case X86_REG_RBX:  return ARM_REG_R7;
-    case X86_REG_RSP:  return ARM_REG_R8;
-    case X86_REG_RBP:  return ARM_REG_R9;
-    case X86_REG_RSI:  return ARM_REG_R10;
-    case X86_REG_RDI:  return ARM_REG_R11;
-    case X86_REG_R8:   return ARM_REG_R12;
-    case X86_REG_R9:   return ARM_REG_R13;
-    case X86_REG_R10:  return ARM_REG_R14;
-    case X86_REG_R11:  return ARM_REG_R15;
-    case X86_REG_R12:  return ARM_REG_R16;
-    case X86_REG_R13:  return ARM_REG_R17;
-    case X86_REG_R14:  return ARM_REG_R19;
-    case X86_REG_R15:  return ARM_REG_R29;
+    case X86_REG_RAX:   return ARM_REG_R4;
+    case X86_REG_RCX:   return ARM_REG_R5;
+    case X86_REG_RDX:   return ARM_REG_R6;
+    case X86_REG_RBX:   return ARM_REG_R7;
+    case X86_REG_RSP:   return ARM_REG_R8;
+    case X86_REG_RBP:   return ARM_REG_R9;
+    case X86_REG_RSI:   return ARM_REG_R10;
+    case X86_REG_RDI:   return ARM_REG_R11;
+    case X86_REG_R8:    return ARM_REG_R12;
+    case X86_REG_R9:    return ARM_REG_R13;
+    case X86_REG_R10:   return ARM_REG_R14;
+    case X86_REG_R11:   return ARM_REG_R15;
+    case X86_REG_R12:   return ARM_REG_R16;
+    case X86_REG_R13:   return ARM_REG_R17;
+    case X86_REG_R14:   return ARM_REG_R19;
+    case X86_REG_R15:   return ARM_REG_R29;
+    case X86_REG_XMM0:  return ARM_REG_V16;
+    case X86_REG_XMM1:  return ARM_REG_V17;
+    case X86_REG_XMM2:  return ARM_REG_V18;
+    case X86_REG_XMM3:  return ARM_REG_V19;
+    case X86_REG_XMM4:  return ARM_REG_V20;
+    case X86_REG_XMM5:  return ARM_REG_V21;
+    case X86_REG_XMM6:  return ARM_REG_V22;
+    case X86_REG_XMM7:  return ARM_REG_V23;
+    case X86_REG_XMM8:  return ARM_REG_V24;
+    case X86_REG_XMM9:  return ARM_REG_V25;
+    case X86_REG_XMM10: return ARM_REG_V26;
+    case X86_REG_XMM11: return ARM_REG_V27;
+    case X86_REG_XMM12: return ARM_REG_V28;
+    case X86_REG_XMM13: return ARM_REG_V29;
+    case X86_REG_XMM14: return ARM_REG_V30;
+    case X86_REG_XMM15: return ARM_REG_V31;
     default:
       LOGMAN_MSG_A_FMT("Unsupported reg num");
       return ARM_REG_INVALID;
@@ -635,8 +651,8 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
     bool ismatch = false;
 
     #ifdef DEBUG_RULE_LOG
-      ofstream_x86_instr(guest_instr);
-      ofstream_rule_arm_instr(guest_instr);
+      ofstream_x86_instr2(guest_instr);
+      ofstream_rule_arm_instr2(guest_instr);
     #endif
 
     LogMan::Msg::IFmt("=====Guest Instr Match Rule Start, Guest PC: 0x{:x}=====\n", guest_instr->pc);
@@ -703,10 +719,7 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
                 if (!temp->next && x86_instr_test_branch(temp))
                     target_pc = temp->pc + temp->InstSize;
 
-                X86Instruction *p_rule_instr = cur_rule->x86_guest;
-                X86Instruction *p_guest_instr = cur_head;
                 int pa_opc[20];
-
                 if (!opd_para) {
                     add_rule_record(cur_rule , cur_head->pc, target_pc, i,
                         true, is_save_cc(cur_head, i), pa_opc);
@@ -783,7 +796,6 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
     l_map = rule_r->l_map;
     imm_map = rule_r->imm_map;
     g_reg_map = rule_r->g_reg_map;
-    int i = 0;
 
     #ifdef PROFILE_RULE_TRANSLATION
         num_rules_replace++;
@@ -818,16 +830,19 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
 
         if (last_x86->opc == X86_OPC_CALL) {
             assemble_arm_exit2_tb(rule_r->target_pc);
-        } else if (last_x86->opc == X86_OPC_RET) {
+        }
+        else if (last_x86->opc == X86_OPC_RET) {
             this->RipReg = ARM_REG_R20;
             assemble_arm_exit2_tb(rule_r->target_pc);
-        } else if (last_x86->opc == X86_OPC_JMP) {
+        }
+        else if (last_x86->opc == X86_OPC_JMP) {
             if (last_x86->opd_num && last_x86->opd[0].type == X86_OPD_TYPE_IMM
                     && last_x86->opd[0].content.imm.isRipLiteral) {
                 this->RipReg = ARM_REG_R20;
             }
             assemble_arm_exit2_tb(rule_r->target_pc);
-        } else if (x86_instr_test_branch(last_x86)){
+        }
+        else if (x86_instr_test_branch(last_x86)){
             assemble_arm_exit1_tb(rule_r->target_pc);
         }
     }
