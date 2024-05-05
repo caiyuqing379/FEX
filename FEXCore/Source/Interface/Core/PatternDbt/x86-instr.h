@@ -122,10 +122,6 @@ typedef enum {
     X86_OPC_MOVDQA,
     X86_OPC_MOVDQU,
     X86_OPC_PMOVMSKB,
-
-    X86_OPC_PACKUSWB,
-    X86_OPC_PACKSSWB,
-    X86_OPC_PACKSSDW,
     X86_OPC_PALIGNR,
 
     // Logical
@@ -140,7 +136,10 @@ typedef enum {
     X86_OPC_POR,
     X86_OPC_PXOR,
 
-    // Shuffle
+    // Pack&Unpack
+    X86_OPC_PACKUSWB,
+    X86_OPC_PACKSSWB,
+    X86_OPC_PACKSSDW,
     X86_OPC_PUNPCKLBW,
     X86_OPC_PUNPCKLWD,
     X86_OPC_PUNPCKLDQ,
@@ -149,6 +148,8 @@ typedef enum {
     X86_OPC_PUNPCKHDQ,
     X86_OPC_PUNPCKLQDQ,
     X86_OPC_PUNPCKHQDQ,
+    // Shuffle
+    X86_OPC_SHUFPD,
     X86_OPC_PSHUFD,
     X86_OPC_PSHUFLW,
     X86_OPC_PSHUFHW,

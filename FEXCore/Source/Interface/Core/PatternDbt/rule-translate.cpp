@@ -533,7 +533,7 @@ static ARMRegister guest_host_reg_map(X86Register& reg)
 }
 
 
-ARMRegister FEXCore::CPU::Arm64JITCore::get_guest_reg_map(ARMRegister& reg, uint32_t& regsize)
+ARMRegister FEXCore::CPU::Arm64JITCore::GetGuestRegMap(ARMRegister& reg, uint32_t& regsize)
 {
     if (ARM_REG_R0 <= reg && reg <= ARM_REG_ZR) {
         regsize = 0;

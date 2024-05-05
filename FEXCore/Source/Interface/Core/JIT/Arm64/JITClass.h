@@ -308,7 +308,7 @@ private:
   void get_label_map(char *lab_str, uint64_t *t, uint64_t *f);
   uint64_t get_imm_map(char *sym);
   uint64_t get_imm_map_wrapper(ARMImm *imm);
-  ARMRegister get_guest_reg_map(ARMRegister& reg, uint32_t& regsize);
+  ARMRegister GetGuestRegMap(ARMRegister& reg, uint32_t& regsize);
 
   bool instr_is_match(uint64_t pc);
   bool instrs_is_match(uint64_t pc);

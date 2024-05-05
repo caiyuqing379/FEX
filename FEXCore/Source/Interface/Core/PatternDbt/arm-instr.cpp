@@ -133,7 +133,7 @@ static const char *arm_opc_str[] = {
 
     // FP/NEON
     [ARM_OPC_ADDP]  = "addp",
-    [ARM_OPC_CMLT]  = "cmeq",
+    [ARM_OPC_CMEQ]  = "cmeq",
     [ARM_OPC_CMLT]  = "cmlt",
     [ARM_OPC_DUP]   = "dup",
     [ARM_OPC_FMOV]  = "fmov",
@@ -410,8 +410,8 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
           instr->OpSize = 8;
         reg_str[0] = 'r';
     }
-    else if (!opd_index && len > 3) {
-        if (reg_str[len-2] == '6' && reg_str[len-1] == 'b') {
+    else if (!opd_index && len >= 7) {
+        if (reg_str[len-3] == '1' && reg_str[len-2] == '6' && reg_str[len-1] == 'b') {
           instr->OpSize = 16;
           instr->ElementSize = 1;
         }
@@ -438,6 +438,16 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
         else if (reg_str[len-2] == '2' && reg_str[len-1] == 's') {
           instr->OpSize = 8;
           instr->ElementSize = 4;
+        }
+    }
+
+    if (len >= 7 && (instr->opc == ARM_OPC_UMOV || instr->opc == ARM_OPC_LD1)) {
+        if (reg_str[len-4] == 'h' && reg_str[len-3] == '[' && reg_str[len-1] == ']') {
+          instr->ElementSize = 2;
+          instr->Index = atoi(&reg_str[len-2]);
+        } else if (reg_str[len-5] == 'd' && reg_str[len-3] == '[' && reg_str[len-1] == ']') {
+          instr->ElementSize = 8;
+          instr->Index = atoi(&reg_str[len-2]);
         }
     }
 

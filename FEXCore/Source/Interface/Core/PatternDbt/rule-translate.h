@@ -63,6 +63,6 @@ void do_rule_translation(RuleRecord *, uint32_t *);
 void get_label_map(char *, uint64_t *, uint64_t *);
 uint64_t get_imm_map(char *);
 int32_t get_offset_map(char *);
-ARMRegister get_guest_reg_map(ARMRegister& reg, uint32_t& regsize);
+ARMRegister GetGuestRegMap(ARMRegister& reg, uint32_t& regsize);
 bool is_last_access(ARMInstruction *, ARMRegister);
 #endif

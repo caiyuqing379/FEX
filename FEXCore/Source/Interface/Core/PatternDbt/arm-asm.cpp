@@ -199,19 +199,18 @@ DEF_OPC(LDR) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t    OpSize = instr->OpSize;
-    uint32_t   reg1size, reg2size;
+    uint32_t   Reg0Size, Reg1Size;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_MEM) {
-        auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
-        auto Dst = GetRegMap(ARMReg);
+        auto SrcReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
 
-        if (reg1size && !OpSize) OpSize = 1 << (reg1size-1);
+        if (Reg0Size && !OpSize) OpSize = 1 << (Reg0Size-1);
 
         if (opd1->content.mem.base != ARM_REG_INVALID) {
           ARMRegister      Index = opd1->content.mem.index;
           ARMOperandScale  OffsetScale = opd1->content.mem.scale;
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
-          ARMReg = get_guest_reg_map(opd1->content.mem.base, reg2size);
+          auto ARMReg = GetGuestRegMap(opd1->content.mem.base, Reg1Size);
           auto Base = GetRegMap(ARMReg);
           int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
@@ -231,37 +230,65 @@ DEF_OPC(LDR) {
           }
 
           if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_LDR) {
-            switch (OpSize) {
-              case 1:
-                ldrb(Dst, MemSrc);
-                break;
-              case 2:
-                ldrh(Dst, MemSrc);
-                break;
-              case 4:
-                ldr(Dst.W(), MemSrc);
-                break;
-              case 8:
-                ldr(Dst.X(), MemSrc); // LDR（literal) not support
-                break;
-              default:
-                LOGMAN_MSG_A_FMT("Unhandled LoadMem size: {}", OpSize);
-                break;
+            if (SrcReg >= ARM_REG_R0 && SrcReg <= ARM_REG_R31) {
+              const auto Dst = GetRegMap(SrcReg);
+              switch (OpSize) {
+                case 1:
+                  ldrb(Dst, MemSrc);
+                  break;
+                case 2:
+                  ldrh(Dst, MemSrc);
+                  break;
+                case 4:
+                  ldr(Dst.W(), MemSrc);
+                  break;
+                case 8:
+                  ldr(Dst.X(), MemSrc); // LDR（literal) not support
+                  break;
+                default:
+                  LOGMAN_MSG_A_FMT("Unhandled LoadMem size: {}", OpSize);
+                  break;
+              }
             }
-
+            else if (SrcReg >= ARM_REG_V0 && SrcReg <= ARM_REG_V31) {
+              const auto Dst = GetVRegMap(SrcReg);
+              switch (OpSize) {
+                case 1:
+                  ldrb(Dst, MemSrc);
+                  break;
+                case 2:
+                  ldrh(Dst, MemSrc);
+                  break;
+                case 4:
+                  ldr(Dst.S(), MemSrc);
+                  break;
+                case 8:
+                  ldr(Dst.D(), MemSrc);
+                  break;
+                case 16:
+                  ldr(Dst.Q(), MemSrc);
+                  break;
+                default:
+                  LOGMAN_MSG_A_FMT("Unhandled LoadMem size: {}", OpSize);
+                  break;
+              }
+            }
           } else if (instr->opc == ARM_OPC_LDRSB) {
+            const auto Dst = GetRegMap(SrcReg);
             if (OpSize == 4)
-                ldrsb(Dst.W(), MemSrc);
+              ldrsb(Dst.W(), MemSrc);
             else
-                ldrsb(Dst.X(), MemSrc);
+              ldrsb(Dst.X(), MemSrc);
           } else if (instr->opc == ARM_OPC_LDRSH) {
+            const auto Dst = GetRegMap(SrcReg);
             if (OpSize == 4)
-                ldrsh(Dst.W(), MemSrc);
+              ldrsh(Dst.W(), MemSrc);
             else
-                ldrsh(Dst.X(), MemSrc);
+              ldrsh(Dst.X(), MemSrc);
           } else if (instr->opc == ARM_OPC_LDAR) {
-                ldar(Dst.X(), Base);
-                nop();
+            const auto Dst = GetRegMap(SrcReg);
+            ldar(Dst.X(), Base);
+            nop();
           }
         }
     } else
@@ -272,14 +299,14 @@ DEF_OPC(LDP) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
     ARMOperand *opd2 = &instr->opd[2];
-    uint32_t   reg1size, reg2size, reg3size;
+    uint32_t   Reg0Size, Reg1Size, Reg2Size;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_MEM) {
-        auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+        auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
         auto RegPair1 = GetRegMap(ARMReg);
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto RegPair2 = GetRegMap(ARMReg);
-        ARMReg = get_guest_reg_map(opd2->content.mem.base, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.mem.base, Reg2Size);
         auto Base     = GetRegMap(ARMReg);
         ARMMemIndexType  PrePost = opd2->content.mem.pre_post;
         int32_t Imm = get_imm_map_wrapper(&opd2->content.mem.offset);
@@ -298,19 +325,18 @@ DEF_OPC(STR) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t    OpSize = instr->OpSize;
-    uint32_t   reg1size, reg2size;
+    uint32_t   Reg0Size, Reg1Size;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_MEM) {
-        auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
-        auto Src = GetRegMap(ARMReg);
+        auto SrcReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
 
-        if (reg1size && !OpSize) OpSize = 1 << (reg1size-1);
+        if (Reg0Size && !OpSize) OpSize = 1 << (Reg0Size-1);
 
         if (opd1->content.mem.base != ARM_REG_INVALID) {
           ARMRegister      Index = opd1->content.mem.index;
           ARMOperandScale  OffsetScale = opd1->content.mem.scale;
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
-          ARMReg = get_guest_reg_map(opd1->content.mem.base, reg2size);
+          auto ARMReg = GetGuestRegMap(opd1->content.mem.base, Reg1Size);
           auto Base = GetRegMap(ARMReg);
           int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
@@ -329,7 +355,8 @@ DEF_OPC(STR) {
             MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
           }
 
-          if (instr->opc == ARM_OPC_STRB || instr->opc == ARM_OPC_STRH || instr->opc == ARM_OPC_STR) {
+          if (SrcReg >= ARM_REG_R0 && SrcReg <= ARM_REG_R31) {
+            const auto Src = GetRegMap(SrcReg);
             switch (OpSize) {
               case 1:
                 strb(Src, MemSrc);
@@ -348,6 +375,29 @@ DEF_OPC(STR) {
                 break;
             }
           }
+          else if (SrcReg >= ARM_REG_V0 && SrcReg <= ARM_REG_V31) {
+            const auto Src = GetVRegMap(SrcReg);
+            switch (OpSize) {
+              case 1:
+                strb(Src, MemSrc);
+                break;
+              case 2:
+                strh(Src, MemSrc);
+                break;
+              case 4:
+                str(Src.S(), MemSrc);
+                break;
+              case 8:
+                str(Src.D(), MemSrc);
+                break;
+              case 16:
+                str(Src.Q(), MemSrc);
+                break;
+              default:
+                LOGMAN_MSG_A_FMT("Unhandled StoreMem size: {}", OpSize);
+                break;
+            }
+          }
         }
     } else
       LogMan::Msg::EFmt( "[arm] Unsupported operand type for str instruction.");
@@ -358,19 +408,19 @@ DEF_OPC(STP) {
     ARMOperand *opd1 = &instr->opd[1];
     ARMOperand *opd2 = &instr->opd[2];
     uint8_t    OpSize = instr->OpSize;
-    uint32_t   reg1size, reg2size, reg3size;
+    uint32_t   Reg0Size, Reg1Size, Reg2Size;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_MEM) {
-        auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+        auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
         auto RegPair1 = GetRegMap(ARMReg);
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto RegPair2 = GetRegMap(ARMReg);
-        ARMReg = get_guest_reg_map(opd2->content.mem.base, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.mem.base, Reg2Size);
         auto Base     = GetRegMap(ARMReg);
         ARMMemIndexType  PrePost = opd2->content.mem.pre_post;
         int32_t Imm = get_imm_map_wrapper(&opd2->content.mem.offset);
 
-        if (reg1size) OpSize = 1 << (reg1size-1);
+        if (Reg0Size) OpSize = 1 << (Reg0Size-1);
 
         if (OpSize == 8) {
           if (PrePost == ARM_MEM_INDEX_TYPE_PRE)
@@ -397,14 +447,14 @@ DEF_OPC(SXTW) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t     OpSize = instr->OpSize;
-    uint32_t   reg1size, reg2size;
+    uint32_t   Reg0Size, Reg1Size;
 
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     const auto Dst = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     const auto Src = GetRegMap(ARMReg);
 
-    if (reg1size) OpSize = 1 << (reg1size-1);
+    if (Reg0Size) OpSize = 1 << (Reg0Size-1);
 
     if (OpSize == 4)
       sxtw(Dst.X(), Src.W());
@@ -419,20 +469,20 @@ DEF_OPC(MOV) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t   reg1size, reg2size;
+    uint32_t   Reg0Size, Reg1Size;
 
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
       if (opd1->content.reg.num != ARM_REG_INVALID) {
-          ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+          ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
           auto SrcDst = GetRegMap(ARMReg);
 
           mov(EmitSize, Dst, SrcDst);  // move (register)
@@ -441,7 +491,11 @@ DEF_OPC(MOV) {
           LogMan::Msg::EFmt( "[arm] Unsupported reg num for mov instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
-        uint64_t Constant = get_imm_map_wrapper(&opd1->content.imm);
+        uint64_t Constant;
+        if (opd1->content.imm.type == ARM_IMM_TYPE_SYM && !strcmp(opd1->content.imm.content.sym, "LVMask"))
+            Constant = 0x80'40'20'10'08'04'02'01ULL;
+        else
+            Constant = get_imm_map_wrapper(&opd1->content.imm);
         LoadConstant(ARMEmitter::Size::i64Bit, Dst, Constant);
     } else
         LogMan::Msg::EFmt( "[arm] Unsupported operand type for mov instruction.");
@@ -454,26 +508,26 @@ DEF_OPC(MVN) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t   reg1size, reg2size;
+    uint32_t   Reg0Size, Reg1Size;
 
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
 
       if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-          ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+          ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
           auto SrcDst = GetRegMap(ARMReg);
           auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
           uint32_t amt = opd1->content.reg.scale.imm.content.val;
           mvn(EmitSize, Dst, SrcDst, Shift, amt);
       } else if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
-          ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+          ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
           auto SrcDst = GetRegMap(ARMReg);
           mvn(EmitSize, Dst, SrcDst);
       } else
@@ -491,15 +545,15 @@ DEF_OPC(AND) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     auto Src1 = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
@@ -522,7 +576,7 @@ DEF_OPC(AND) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -532,7 +586,7 @@ DEF_OPC(AND) {
         else
           ands(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
 
         if(instr->opc == ARM_OPC_AND)
@@ -554,15 +608,15 @@ DEF_OPC(ORR) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     auto Src1 = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
@@ -578,14 +632,14 @@ DEF_OPC(ORR) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-          ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+          ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
           auto Src2 = GetRegMap(ARMReg);
           auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
           uint32_t amt = opd2->content.reg.scale.imm.content.val;
           orr(EmitSize, Dst, Src1, Src2, Shift, amt);
 
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
-          ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+          ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
           auto Src2 = GetRegMap(ARMReg);
           orr(EmitSize, Dst, Src1, Src2);
       } else
@@ -603,15 +657,15 @@ DEF_OPC(EOR) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     auto Src1 = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
@@ -625,7 +679,7 @@ DEF_OPC(EOR) {
           eor(EmitSize, Dst, Src1, Imm);
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+      ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
       auto Src2 = GetRegMap(ARMReg);
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
@@ -649,21 +703,21 @@ DEF_OPC(BIC) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     auto Src1 = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-          ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+          ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
           auto Src2 = GetRegMap(ARMReg);
           auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
           uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -673,7 +727,7 @@ DEF_OPC(BIC) {
           else
               bics(EmitSize, Dst, Src1, Src2, Shift, amt);
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-          ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+          ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
           auto Src2 = GetRegMap(ARMReg);
 
           if(instr->opc == ARM_OPC_BIC)
@@ -695,15 +749,15 @@ DEF_OPC(Shift) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     auto Src1 = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
@@ -724,7 +778,7 @@ DEF_OPC(Shift) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
 
         if (instr->opc == ARM_OPC_LSL)
@@ -748,16 +802,16 @@ DEF_OPC(ADD) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
 
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst  = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     auto Src1 = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
@@ -784,7 +838,7 @@ DEF_OPC(ADD) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
 
         if(instr->opc == ARM_OPC_ADD)
@@ -793,7 +847,7 @@ DEF_OPC(ADD) {
           adds(EmitSize, Dst, Src1, Src2);
       }
       else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -804,7 +858,7 @@ DEF_OPC(ADD) {
           adds(EmitSize, Dst, Src1, Src2, Shift, amt);
       }
       else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
         auto Option = GetExtendType(opd2->content.reg.scale.content.extend);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -828,19 +882,19 @@ DEF_OPC(ADC) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+      ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
       auto Src1 = GetRegMap(ARMReg);
-      ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+      ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
       auto Src2 = GetRegMap(ARMReg);
 
       if(instr->opc == ARM_OPC_ADC)
@@ -867,16 +921,16 @@ DEF_OPC(SUB) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
 
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst  = GetRegMap(ARMReg);
-    ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     auto Src1 = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
@@ -902,7 +956,7 @@ DEF_OPC(SUB) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
         auto Shift = GetShiftType(opd2->content.reg.scale.content.direct);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -915,7 +969,7 @@ DEF_OPC(SUB) {
         }
 
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_EXT) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
         auto Option = GetExtendType(opd2->content.reg.scale.content.extend);
         uint32_t amt = opd2->content.reg.scale.imm.content.val;
@@ -928,7 +982,7 @@ DEF_OPC(SUB) {
         }
 
       } else if (opd2->content.reg.num != ARM_REG_INVALID && opd2->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
 
         if(instr->opc == ARM_OPC_SUB) {
@@ -951,19 +1005,19 @@ DEF_OPC(SBC) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+      ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
       auto Src1 = GetRegMap(ARMReg);
-      ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+      ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
       auto Src2 = GetRegMap(ARMReg);
 
       if(instr->opc == ARM_OPC_SBC)
@@ -983,19 +1037,19 @@ DEF_OPC(MUL) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
-      ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+      ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
       auto Src1 = GetRegMap(ARMReg);
-      ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+      ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
       auto Src2 = GetRegMap(ARMReg);
 
         if (instr->opc == ARM_OPC_MUL)
@@ -1015,17 +1069,17 @@ DEF_OPC(CLZ) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto Src = GetRegMap(ARMReg);
 
         clz(EmitSize, Dst, Src);
@@ -1041,19 +1095,19 @@ DEF_OPC(TST) {
 
     bool isRegSym = false;
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
-    if (reg1size == 1 || reg1size == 2) isRegSym = true;
+    if (Reg0Size == 1 || Reg0Size == 2) isRegSym = true;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto Src = GetRegMap(ARMReg);
 
         if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
@@ -1063,7 +1117,7 @@ DEF_OPC(TST) {
         } else if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
             tst(EmitSize, Dst, Src);
         } else if (isRegSym) {
-            unsigned Shift = 32 - (reg1size * 8);
+            unsigned Shift = 32 - (Reg0Size * 8);
             if (Dst == Src) {
               cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, Shift);
             } else {
@@ -1086,7 +1140,7 @@ DEF_OPC(TST) {
               tst(EmitSize, ARMEmitter::Reg::r26, ARMEmitter::Reg::r26);
             }
         } else {
-            unsigned Shift = 32 - (reg1size * 8);
+            unsigned Shift = 32 - (Reg0Size * 8);
             if (IsImm) {
               and_(EmitSize, ARMEmitter::Reg::r26, Dst, Imm);
             } else {
@@ -1108,16 +1162,16 @@ DEF_OPC(COMPARE) {
 
     bool isRegSym = false;
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
-    if (reg1size == 1 || reg1size == 2) isRegSym = true;
+    if (Reg0Size == 1 || Reg0Size == 2) isRegSym = true;
 
     /*
       lambda expression:
@@ -1177,22 +1231,22 @@ DEF_OPC(COMPARE) {
 
         } else if (instr->opc == ARM_OPC_CMPB || instr->opc == ARM_OPC_CMPW || isRegSym) {
             if (!isRegSym && instr->opc == ARM_OPC_CMPB)
-                reg1size = 1;
+                Reg0Size = 1;
             else if (!isRegSym && instr->opc == ARM_OPC_CMPW)
-                reg1size = 2;
-            adjust_8_16_cmp(true, reg1size, Imm);
+                Reg0Size = 2;
+            adjust_8_16_cmp(true, Reg0Size, Imm);
 
         } else if (instr->opc == ARM_OPC_CMN) {
             cmn(EmitSize, Dst, Imm);
         }
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto Src = GetRegMap(ARMReg);
 
-        if ((reg2size & 0x3))
+        if ((Reg1Size & 0x3))
             EmitSize = ARMEmitter::Size::i32Bit;
-        else if (reg2size == 4)
+        else if (Reg1Size == 4)
             EmitSize = ARMEmitter::Size::i64Bit;
 
         if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
@@ -1221,7 +1275,7 @@ DEF_OPC(COMPARE) {
                     cmp(EmitSize, Dst, Src);
                     FlipCF();
                 } else
-                    adjust_8_16_cmp(false, reg1size, 0, Src);
+                    adjust_8_16_cmp(false, Reg0Size, 0, Src);
 
             } else
                 cmn(EmitSize, Dst, Src);
@@ -1237,13 +1291,13 @@ DEF_OPC(CSEX) {
     uint8_t     OpSize = instr->OpSize;
 
     ARMEmitter::Size EmitSize;
-    uint32_t reg1size, reg2size, reg3size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
-    if ((reg1size & 0x3) || OpSize == 4)
+    if ((Reg0Size & 0x3) || OpSize == 4)
         EmitSize = ARMEmitter::Size::i32Bit;
-    else if (reg1size == 4 || OpSize == 8)
+    else if (Reg0Size == 4 || OpSize == 8)
         EmitSize = ARMEmitter::Size::i64Bit;
 
     if (instr->opd_num == 1 && opd0->type == ARM_OPD_TYPE_REG) {
@@ -1253,9 +1307,9 @@ DEF_OPC(CSEX) {
       ARMOperand *opd2 = &instr->opd[2];
 
       if (opd2->content.reg.num != ARM_REG_INVALID) {
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto Src1 = GetRegMap(ARMReg);
-        ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
+        ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
         auto Src2 = GetRegMap(ARMReg);
 
         csel(EmitSize, Dst, Src1, Src2, MapBranchCC(instr->cc));
@@ -1309,8 +1363,8 @@ DEF_OPC(CBNZ) {
     ARMOperand *opd = &instr->opd[0];
     uint8_t OpSize = instr->OpSize;
 
-    uint32_t reg1size;
-    auto ARMReg = get_guest_reg_map(opd->content.reg.num, reg1size);
+    uint32_t Reg0Size;
+    auto ARMReg = GetGuestRegMap(opd->content.reg.num, Reg0Size);
     auto Src = GetRegMap(ARMReg);
 
     // get new rip
@@ -1351,8 +1405,8 @@ DEF_OPC(SET_JUMP) {
         // Set New RIP Reg
         RipReg = ARM_REG_R20;
     } else if (opd->type == ARM_OPD_TYPE_REG) {
-        uint32_t reg1size;
-        auto Src = get_guest_reg_map(opd->content.reg.num, reg1size);
+        uint32_t Reg0Size;
+        auto Src = GetGuestRegMap(opd->content.reg.num, Reg0Size);
         // Set New RIP Reg
         RipReg = Src;
     }
@@ -1389,8 +1443,8 @@ DEF_OPC(SET_CALL) {
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), rrule->target_pc & Mask);
         str((ARMEmitter::Reg::r20).X(), MemSrc);
         // Set New RIP Reg
-        uint32_t reg1size;
-        auto Src = get_guest_reg_map(opd->content.reg.num, reg1size);
+        uint32_t Reg0Size;
+        auto Src = GetGuestRegMap(opd->content.reg.num, Reg0Size);
         RipReg = Src;
     } else if (!instr->opd_num) { // only push
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), rrule->target_pc & Mask);
@@ -1406,8 +1460,8 @@ DEF_OPC(PC_L) {
     ARMOperand *opd1 = &instr->opd[1];
     uint64_t target, fallthrough, Mask = ~0ULL;
 
-    uint32_t reg1size, reg2size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
 
     if (instr->OpSize == 4) {
@@ -1416,7 +1470,7 @@ DEF_OPC(PC_L) {
 
     if (opd1->type == ARM_OPD_TYPE_REG) {
         ARMOperand *opd2 = &instr->opd[2];
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+        ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto RIPDst = GetRegMap(ARMReg);
 
         get_label_map(opd2->content.imm.content.sym, &target, &fallthrough);
@@ -1440,8 +1494,8 @@ DEF_OPC(PC_S) {
     ARMOperand *opd1 = &instr->opd[1];
     uint64_t target, fallthrough, Mask = ~0ULL;
 
-    uint32_t reg1size, reg2size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Src = GetRegMap(ARMReg);
 
     if (instr->OpSize == 4) {
@@ -1450,7 +1504,7 @@ DEF_OPC(PC_S) {
 
     if (opd1->type == ARM_OPD_TYPE_REG) {
       ARMOperand *opd2 = &instr->opd[2];
-      ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
+      ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
       auto RIPDst = GetRegMap(ARMReg);
 
       get_label_map(opd2->content.imm.content.sym, &target, &fallthrough);
@@ -1464,86 +1518,481 @@ DEF_OPC(PC_S) {
     }
 }
 
-
+/*
+  SIMD&FP
+*/
 DEF_OPC(ADDP) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    ARMOperand *opd2 = &instr->opd[2];
+    const auto OpSize = instr->OpSize;
 
+    const auto ElementSize = instr->ElementSize;
+    const auto IsScalar = OpSize == 8;
+    const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
+
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto VectorLower = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
+    auto VectorUpper = GetVRegMap(ARMReg);
+
+    LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 || ElementSize == 4 || ElementSize == 8, "Invalid size");
+    const auto SubRegSize =
+      ElementSize == 1 ? ARMEmitter::SubRegSize::i8Bit :
+      ElementSize == 2 ? ARMEmitter::SubRegSize::i16Bit :
+      ElementSize == 4 ? ARMEmitter::SubRegSize::i32Bit :
+      ElementSize == 8 ? ARMEmitter::SubRegSize::i64Bit : ARMEmitter::SubRegSize::i8Bit;
+
+    if (HostSupportsSVE256 && Is256Bit) {
+      const auto Pred = PRED_TMP_32B.Merging();
+
+      // SVE ADDP is a destructive operation, so we need a temporary
+      movprfx(VTMP1.Z(), VectorLower.Z());
+
+      // Unlike Adv. SIMD's version of ADDP, which acts like it concats the
+      // upper vector onto the end of the lower vector and then performs
+      // pairwise addition, the SVE version actually interleaves the
+      // results of the pairwise addition (gross!), so we need to undo that.
+      addp(SubRegSize, VTMP1.Z(), Pred, VTMP1.Z(), VectorUpper.Z());
+      uzp1(SubRegSize, Dst.Z(), VTMP1.Z(), VTMP1.Z());
+      uzp2(SubRegSize, VTMP2.Z(), VTMP1.Z(), VTMP1.Z());
+
+      // Merge upper half with lower half.
+      splice<ARMEmitter::OpType::Destructive>(ARMEmitter::SubRegSize::i64Bit, Dst.Z(), PRED_TMP_16B, Dst.Z(), VTMP2.Z());
+    } else {
+      if (IsScalar) {
+        addp(SubRegSize, Dst.D(), VectorLower.D(), VectorUpper.D());
+      } else {
+        addp(SubRegSize, Dst.Q(), VectorLower.Q(), VectorUpper.Q());
+      }
+    }
 }
 
 
 DEF_OPC(CMEQ) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    ARMOperand *opd2 = &instr->opd[2];
+    const auto OpSize = instr->OpSize;
 
+    const auto ElementSize = instr->ElementSize;
+    const auto IsScalar = ElementSize == OpSize;
+    const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
+
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto Vector1 = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
+    auto Vector2 = GetVRegMap(ARMReg);
+
+    LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 || ElementSize == 4 || ElementSize == 8 || ElementSize == 16, "Invalid size");
+    const auto SubRegSize = ARMEmitter::ToVectorSizePair(
+      ElementSize == 1 ? ARMEmitter::SubRegSize::i8Bit :
+      ElementSize == 2 ? ARMEmitter::SubRegSize::i16Bit :
+      ElementSize == 4 ? ARMEmitter::SubRegSize::i32Bit :
+      ElementSize == 8 ? ARMEmitter::SubRegSize::i64Bit : ARMEmitter::SubRegSize::i128Bit);
+
+    if (HostSupportsSVE256 && Is256Bit) {
+      // FIXME: We should rework this op to avoid the NZCV spill/fill dance.
+      mrs(TMP1, ARMEmitter::SystemRegister::NZCV);
+
+      const auto Mask = PRED_TMP_32B.Zeroing();
+      const auto ComparePred = ARMEmitter::PReg::p0;
+
+      // General idea is to compare for equality, not the equal vals
+      // from one of the registers, then or both together to make the
+      // relevant equal entries all 1s.
+      cmpeq(SubRegSize.Vector, ComparePred, Mask, Vector1.Z(), Vector2.Z());
+      not_(SubRegSize.Vector, VTMP1.Z(), ComparePred.Merging(), Vector1.Z());
+      movprfx(SubRegSize.Vector, Dst.Z(), ComparePred.Zeroing(), Vector1.Z());
+      orr(SubRegSize.Vector, Dst.Z(), ComparePred.Merging(), Dst.Z(), VTMP1.Z());
+
+      // Restore NZCV
+      msr(ARMEmitter::SystemRegister::NZCV, TMP1);
+    } else {
+      if (IsScalar) {
+        cmeq(SubRegSize.Scalar, Dst, Vector1, Vector2);
+      } else {
+        cmeq(SubRegSize.Vector, Dst.Q(), Vector1.Q(), Vector2.Q());
+      }
+    }
 }
 
 
 DEF_OPC(CMLT) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    const auto OpSize = instr->OpSize;
 
+    const auto ElementSize = instr->ElementSize;
+    const auto IsScalar = ElementSize == OpSize;
+    const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
+
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto Vector = GetVRegMap(ARMReg);
+
+    LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 || ElementSize == 4 || ElementSize == 8 || ElementSize == 16, "Invalid size");
+    const auto SubRegSize = ARMEmitter::ToVectorSizePair(
+      ElementSize == 1 ? ARMEmitter::SubRegSize::i8Bit :
+      ElementSize == 2 ? ARMEmitter::SubRegSize::i16Bit :
+      ElementSize == 4 ? ARMEmitter::SubRegSize::i32Bit :
+      ElementSize == 8 ? ARMEmitter::SubRegSize::i64Bit : ARMEmitter::SubRegSize::i128Bit);
+
+
+    if (HostSupportsSVE256 && Is256Bit) {
+      const auto Mask = PRED_TMP_32B.Zeroing();
+      const auto ComparePred = ARMEmitter::PReg::p0;
+
+      // FIXME: We should rework this op to avoid the NZCV spill/fill dance.
+      mrs(TMP1, ARMEmitter::SystemRegister::NZCV);
+
+      // Ensure no junk is in the temp (important for ensuring
+      // non less-than values remain as zero).
+      mov_imm(ARMEmitter::SubRegSize::i64Bit, VTMP1.Z(), 0);
+      cmplt(SubRegSize.Vector, ComparePred, Mask, Vector.Z(), 0);
+      not_(SubRegSize.Vector, VTMP1.Z(), ComparePred.Merging(), Vector.Z());
+      orr(SubRegSize.Vector, VTMP1.Z(), ComparePred.Merging(), VTMP1.Z(), Vector.Z());
+      mov(Dst.Z(), VTMP1.Z());
+
+      // Restore NZCV
+      msr(ARMEmitter::SystemRegister::NZCV, TMP1);
+    } else {
+      if (IsScalar) {
+        cmlt(SubRegSize.Scalar, Dst, Vector);
+      } else {
+        cmlt(SubRegSize.Vector, Dst.Q(), Vector.Q());
+      }
+    }
 }
 
 
 DEF_OPC(DUP) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    const auto OpSize = instr->OpSize;
 
+    const auto Index = instr->Index;
+    const auto ElementSize = instr->ElementSize;
+    const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
+    const auto Is128Bit = OpSize == Core::CPUState::XMM_SSE_REG_SIZE;
+
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetVRegMap(ARMReg);
+
+    LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 || ElementSize == 4 || ElementSize == 8 || ElementSize == 16, "Invalid size");
+    const auto SubRegSize =
+      ElementSize == 1 ? ARMEmitter::SubRegSize::i8Bit :
+      ElementSize == 2 ? ARMEmitter::SubRegSize::i16Bit :
+      ElementSize == 4 ? ARMEmitter::SubRegSize::i32Bit :
+      ElementSize == 8 ? ARMEmitter::SubRegSize::i64Bit : ARMEmitter::SubRegSize::i128Bit;
+
+    if (opd1->type == ARM_OPD_TYPE_REG) {
+      ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+
+      if (ARMReg >= ARM_REG_R0 && ARMReg <= ARM_REG_R31) {
+        const auto Src = GetRegMap(ARMReg);
+        if (HostSupportsSVE256 && Is256Bit) {
+          dup(SubRegSize, Dst.Z(), Src);
+        } else {
+          dup(SubRegSize, Dst.Q(), Src);
+        }
+      }
+      else if (ARMReg >= ARM_REG_V0 && ARMReg <= ARM_REG_V31) {
+        const auto Vector = GetVRegMap(ARMReg);
+        if (HostSupportsSVE256 && Is256Bit) {
+          dup(SubRegSize, Dst.Z(), Vector.Z(), Index);
+        } else {
+          if (Is128Bit)
+            dup(SubRegSize, Dst.Q(), Vector.Q(), Index);
+          else
+            dup(SubRegSize, Dst.D(), Vector.D(), Index);
+        }
+      }
+    } else
+        LogMan::Msg::EFmt("[arm] Unsupported operand type for dup instruction.");
 }
+
 
 DEF_OPC(FMOV) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
 
-    uint32_t reg1size, reg2size;
-    auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetVRegMap(ARMReg);
 
     if (opd1->type == ARM_OPD_TYPE_REG) {
-        ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
-        auto Src = GetRegMap(ARMReg);
-        fmov(ARMEmitter::Size::i64Bit, Dst.D(), Src);
+      ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+      auto Src = GetRegMap(ARMReg);
+
+      switch (instr->ElementSize) {
+        case 1:
+          uxtb(ARMEmitter::Size::i32Bit, TMP1, Src);
+          fmov(ARMEmitter::Size::i32Bit, Dst.S(), TMP1);
+          break;
+        case 2:
+          uxth(ARMEmitter::Size::i32Bit, TMP1, Src);
+          fmov(ARMEmitter::Size::i32Bit, Dst.S(), TMP1);
+          break;
+        case 4:
+          fmov(ARMEmitter::Size::i32Bit, Dst.S(), Src);
+          break;
+        case 8:
+          fmov(ARMEmitter::Size::i64Bit, Dst.D(), Src);
+          break;
+        default: LOGMAN_MSG_A_FMT("Unknown castGPR element size: {}", instr->ElementSize);
+      }
+    } else
+        LogMan::Msg::EFmt("[arm] Unsupported operand type for fmov instruction.");
+}
+
+
+DEF_OPC(UMOV) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    auto OpSize = instr->OpSize;
+
+    constexpr auto AVXRegBitSize = Core::CPUState::XMM_AVX_REG_SIZE * 8;
+    constexpr auto SSERegBitSize = Core::CPUState::XMM_SSE_REG_SIZE * 8;
+    const auto ElementSizeBits = instr->ElementSize * 8;
+
+    const auto Offset = ElementSizeBits * instr->Index;
+    const auto Is256Bit = Offset >= SSERegBitSize;
+
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto Vector = GetVRegMap(ARMReg);
+
+    if (Reg0Size && !OpSize) OpSize = 1 << (Reg0Size-1);
+
+    const auto PerformMove = [&](const ARMEmitter::VRegister reg, int index) {
+      switch (OpSize) {
+        case 1:
+          umov<ARMEmitter::SubRegSize::i8Bit>(Dst, Vector, index);
+          break;
+        case 2:
+          umov<ARMEmitter::SubRegSize::i16Bit>(Dst, Vector, index);
+          break;
+        case 4:
+          umov<ARMEmitter::SubRegSize::i32Bit>(Dst, Vector, index);
+          break;
+        case 8:
+          umov<ARMEmitter::SubRegSize::i64Bit>(Dst, Vector, index);
+          break;
+        default:
+          LOGMAN_MSG_A_FMT("Unhandled ExtractElementSize: {}", OpSize);
+          break;
+      }
+    };
+
+    if (Offset < SSERegBitSize) {
+      // Desired data lies within the lower 128-bit lane, so we
+      // can treat the operation as a 128-bit operation, even
+      // when acting on larger register sizes.
+      PerformMove(Vector, instr->Index);
+    } else {
+      LOGMAN_THROW_AA_FMT(HostSupportsSVE256,
+                          "Host doesn't support SVE. Cannot perform 256-bit operation.");
+      LOGMAN_THROW_AA_FMT(Is256Bit,
+                          "Can't perform 256-bit extraction with op side: {}", OpSize);
+      LOGMAN_THROW_AA_FMT(Offset < AVXRegBitSize,
+                          "Trying to extract element outside bounds of register. Offset={}, Index={}",
+                          Offset, instr->Index);
+
+      // We need to use the upper 128-bit lane, so lets move it down.
+      // Inverting our dedicated predicate for 128-bit operations selects
+      // all of the top lanes. We can then compact those into a temporary.
+      const auto CompactPred = ARMEmitter::PReg::p0;
+      not_(CompactPred, PRED_TMP_32B.Zeroing(), PRED_TMP_16B);
+      compact(ARMEmitter::SubRegSize::i64Bit, VTMP1.Z(), CompactPred, Vector.Z());
+
+      // Sanitize the zero-based index to work on the now-moved
+      // upper half of the vector.
+      const auto SanitizedIndex = [OpSize, instr] () -> int {
+        switch (OpSize) {
+          case 1:
+            return instr->Index - 16;
+          case 2:
+            return instr->Index - 8;
+          case 4:
+            return instr->Index - 4;
+          case 8:
+            return instr->Index - 2;
+          default:
+            LOGMAN_MSG_A_FMT("Unhandled OpSize: {}", OpSize);
+            return 0;
+        }
+      }();
+
+      // Move the value from the now-low-lane data.
+      PerformMove(VTMP1, SanitizedIndex);
     }
 }
 
 DEF_OPC(LD1) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    ARMOperand *opd2 = &instr->opd[2];
+    const auto OpSize = instr->OpSize;
 
+    const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
+    const auto ElementSize = instr->ElementSize;
+
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto DstSrc = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
+    auto MemReg = GetRegMap(ARMReg);
+
+    LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 ||
+                        ElementSize == 4 || ElementSize == 8 ||
+                        ElementSize == 16, "Invalid element size");
+
+    if (Is256Bit) {
+      LOGMAN_MSG_A_FMT("Unsupported 256-bit VLoadVectorElement");
+    } else {
+      if (Dst != DstSrc && ElementSize != 16) {
+        mov(Dst.Q(), DstSrc.Q());
+      }
+      switch (ElementSize) {
+      case 1:
+        ld1<ARMEmitter::SubRegSize::i8Bit>(Dst.Q(), instr->Index, MemReg);
+        break;
+      case 2:
+        ld1<ARMEmitter::SubRegSize::i16Bit>(Dst.Q(), instr->Index, MemReg);
+        break;
+      case 4:
+        ld1<ARMEmitter::SubRegSize::i32Bit>(Dst.Q(), instr->Index, MemReg);
+        break;
+      case 8:
+        ld1<ARMEmitter::SubRegSize::i64Bit>(Dst.Q(), instr->Index, MemReg);
+        break;
+      case 16:
+        ldr(Dst.Q(), MemReg);
+        break;
+      default:
+        LOGMAN_MSG_A_FMT("Unhandled {} size: {}", __func__, ElementSize);
+        return;
+      }
+    }
+
+    // Emit a half-barrier if TSO is enabled.
+    if (CTX->IsAtomicTSOEnabled()) {
+      dmb(ARMEmitter::BarrierScope::ISHLD);
+    }
 }
+
 
 DEF_OPC(SQXTUN) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    const auto OpSize = instr->OpSize;
 
+    const auto ElementSize = instr->ElementSize;
+    const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
+
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetVRegMap(ARMReg);
+    auto VectorLower = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto VectorUpper = GetVRegMap(ARMReg);
+
+    LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 || ElementSize == 4 || ElementSize == 8, "Invalid size");
+    const auto SubRegSize =
+      ElementSize == 1 ? ARMEmitter::SubRegSize::i8Bit :
+      ElementSize == 2 ? ARMEmitter::SubRegSize::i16Bit :
+      ElementSize == 4 ? ARMEmitter::SubRegSize::i32Bit :
+      ElementSize == 8 ? ARMEmitter::SubRegSize::i64Bit : ARMEmitter::SubRegSize::i8Bit;
+
+    if (HostSupportsSVE256 && Is256Bit) {
+      // This combines the SVE versions of VSQXTUN/VSQXTUN2.
+      // Upper VSQXTUN2 handling.
+      // Doing upper first to ensure it doesn't get overwritten by lower calculation.
+      const auto Mask = PRED_TMP_16B;
+
+      sqxtunb(SubRegSize, VTMP2.Z(), VectorUpper.Z());
+      uzp1(SubRegSize, VTMP2.Z(), VTMP2.Z(), VTMP2.Z());
+
+      // Look at those implementations for details about this.
+      // Lower VSQXTUN handling.
+      sqxtunb(SubRegSize, Dst.Z(), VectorLower.Z());
+      uzp1(SubRegSize, Dst.Z(), Dst.Z(), Dst.Z());
+
+      // Merge.
+      splice<ARMEmitter::OpType::Destructive>(SubRegSize, Dst.Z(), Mask, Dst.Z(), VTMP2.Z());
+    } else {
+      if (OpSize == 8) {
+        zip1(ARMEmitter::SubRegSize::i64Bit, Dst.Q(), VectorLower.Q(), VectorUpper.Q());
+        sqxtun(SubRegSize, Dst, Dst);
+      } else {
+        if (Dst == VectorUpper) {
+          // If the destination overlaps the upper then we need to move it temporarily.
+          mov(VTMP1.Q(), VectorUpper.Q());
+          VectorUpper = VTMP1;
+        }
+        sqxtun(SubRegSize, Dst, VectorLower);
+        sqxtun2(SubRegSize, Dst, VectorUpper);
+      }
+    }
 }
 
-DEF_OPC(UMOV) {
-
-}
 
 DEF_OPC(ZIP) {
-  ARMOperand *opd0 = &instr->opd[0];
-  ARMOperand *opd1 = &instr->opd[1];
-  ARMOperand *opd2 = &instr->opd[2];
-  const auto OpSize = instr->OpSize;
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    ARMOperand *opd2 = &instr->opd[2];
+    const auto OpSize = instr->OpSize;
 
-  const auto ElementSize = instr->ElementSize;
-  const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
+    const auto ElementSize = instr->ElementSize;
+    const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
 
-  uint32_t reg1size, reg2size, reg3size;
-  auto ARMReg = get_guest_reg_map(opd0->content.reg.num, reg1size);
-  auto Dst = GetVRegMap(ARMReg);
-  ARMReg = get_guest_reg_map(opd1->content.reg.num, reg2size);
-  auto VectorLower = GetVRegMap(ARMReg);
-  ARMReg = get_guest_reg_map(opd2->content.reg.num, reg3size);
-  auto VectorUpper = GetVRegMap(ARMReg);
+    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    auto Dst = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto VectorLower = GetVRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
+    auto VectorUpper = GetVRegMap(ARMReg);
 
-  LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 || ElementSize == 4 || ElementSize == 8, "Invalid size");
-  const auto SubRegSize =
-    ElementSize == 1 ? ARMEmitter::SubRegSize::i8Bit :
-    ElementSize == 2 ? ARMEmitter::SubRegSize::i16Bit :
-    ElementSize == 4 ? ARMEmitter::SubRegSize::i32Bit :
-    ElementSize == 8 ? ARMEmitter::SubRegSize::i64Bit : ARMEmitter::SubRegSize::i8Bit;
+    LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 || ElementSize == 4 || ElementSize == 8, "Invalid size");
+    const auto SubRegSize =
+      ElementSize == 1 ? ARMEmitter::SubRegSize::i8Bit :
+      ElementSize == 2 ? ARMEmitter::SubRegSize::i16Bit :
+      ElementSize == 4 ? ARMEmitter::SubRegSize::i32Bit :
+      ElementSize == 8 ? ARMEmitter::SubRegSize::i64Bit : ARMEmitter::SubRegSize::i8Bit;
 
-  if (HostSupportsSVE256 && Is256Bit) {
-    zip1(SubRegSize, Dst.Z(), VectorLower.Z(), VectorUpper.Z());
-  } else {
-    if (OpSize == 8) {
-      zip1(SubRegSize, Dst.D(), VectorLower.D(), VectorUpper.D());
+    if (HostSupportsSVE256 && Is256Bit) {
+      if (instr->opc == ARM_OPC_ZIP1)
+        zip1(SubRegSize, Dst.Z(), VectorLower.Z(), VectorUpper.Z());
+      else
+        zip2(SubRegSize, Dst.Z(), VectorLower.Z(), VectorUpper.Z());
     } else {
-      zip1(SubRegSize, Dst.Q(), VectorLower.Q(), VectorUpper.Q());
+      if (OpSize == 8) {
+        if (instr->opc == ARM_OPC_ZIP1)
+          zip1(SubRegSize, Dst.D(), VectorLower.D(), VectorUpper.D());
+        else
+          zip2(SubRegSize, Dst.D(), VectorLower.D(), VectorUpper.D());
+      } else {
+        if (instr->opc == ARM_OPC_ZIP1)
+          zip1(SubRegSize, Dst.Q(), VectorLower.Q(), VectorUpper.Q());
+        else
+          zip2(SubRegSize, Dst.Q(), VectorLower.Q(), VectorUpper.Q());
+      }
     }
-  }
 }
 
 

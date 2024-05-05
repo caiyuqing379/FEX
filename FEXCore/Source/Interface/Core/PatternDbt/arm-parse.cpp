@@ -110,7 +110,7 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
             set_arm_opd_imm_sym_str(opd, imm_str);
         else
             set_arm_opd_imm_val_str(opd, imm_str);
-    } else if (fc == 'r' || fc == 'w' || fc == 'x') {
+    } else if (fc == 'r' || fc == 'v' || fc == 'w' || fc == 'x') {
         /* Register Operand
            1. Read register string, e.g., "reg0", "reg1".
            2. Check the scale type and content */

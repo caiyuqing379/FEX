@@ -79,10 +79,6 @@ static const char *x86_opc_str[] = {
     [X86_OPC_MOVDQA] = "movdqa",
     [X86_OPC_MOVDQU] = "movdqu",
     [X86_OPC_PMOVMSKB] = "pmovmskb",
-
-    [X86_OPC_PACKUSWB] = "packuswb",
-    [X86_OPC_PACKSSWB] = "packsswb",
-    [X86_OPC_PACKSSDW] = "packssdw",
     [X86_OPC_PALIGNR] = "palignr",
 
     // Logical
@@ -97,7 +93,9 @@ static const char *x86_opc_str[] = {
     [X86_OPC_POR] = "por",
     [X86_OPC_PXOR] = "pxor",
 
-    // Shuffle
+    [X86_OPC_PACKUSWB] = "packuswb",
+    [X86_OPC_PACKSSWB] = "packsswb",
+    [X86_OPC_PACKSSDW] = "packssdw",
     [X86_OPC_PUNPCKLBW] = "punpcklbw",
     [X86_OPC_PUNPCKLWD] = "punpcklwd",
     [X86_OPC_PUNPCKLDQ] = "punpckldq",
@@ -106,6 +104,8 @@ static const char *x86_opc_str[] = {
     [X86_OPC_PUNPCKHDQ] = "punpckhdq",
     [X86_OPC_PUNPCKLQDQ] = "punpcklqdq",
     [X86_OPC_PUNPCKHQDQ] = "punpckhqdq",
+    // Shuffle
+    [X86_OPC_SHUFPD] = "shufpd",
     [X86_OPC_PSHUFD] = "pshufd",
     [X86_OPC_PSHUFLW] = "pshuflw",
     [X86_OPC_PSHUFHW] = "pshufhw",
@@ -1049,6 +1049,9 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHQDQ") && ((DecodeInst->OP == 0x6D))) {
             set_x86_instr_opc(instr, X86_OPC_PUNPCKHQDQ);
         }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SHUFPD") && ((DecodeInst->OP == 0xC6))) {
+            set_x86_instr_opc(instr, X86_OPC_SHUFPD);
+        }
         else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFD") && ((DecodeInst->OP == 0x70))) {
             set_x86_instr_opc(instr, X86_OPC_PSHUFD);
         }
@@ -1106,6 +1109,15 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         else if (!strcmp(DecodeInst->TableInfo->Name, "PADDD") && ((DecodeInst->OP == 0xFE))) {
             set_x86_instr_opc(instr, X86_OPC_PADDD);
         }
+
+#define OPD(REX, prefix, opcode) ((REX << 9) | (prefix << 8) | opcode)
+constexpr uint16_t PF_3A_NONE = 0;
+constexpr uint16_t PF_3A_66   = 1;
+        if (!strcmp(DecodeInst->TableInfo->Name, "PALIGNR") && (DecodeInst->OP == OPD(0, PF_3A_NONE, 0x0F)
+          || DecodeInst->OP == OPD(0, PF_3A_66,   0x0F) || DecodeInst->OP == OPD(1, PF_3A_66, 0x0F))) {
+            set_x86_instr_opc(instr, X86_OPC_PALIGNR);
+        }
+#undef OPD
 
         // VEX
 #define OPD(map_select, pp, opcode) (((map_select - 1) << 10) | (pp << 8) | (opcode))
@@ -1258,6 +1270,10 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         else if (!strcmp(DecodeInst->TableInfo->Name, "PUNPCKHQDQ")
           && ((DecodeInst->OP == OPD(1, 0b01, 0x6D)))) {
             set_x86_instr_opc(instr, X86_OPC_PUNPCKHQDQ);
+        }
+        else if (!strcmp(DecodeInst->TableInfo->Name, "SHUFPD")
+          && ((DecodeInst->OP == OPD(1, 0b01, 0xC6)))) {
+            set_x86_instr_opc(instr, X86_OPC_SHUFPD);
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "PSHUFD")
           && ((DecodeInst->OP == OPD(1, 0b01, 0x70)))) {
