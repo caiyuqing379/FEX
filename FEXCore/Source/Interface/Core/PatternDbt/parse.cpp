@@ -141,7 +141,6 @@ static TranslationRule *rule_alloc(void)
     rule->guest_instr_num = 0;
     rule->next = NULL;
     rule->prev = NULL;
-    rule->intermediate_regs=NULL;
     #ifdef PROFILE_RULE_TRANSLATION
     rule->hit_num = 0;
     rule->print_flag = 0;

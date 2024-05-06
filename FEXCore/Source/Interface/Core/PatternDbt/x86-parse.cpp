@@ -74,7 +74,7 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 {
     X86Operand *opd = &instr->opd[opd_idx];
     char fc = line[idx];
-    uint32_t OpSize = 4;
+    uint32_t OpSize = 0;
 
     if (fc == '$') {
         /* Immediate Operand */
@@ -111,25 +111,27 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
 
         set_x86_opd_type(opd, X86_OPD_TYPE_REG);
         set_x86_opd_reg_str(opd, reg_str, &OpSize);
-    } else if (fc == 'b' || fc == 'w' || fc == 'd' || fc == 'q' || fc == '[') {
+    } else if (fc == 'b' || fc == 'w' || fc == 'd' || fc == 'q' || fc == 'x' || fc == '[') {
         /* Memory operand with or without offset (imm_XXX) */
         char reg_str[10] = "\0";
 
         set_x86_opd_type(opd, X86_OPD_TYPE_MEM);
-        if (fc == 'b' || fc == 'w') {
+        if (fc == 'b') {
             idx += 4;
-            if (fc == 'b')
-              OpSize = 1;
-            else
-              OpSize = 2;
-        } else if ((fc == 'd' || fc == 'q') && line[idx+1] == 'w') {
+            OpSize = 1;
+        } else if (fc == 'w') {
+            idx += 4;
+            OpSize = 2;
+        } else if (fc == 'd' && line[idx+1] == 'w') {
             idx += 5;
-            if (fc == 'd')
-              OpSize = 3;
-            else
-              OpSize = 4;
-        } else
+            OpSize = 3;
+        } else if (fc == 'q' && line[idx+1] == 'w') {
+            idx += 5;
             OpSize = 4;
+        } else if (fc == 'x') {
+            idx += 7;
+            OpSize = 5;
+        }
 
         if (line[idx] == ' ') {
           idx++; // skip ' '

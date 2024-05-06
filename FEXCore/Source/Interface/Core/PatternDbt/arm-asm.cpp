@@ -459,7 +459,7 @@ DEF_OPC(SXTW) {
     if (OpSize == 4)
       sxtw(Dst.X(), Src.W());
     else
-      LogMan::Msg::EFmt( "[arm] Unsupported operand size for SXTW instruction.");
+      LogMan::Msg::EFmt("[arm] Unsupported operand size for SXTW instruction.");
 }
 
 
@@ -1320,6 +1320,27 @@ DEF_OPC(CSEX) {
         LogMan::Msg::EFmt("[arm] Unsupported operand type for csex instruction.");
 }
 
+DEF_OPC(BFXIL) {
+    ARMOperand *opd0 = &instr->opd[0];
+    ARMOperand *opd1 = &instr->opd[1];
+    ARMOperand *opd2 = &instr->opd[2];
+    ARMOperand *opd3 = &instr->opd[3];
+    const uint8_t OpSize = instr->OpSize;
+
+    const auto EmitSize = OpSize == 8 ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+
+    uint32_t Reg0Size, Reg1Size;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    const auto Dst = GetRegMap(ARMReg);
+    ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    const auto Src = GetRegMap(ARMReg);
+    uint32_t lsb = get_imm_map_wrapper(&opd2->content.imm);
+    uint32_t width = get_imm_map_wrapper(&opd3->content.imm);
+
+    // If Dst and SrcDst match then this turns in to a single instruction.
+    bfxil(EmitSize, Dst, Src, lsb, width);
+}
+
 
 DEF_OPC(B) {
     ARMOperand *opd = &instr->opd[0];
@@ -1725,6 +1746,7 @@ DEF_OPC(DUP) {
 DEF_OPC(FMOV) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
+    auto ElementSize = instr->ElementSize;
 
     uint32_t Reg0Size, Reg1Size;
     auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
@@ -1734,7 +1756,9 @@ DEF_OPC(FMOV) {
       ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
       auto Src = GetRegMap(ARMReg);
 
-      switch (instr->ElementSize) {
+      if (Reg1Size && !ElementSize) ElementSize = 1 << (Reg1Size-1);
+
+      switch (ElementSize) {
         case 1:
           uxtb(ARMEmitter::Size::i32Bit, TMP1, Src);
           fmov(ARMEmitter::Size::i32Bit, Dst.S(), TMP1);
@@ -1749,7 +1773,7 @@ DEF_OPC(FMOV) {
         case 8:
           fmov(ARMEmitter::Size::i64Bit, Dst.D(), Src);
           break;
-        default: LOGMAN_MSG_A_FMT("Unknown castGPR element size: {}", instr->ElementSize);
+        default: LOGMAN_MSG_A_FMT("Unknown castGPR element size: {}", ElementSize);
       }
     } else
         LogMan::Msg::EFmt("[arm] Unsupported operand type for fmov instruction.");
@@ -1996,7 +2020,7 @@ DEF_OPC(ZIP) {
 }
 
 
-void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule)
+void FEXCore::CPU::Arm64JITCore::assemble_arm_instr(ARMInstruction *instr, RuleRecord *rrule)
 {
     switch (instr->opc) {
         case ARM_OPC_LDRB:
@@ -2083,6 +2107,9 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
         case ARM_OPC_CSET:
             Opc_CSEX(instr, rrule);
             break;
+        case ARM_OPC_BFXIL:
+            Opc_BFXIL(instr, rrule);
+            break;
         case ARM_OPC_B:
             Opc_B(instr, rrule);
             break;
@@ -2139,56 +2166,39 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instruction(ARMInstruction *instr,
     }
 }
 
-void FEXCore::CPU::Arm64JITCore::assemble_arm_exit1_tb(uint64_t target_pc)
-{
-    ResetStack();
-    // False Block
-    const auto IsTarget1 = JumpTargets2.try_emplace(this->FalseNewRip).first;
-    Bind(&IsTarget1->second);
-
-    ARMEmitter::SingleUseForwardLabel l_BranchHost_f;
-    ldr(TMP1, &l_BranchHost_f);
-    blr(TMP1);
-
-    Bind(&l_BranchHost_f);
-    dc64(ThreadState->CurrentFrame->Pointers.Common.ExitFunctionLinker);
-    dc64(this->FalseNewRip);
-    // True Block
-    const auto IsTarget2 = JumpTargets2.try_emplace(this->TrueNewRip).first;
-    Bind(&IsTarget2->second);
-
-    ARMEmitter::SingleUseForwardLabel l_BranchHost_t;
-    ldr(TMP1, &l_BranchHost_t);
-    blr(TMP1);
-
-    Bind(&l_BranchHost_t);
-    dc64(ThreadState->CurrentFrame->Pointers.Common.ExitFunctionLinker);
-    dc64(this->TrueNewRip);
-}
-
-void FEXCore::CPU::Arm64JITCore::assemble_arm_exit2_tb(uint64_t target_pc)
+void FEXCore::CPU::Arm64JITCore::assemble_arm_exit(uint64_t target_pc)
 {
     ResetStack();
 
-    ARMEmitter::SingleUseForwardLabel FullLookup;
-    auto RipReg = GetRegMap(this->RipReg);
+    if (target_pc != 0) {
+      ARMEmitter::SingleUseForwardLabel l_BranchHost;
+      ldr(TMP1, &l_BranchHost);
+      blr(TMP1);
 
-    // L1 Cache
-    ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.L1Pointer));
+      Bind(&l_BranchHost);
+      dc64(ThreadState->CurrentFrame->Pointers.Common.ExitFunctionLinker);
+      dc64(target_pc);
+    } else {
+      ARMEmitter::SingleUseForwardLabel FullLookup;
+      auto RipReg = GetRegMap(this->RipReg);
 
-    and_(ARMEmitter::Size::i64Bit, TMP4, RipReg, LookupCache::L1_ENTRIES_MASK);
-    add(TMP1, TMP1, TMP4, ARMEmitter::ShiftType::LSL, 4);
+      // L1 Cache
+      ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.L1Pointer));
 
-    // Note: sub+cbnz used over cmp+br to preserve flags.
-    ldp<ARMEmitter::IndexType::OFFSET>(TMP2, TMP1, TMP1, 0);
-    sub(TMP1, TMP1, RipReg.X());
-    cbnz(ARMEmitter::Size::i64Bit, TMP1, &FullLookup);
-    br(TMP2);
+      and_(ARMEmitter::Size::i64Bit, TMP4, RipReg, LookupCache::L1_ENTRIES_MASK);
+      add(TMP1, TMP1, TMP4, ARMEmitter::ShiftType::LSL, 4);
 
-    Bind(&FullLookup);
-    ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.DispatcherLoopTop));
-    str(RipReg.X(), STATE, offsetof(FEXCore::Core::CpuStateFrame, State.rip));
-    br(TMP1);
+      // Note: sub+cbnz used over cmp+br to preserve flags.
+      ldp<ARMEmitter::IndexType::OFFSET>(TMP2, TMP1, TMP1, 0);
+      sub(TMP1, TMP1, RipReg.X());
+      cbnz(ARMEmitter::Size::i64Bit, TMP1, &FullLookup);
+      br(TMP2);
+
+      Bind(&FullLookup);
+      ldr(TMP1, STATE, offsetof(FEXCore::Core::CpuStateFrame, Pointers.Common.DispatcherLoopTop));
+      str(RipReg.X(), STATE, offsetof(FEXCore::Core::CpuStateFrame, State.rip));
+      br(TMP1);
+    }
 }
 
 #undef DEF_OP

@@ -90,6 +90,7 @@ typedef enum {
     ARM_OPC_MVN,
     ARM_OPC_CSEL,
     ARM_OPC_CSET,
+    ARM_OPC_BFXIL,
 
     ARM_OPC_NEG,
     ARM_OPC_AND,

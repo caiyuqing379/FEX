@@ -404,8 +404,7 @@ void proc_reg_str(X86Operand *opd, char *reg_str, uint32_t *OpSize)
         reg_str[0] = 'r';
         if (reg_str[length-1] == 'd')
           reg_str[length-1] = '\0';
-    } else
-        *OpSize = 4;
+    }
 }
 
 /* set register operand using given string */
@@ -695,6 +694,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
         else if (!strcmp(DecodeInst->TableInfo->Name, "SETZ")
           && (DecodeInst->OP == 0x94)) {
             set_x86_instr_opc(instr, X86_OPC_SETE);
+            SingleSrc = true;
         }
         else if (!strcmp(DecodeInst->TableInfo->Name, "CQO")
           && (DecodeInst->OP == 0x99)) {

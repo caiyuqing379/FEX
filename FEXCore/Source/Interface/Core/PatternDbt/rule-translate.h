@@ -36,10 +36,9 @@ typedef struct {
     uint64_t target_pc;     /* Branch target pc.
                                Only valid if the last instruction of current tb is not branch
                                and covered by this rule */
+    X86Instruction *last_guest;   /* last guest instr */
     TranslationRule *rule;  /* Translation rule for this instruction sequence.
                                Only valid at the first instruction */
-    int icount;             /* Number of guest instructions matched by this rule */
-    uint64_t next_pc;       /* Guest pc after this rule record */
     bool update_cc;         /* If guest instructions in this rule update condition codes */
     bool save_cc;           /* If the condition code needs to be saved */
     ImmMapping *imm_map;

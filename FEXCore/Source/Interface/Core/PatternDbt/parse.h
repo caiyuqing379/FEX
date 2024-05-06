@@ -25,7 +25,6 @@ typedef struct TranslationRule {
     uint32_t guest_instr_num;       /* number of guest instructions */
     struct TranslationRule *next;   /* next rule in this hash entry */
     struct TranslationRule *prev;   /* previous rule in this hash entry */
-    char *intermediate_regs;
     /* ARM_VF, ARM_NF, ARM_CF, ARM_ZF */
     int x86_cc_mapping[X86_CC_NUM]; /* Mapping between arm condition code and x86 condition code
                               0: arm cc is not defined

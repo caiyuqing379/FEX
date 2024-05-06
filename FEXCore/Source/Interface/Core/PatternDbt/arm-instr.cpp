@@ -92,6 +92,7 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_MVN]   = "mvn",
     [ARM_OPC_CSEL]  = "csel",
     [ARM_OPC_CSET]  = "cset",
+    [ARM_OPC_BFXIL] = "bfxil",
     [ARM_OPC_NEG]   = "neg",
     [ARM_OPC_AND]   = "and",
     [ARM_OPC_ANDS]  = "ands",

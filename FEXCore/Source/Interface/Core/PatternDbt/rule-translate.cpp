@@ -55,7 +55,7 @@ inline void FEXCore::CPU::Arm64JITCore::init_map_ptr(void)
 }
 
 inline void FEXCore::CPU::Arm64JITCore::add_rule_record(TranslationRule *rule, uint64_t pc, uint64_t t_pc,
-                                   int icount, bool update_cc, bool save_cc, int pa_opc[20])
+                                   X86Instruction *last_guest, bool update_cc, bool save_cc, int pa_opc[20])
 {
     RuleRecord *p = &rule_record_buf[rule_record_buf_index++];
 
@@ -63,8 +63,7 @@ inline void FEXCore::CPU::Arm64JITCore::add_rule_record(TranslationRule *rule, u
 
     p->pc = pc;
     p->target_pc = t_pc;
-    p->icount = icount;
-    p->next_pc = pc + 4 * icount;
+    p->last_guest = last_guest;
     p->rule = rule;
     p->update_cc = update_cc;
     p->save_cc = save_cc;
@@ -196,18 +195,6 @@ bool FEXCore::CPU::Arm64JITCore::match_imm(uint64_t val, char *sym)
         imap = imap->next;
     }
 
-    /* check if another immediate symbol map to the same value */
-    // imap = imm_map;
-    // while(imap) {
-    //     if (imap->imm_val == val){
-    //         if (debug)
-    //             LogMan::Msg::IFmt( "Unmatch imm: another symbol map {}", val);
-    //         return false;
-    //     }
-
-    //     imap = imap->next;
-    // }
-
     /* add this map to immediate map buffer */
     imap = &imm_map_buf[imm_map_buf_index++];
     assert(imm_map_buf_index < MAX_MAP_BUF_LEN);
@@ -255,7 +242,7 @@ bool FEXCore::CPU::Arm64JITCore::match_offset(X86Imm *goffset, X86Imm *roffset)
         return true;
 
     if (goffset->type == X86_IMM_TYPE_NONE ||
-        roffset->type == X86_IMM_TYPE_NONE){
+        roffset->type == X86_IMM_TYPE_NONE) {
         if (debug) {
             LogMan::Msg::IFmt( "Unmatch offset: none");
         }
@@ -324,13 +311,19 @@ bool FEXCore::CPU::Arm64JITCore::match_operand(X86Instruction *ginstr, X86Instru
         return false;
     }
 
-    if (!opd_idx && !check_opd_size(ropd, ginstr->DestSize, rinstr->DestSize)) {
-        if (debug)
-            LogMan::Msg::IFmt("Different dest size - RULE: {}, GUEST: {}", rinstr->DestSize, ginstr->DestSize);
+    if (!opd_idx && rinstr->DestSize && !check_opd_size(ropd, ginstr->DestSize, rinstr->DestSize)) {
+        if (debug) {
+            #ifdef DEBUG_RULE_LOG
+                writeToLogFile("fex-debug-log", "[INFO] Different dest size - RULE: " + std::to_string(rinstr->DestSize)
+                                + ", GUEST: " + std::to_string(ginstr->DestSize) + "\n");
+            #else
+                LogMan::Msg::IFmt("Different dest size - RULE: {}, GUEST: {}", rinstr->DestSize, ginstr->DestSize);
+            #endif
+        }
         return false;
     }
 
-    if (opd_idx && !check_opd_size(ropd, ginstr->SrcSize, rinstr->SrcSize)) {
+    if (opd_idx && rinstr->SrcSize && !check_opd_size(ropd, ginstr->SrcSize, rinstr->SrcSize)) {
         if (debug)
             LogMan::Msg::IFmt("Different opd src size.");
         return false;
@@ -377,11 +370,11 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
 
     while(p_rule_instr) {
 
-        if (p_rule_instr->opc == X86_OPC_INVALID || p_guest_instr->opc == X86_OPC_INVALID){
+        if (p_rule_instr->opc == X86_OPC_INVALID || p_guest_instr->opc == X86_OPC_INVALID) {
             return false;
         }
 
-        if (p_rule_instr->opc == X86_OPC_NOP && p_guest_instr->opc == X86_OPC_NOP){
+        if (p_rule_instr->opc == X86_OPC_NOP && p_guest_instr->opc == X86_OPC_NOP) {
             goto next_check;
         }
 
@@ -398,8 +391,8 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
         }
 
         /*check parameterized instructions*/
-        if ((p_rule_instr->opd_num == 0) && !check_instr(p_guest_instr)){
-            if (debug){
+        if ((p_rule_instr->opd_num == 0) && !check_instr(p_guest_instr)) {
+            if (debug) {
                 LogMan::Msg::IFmt("parameterization check error!");
             }
             return false;
@@ -409,13 +402,20 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
         for(i = 0; i < p_rule_instr->opd_num; i++) {
             if (!match_operand(p_guest_instr, p_rule_instr, i)) {
                 if (debug) {
-                    if (p_guest_instr->opd[i].type != p_rule_instr->opd[i].type){
-                        fprintf(stderr, "guest->type: %d ", p_guest_instr->opd[i].type);
-                        fprintf(stderr, "rule->type: %d\n", p_rule_instr->opd[i].type);
-                    }
-                    LogMan::Msg::IFmt("Rule index {}, unmatched operand index: {}", rule->index, i);
-                    print_x86_instr(p_guest_instr);
-                    print_x86_instr(p_rule_instr);
+                    #ifdef DEBUG_RULE_LOG
+                        writeToLogFile("fex-debug-log", "[INFO] Rule index " + std::to_string(rule->index)
+                                                + ", unmatched operand index: " + std::to_string(i) + "\n");
+                        output_x86_instr(p_guest_instr);
+                        output_x86_instr(p_rule_instr);
+                    #else
+                        if (p_guest_instr->opd[i].type != p_rule_instr->opd[i].type) {
+                            fprintf(stderr, "guest->type: %d ", p_guest_instr->opd[i].type);
+                            fprintf(stderr, "rule->type: %d\n", p_rule_instr->opd[i].type);
+                        }
+                        LogMan::Msg::IFmt("Rule index {}, unmatched operand index: {}", rule->index, i);
+                        print_x86_instr(p_guest_instr);
+                        print_x86_instr(p_rule_instr);
+                    #endif
                 }
                 return false;
             }
@@ -435,7 +435,7 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
         if ((p_reg_liveness[X86_REG_CF] && (rule->x86_cc_mapping[X86_CF] == 0)) ||
             (p_reg_liveness[X86_REG_SF] && (rule->x86_cc_mapping[X86_SF] == 0)) ||
             (p_reg_liveness[X86_REG_OF] && (rule->x86_cc_mapping[X86_OF] == 0)) ||
-            (p_reg_liveness[X86_REG_ZF] && (rule->x86_cc_mapping[X86_ZF] == 0))){
+            (p_reg_liveness[X86_REG_ZF] && (rule->x86_cc_mapping[X86_ZF] == 0))) {
 
                 if (debug) {
                     LogMan::Msg::IFmt( "Different liveness cc!");
@@ -607,7 +607,7 @@ RuleRecord* FEXCore::CPU::Arm64JITCore::get_translation_rule(uint64_t pc)
     return NULL;
 }
 
-/* For debugging */
+/* For debug */
 #if defined(DEBUG_RULE_TRANSLATION)
 static uint64_t skip_pc[] = {
 };
@@ -716,12 +716,12 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
                 /* Check target_pc for this rule */
                 for (j = 1; j < i; j++)
                     temp = temp->next;
-                if (!temp->next && x86_instr_test_branch(temp))
+                if (!temp->next) // last instr
                     target_pc = temp->pc + temp->InstSize;
 
                 int pa_opc[20];
                 if (!opd_para) {
-                    add_rule_record(cur_rule , cur_head->pc, target_pc, i,
+                    add_rule_record(cur_rule , cur_head->pc, target_pc, temp,
                         true, is_save_cc(cur_head, i), pa_opc);
                 }
 
@@ -800,13 +800,12 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
     #ifdef PROFILE_RULE_TRANSLATION
         num_rules_replace++;
         #ifdef DEBUG_RULE_LOG
-          std::string logContent = "[INFO] ##### PC: 0x" + intToHex(rule_guest_pc) + ", Rule index " +
+            writeToLogFile("fex-debug-log", "[INFO] ##### PC: 0x" + intToHex(rule_guest_pc) + ", Rule index " +
                                    std::to_string(rule->index) + ", Total replace num:" +
-                                   std::to_string(num_rules_replace) + "#####\n\n";
-          writeToLogFile("fex-debug-log", logContent);
+                                   std::to_string(num_rules_replace) + "#####\n\n");
         #else
-          LogMan::Msg::IFmt( "##### PC: 0x{:x}, Rule index {}, Total replace num: {} #####\n",
-            rule_guest_pc, rule->index, num_rules_replace);
+            LogMan::Msg::IFmt( "##### PC: 0x{:x}, Rule index {}, Total replace num: {} #####\n",
+                rule_guest_pc, rule->index, num_rules_replace);
         #endif
     #endif
 
@@ -815,35 +814,43 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
 
     /* Assemble host instructions in the rule */
     while(arm_code) {
-        assemble_arm_instruction(arm_code, rule_r);
+        assemble_arm_instr(arm_code, rule_r);
         arm_code = arm_code->next;
     }
 
     if (rule_r->target_pc != 0) {
-        if (debug)
-          LogMan::Msg::IFmt("--------- target_pc: 0x{:x}\n", rule_r->target_pc);
-
-        X86Instruction* last_x86 = rule->x86_guest;
-        while(last_x86->next) {
-            last_x86 = last_x86->next;
+        if (debug) {
+          #ifdef DEBUG_RULE_LOG
+            writeToLogFile("fex-debug-log", "Current TB target_pc: 0x" + intToHex(rule_r->target_pc) + "\n");
+          #else
+            LogMan::Msg::IFmt("Current TB target_pc: 0x{:x}\n", rule_r->target_pc);
+          #endif
         }
 
-        if (last_x86->opc == X86_OPC_CALL) {
-            assemble_arm_exit2_tb(rule_r->target_pc);
-        }
-        else if (last_x86->opc == X86_OPC_RET) {
+        X86Instruction* last_x86 = rule_r->last_guest;
+
+        if (!x86_instr_test_branch(last_x86)) {
+            assemble_arm_exit(rule_r->target_pc);
+        } else if (last_x86->opc == X86_OPC_CALL) {
+            assemble_arm_exit(0);
+        } else if (last_x86->opc == X86_OPC_RET) {
             this->RipReg = ARM_REG_R20;
-            assemble_arm_exit2_tb(rule_r->target_pc);
-        }
-        else if (last_x86->opc == X86_OPC_JMP) {
+            assemble_arm_exit(0);
+        } else if (last_x86->opc == X86_OPC_JMP) {
             if (last_x86->opd_num && last_x86->opd[0].type == X86_OPD_TYPE_IMM
                     && last_x86->opd[0].content.imm.isRipLiteral) {
                 this->RipReg = ARM_REG_R20;
             }
-            assemble_arm_exit2_tb(rule_r->target_pc);
-        }
-        else if (x86_instr_test_branch(last_x86)){
-            assemble_arm_exit1_tb(rule_r->target_pc);
+            assemble_arm_exit(0);
+        } else {
+            // False Block
+            const auto IsTarget1 = JumpTargets2.try_emplace(this->FalseNewRip).first;
+            Bind(&IsTarget1->second);
+            assemble_arm_exit(this->FalseNewRip);
+            // True Block
+            const auto IsTarget2 = JumpTargets2.try_emplace(this->TrueNewRip).first;
+            Bind(&IsTarget2->second);
+            assemble_arm_exit(this->TrueNewRip);
         }
     }
 }

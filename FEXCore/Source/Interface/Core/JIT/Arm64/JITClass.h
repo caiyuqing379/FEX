@@ -291,7 +291,7 @@ private:
   inline void init_map_ptr(void);
 
   inline void add_rule_record(TranslationRule *rule, uint64_t pc, uint64_t t_pc,
-                              int icount, bool update_cc, bool save_cc, int pa_opc[20]);
+                              X86Instruction *last_guest, bool update_cc, bool save_cc, int pa_opc[20]);
   inline void add_matched_pc(uint64_t pc);
   inline void add_matched_para_pc(uint64_t pc);
   bool match_label(char *lab_str, uint64_t t, uint64_t f);
@@ -318,9 +318,8 @@ private:
   void do_rule_translation(RuleRecord *rule_r, uint32_t *reg_liveness);
 
   void FlipCF();
-  void assemble_arm_instruction(ARMInstruction *instr, RuleRecord *rrule);
-  void assemble_arm_exit1_tb(uint64_t target_pc);
-  void assemble_arm_exit2_tb(uint64_t target_pc);
+  void assemble_arm_instr(ARMInstruction *instr, RuleRecord *rrule);
+  void assemble_arm_exit(uint64_t target_pc);
 
 #define DEF_OPC(x) void Opc_##x(ARMInstruction *instr, RuleRecord *rrule)
 #define ARM_ASM_DEFS
