@@ -920,12 +920,18 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
   const auto DisasmEnd = reinterpret_cast<const vixl::aarch64::Instruction*>(JITBlockTailLocation);
   writeToLogFile("fex-debug-log", "[INFO] Disassemble Begin\n");
   writeToLogFile("fex-x86-asm", "#IR: ");
-  int cnt = 0;
+  bool comein = false, comeout = false;
   for (auto PCToDecode = DisasmBegin; PCToDecode < DisasmEnd; PCToDecode += 4) {
     DisasmDecoder->Decode(PCToDecode);
     auto Output = Disasm->GetOutput();
     writeToLogFile("fex-debug-log", "[INFO] " + std::string(Output) + "\n");
-    if (++cnt > 2)
+    if (!strcmp(Output, "str x0, [x28, #184]")) {
+      comein = true;
+      continue;
+    }
+    if (!strcmp(Output, "ldr x0, [x28, #2080]") || strstr(Output, "ldr x0, pc+8") != nullptr)
+      comeout = true;
+    if (comein && !comeout)
       writeToLogFile("fex-x86-asm", std::string(Output) + "| ");
   }
   writeToLogFile("fex-debug-log", "[INFO] Disassemble End \n\n");
@@ -945,7 +951,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
   if (Disassemble() & FEXCore::Config::Disassemble::BLOCKS) {
     const auto DisasmEnd = reinterpret_cast<const vixl::aarch64::Instruction*>(JITBlockTailLocation);
-    LogMan::Msg::IFmt("[INFO] Disassemble Begin");
+    LogMan::Msg::IFmt("Disassemble Begin");
     for (auto PCToDecode = DisasmBegin; PCToDecode < DisasmEnd; PCToDecode += 4) {
       DisasmDecoder->Decode(PCToDecode);
       auto Output = Disasm->GetOutput();

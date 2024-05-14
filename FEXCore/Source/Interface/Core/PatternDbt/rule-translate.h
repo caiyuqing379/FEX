@@ -19,6 +19,7 @@ typedef struct GuestRegisterMapping {
     X86Register sym;    /* symbolic register in a rule */
     X86Register num;    /* real register in guest instruction */
     uint32_t regsize;
+    bool HighBits;
 
     struct GuestRegisterMapping *next;
 } GuestRegisterMapping;

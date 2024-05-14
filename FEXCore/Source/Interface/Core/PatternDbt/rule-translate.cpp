@@ -116,15 +116,12 @@ bool FEXCore::CPU::Arm64JITCore::match_label(char *lab_str, uint64_t t, uint64_t
     return true;
 }
 
-bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rreg, uint32_t regsize)
+bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rreg, uint32_t regsize, bool HighBits)
 {
     GuestRegisterMapping *gmap = g_reg_map;
 
-    if (greg == X86_REG_INVALID && rreg == X86_REG_INVALID) {
-        if(debug)
-            LogMan::Msg::IFmt("Match reg: all invalid reg!");
+    if (greg == X86_REG_INVALID && rreg == X86_REG_INVALID)
         return true;
-    }
 
     if (greg == X86_REG_INVALID || rreg == X86_REG_INVALID) {
         if(debug)
@@ -133,10 +130,10 @@ bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rr
     }
 
     /* use physical register */
-    if ((X86_REG_RAX <= rreg && rreg <= X86_REG_R15) && greg == rreg)
+    if ((X86_REG_RAX <= rreg && rreg <= X86_REG_XMM15) && greg == rreg)
         return true;
 
-    if (!(X86_REG_REG0 <= rreg && rreg <= X86_REG_REG15)) {
+    if (!(X86_REG_REG0 <= rreg && rreg <= X86_REG_REG31)) {
         if(debug)
             LogMan::Msg::IFmt("Unmatch reg: not reg sym!");
         return false;
@@ -154,25 +151,35 @@ bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rr
     }
 
     /* check if this guest register has another map */
-    // gmap = g_reg_map;
-    // while (gmap) {
-    //     if (gmap->num != greg)
-    //     {
-    //         gmap = gmap->next;
-    //         continue;
-    //     }
+    /*
+    gmap = g_reg_map;
+    while (gmap) {
+        if (gmap->num != greg) {
+            gmap = gmap->next;
+            continue;
+        }
 
-    //     if (debug && (gmap->sym != rreg))
-    //         fprintf(stderr, "Unmatch reg: have anther map: %d %d %d\n", greg, gmap->sym, rreg);
-    //     return (gmap->sym == rreg);
-    // }
+        if (debug && (gmap->sym != rreg))
+            fprintf(stderr, "Unmatch reg: have anther map: %d %d %d\n", greg, gmap->sym, rreg);
+        return (gmap->sym == rreg);
+    }
+    */
 
     /* append this map to register map buffer */
     gmap = &g_reg_map_buf[g_reg_map_buf_index++];
     assert(g_reg_map_buf_index < MAX_MAP_BUF_LEN);
     gmap->sym = rreg;
     gmap->num = greg;
-    if (regsize) gmap->regsize = regsize;
+
+    if (regsize)
+      gmap->regsize = regsize;
+    else
+      gmap->regsize = 0;
+
+    if (HighBits)
+      gmap->HighBits = true;
+    else
+      gmap->HighBits = false;
     ++reg_map_num;
 
     gmap->next = g_reg_map;
@@ -274,12 +281,12 @@ bool FEXCore::CPU::Arm64JITCore::match_opd_imm(X86ImmOperand *gopd, X86ImmOperan
 bool FEXCore::CPU::Arm64JITCore::match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd, uint32_t regsize)
 {
     /* physical reg, but high bit not match */
-    if ((X86_REG_RAX <= ropd->num && ropd->num <= X86_REG_R15) && gopd->HighBits != ropd->HighBits) {
+    if ((X86_REG_RAX <= ropd->num && ropd->num <= X86_REG_XMM15) && gopd->HighBits != ropd->HighBits) {
         if (debug)
             LogMan::Msg::IFmt("Unmatch reg: phy reg, but high bit error.");
         return false;
     }
-    return match_register(gopd->num, ropd->num, regsize);
+    return match_register(gopd->num, ropd->num, regsize, gopd->HighBits);
 }
 
 bool FEXCore::CPU::Arm64JITCore::match_opd_mem(X86MemOperand *gopd, X86MemOperand *ropd)
@@ -292,10 +299,9 @@ bool FEXCore::CPU::Arm64JITCore::match_opd_mem(X86MemOperand *gopd, X86MemOperan
 
 bool FEXCore::CPU::Arm64JITCore::check_opd_size(X86Operand *ropd, uint32_t gsize, uint32_t rsize)
 {
-    if ((ropd->type == X86_OPD_TYPE_REG && X86_REG_RAX <= ropd->content.reg.num && ropd->content.reg.num <= X86_REG_R15)
+    if ((ropd->type == X86_OPD_TYPE_REG && X86_REG_RAX <= ropd->content.reg.num && ropd->content.reg.num <= X86_REG_XMM15)
       || (ropd->type == X86_OPD_TYPE_IMM && ropd->content.imm.isRipLiteral) || ropd->type == X86_OPD_TYPE_MEM) {
-        if (gsize != rsize)
-            return false;
+            return gsize == rsize;
     }
     return true;
 }
@@ -308,6 +314,11 @@ bool FEXCore::CPU::Arm64JITCore::match_operand(X86Instruction *ginstr, X86Instru
     uint32_t regsize = opd_idx == 0 ? ginstr->DestSize : ginstr->SrcSize;
 
     if (gopd->type != ropd->type) {
+        #ifdef DEBUG_RULE_LOG
+            writeToLogFile("fex-debug-log", "[INFO] Different operand type\n");
+        #else
+            LogMan::Msg::IFmt("Different operand {} type", opd_idx);
+        #endif
         return false;
     }
 
@@ -408,10 +419,6 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
                         output_x86_instr(p_guest_instr);
                         output_x86_instr(p_rule_instr);
                     #else
-                        if (p_guest_instr->opd[i].type != p_rule_instr->opd[i].type) {
-                            fprintf(stderr, "guest->type: %d ", p_guest_instr->opd[i].type);
-                            fprintf(stderr, "rule->type: %d\n", p_rule_instr->opd[i].type);
-                        }
                         LogMan::Msg::IFmt("Rule index {}, unmatched operand index: {}", rule->index, i);
                         print_x86_instr(p_guest_instr);
                         print_x86_instr(p_rule_instr);
@@ -527,16 +534,24 @@ static ARMRegister guest_host_reg_map(X86Register& reg)
     case X86_REG_XMM14: return ARM_REG_V30;
     case X86_REG_XMM15: return ARM_REG_V31;
     default:
-      LOGMAN_MSG_A_FMT("Unsupported reg num");
+      LOGMAN_MSG_A_FMT("Unsupported guest reg num");
       return ARM_REG_INVALID;
   }
 }
 
-
 ARMRegister FEXCore::CPU::Arm64JITCore::GetGuestRegMap(ARMRegister& reg, uint32_t& regsize)
 {
+    return GetGuestRegMap(reg, regsize, false);
+}
+
+ARMRegister FEXCore::CPU::Arm64JITCore::GetGuestRegMap(ARMRegister& reg, uint32_t& regsize, bool&& HighBits)
+{
+    if (reg == ARM_REG_INVALID)
+        LOGMAN_MSG_A_FMT("ArmReg is Invalid!");
+
     if (ARM_REG_R0 <= reg && reg <= ARM_REG_ZR) {
         regsize = 0;
+        HighBits = false;
         return reg;
     }
 
@@ -545,6 +560,7 @@ ARMRegister FEXCore::CPU::Arm64JITCore::GetGuestRegMap(ARMRegister& reg, uint32_
     while (gmap) {
         if (!strcmp(get_arm_reg_str(reg), get_x86_reg_str(gmap->sym))) {
             regsize = gmap->regsize;
+            HighBits = gmap->HighBits;
             ARMRegister armreg = guest_host_reg_map(gmap->num);
             if (armreg == ARM_REG_INVALID) {
                 LogMan::Msg::EFmt("Unsupported reg num - arm: {}, x86: {}", get_arm_reg_str(reg), get_x86_reg_str(gmap->num));
@@ -820,11 +836,7 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
 
     if (rule_r->target_pc != 0) {
         if (debug) {
-          #ifdef DEBUG_RULE_LOG
-            writeToLogFile("fex-debug-log", "Current TB target_pc: 0x" + intToHex(rule_r->target_pc) + "\n");
-          #else
             LogMan::Msg::IFmt("Current TB target_pc: 0x{:x}\n", rule_r->target_pc);
-          #endif
         }
 
         X86Instruction* last_x86 = rule_r->last_guest;

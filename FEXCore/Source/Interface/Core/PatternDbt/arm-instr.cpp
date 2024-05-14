@@ -135,9 +135,12 @@ static const char *arm_opc_str[] = {
     // FP/NEON
     [ARM_OPC_ADDP]  = "addp",
     [ARM_OPC_CMEQ]  = "cmeq",
+    [ARM_OPC_CMGT]  = "cmgt",
     [ARM_OPC_CMLT]  = "cmlt",
     [ARM_OPC_DUP]   = "dup",
+    [ARM_OPC_EXT]   = "ext",
     [ARM_OPC_FMOV]  = "fmov",
+    [ARM_OPC_INS]   = "ins",
     [ARM_OPC_LD1]   = "ld1",
     [ARM_OPC_SQXTUN] = "sqxtun",
     [ARM_OPC_SQXTUN2] = "sqxtun2",
@@ -272,7 +275,7 @@ static ARMOpcode get_arm_opcode(char *opc_str)
         if (!strcmp(opc_str, arm_opc_str[i]))
             return static_cast<ARMOpcode>(i);
     }
-    LogMan::Msg::EFmt("[ARM] Error: unsupported opcode: {}\n", opc_str);
+    LogMan::Msg::EFmt("[ARM] Error: unsupported opcode: {}", opc_str);
     exit(0);
     return ARM_OPC_INVALID;
 }
@@ -313,7 +316,7 @@ ARMConditionCode get_arm_cc(char *opc_str)
     size_t len = strlen(opc_str);
 
     /* Less than 2, so guess it is always executed */
-    if (len < 2)
+    if (len < 3)
         return ARM_CC_AL;
 
     for (i = ARM_CC_INVALID; i < ARM_CC_END; i++) {
@@ -324,7 +327,7 @@ ARMConditionCode get_arm_cc(char *opc_str)
                opc_str[len-5] = '\n';
                return static_cast<ARMConditionCode>(i);
             }
-        } else if (!strcmp(arm_cc_str[i], &opc_str[len-2])) {
+        } else if (opc_str[len-3] == '.' && !strcmp(arm_cc_str[i], &opc_str[len-2])) {
             opc_str[len-3] = '\0';
             return static_cast<ARMConditionCode>(i);
         }
@@ -411,7 +414,7 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
           instr->OpSize = 8;
         reg_str[0] = 'r';
     }
-    else if (!opd_index && len >= 7) {
+    else if (!opd_index && len >= 5) {
         if (reg_str[len-3] == '1' && reg_str[len-2] == '6' && reg_str[len-1] == 'b') {
           instr->OpSize = 16;
           instr->ElementSize = 1;
@@ -442,13 +445,16 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
         }
     }
 
-    if (len >= 7 && (instr->opc == ARM_OPC_UMOV || instr->opc == ARM_OPC_LD1)) {
+    if (len >= 5 && (instr->opc == ARM_OPC_UMOV || instr->opc == ARM_OPC_LD1 || instr->opc == ARM_OPC_INS)) {
         if (reg_str[len-4] == 'h' && reg_str[len-3] == '[' && reg_str[len-1] == ']') {
           instr->ElementSize = 2;
-          instr->Index = atoi(&reg_str[len-2]);
+          opd->content.reg.Index = atoi(&reg_str[len-2]);
         } else if (reg_str[len-5] == 'd' && reg_str[len-3] == '[' && reg_str[len-1] == ']') {
           instr->ElementSize = 8;
-          instr->Index = atoi(&reg_str[len-2]);
+          opd->content.reg.Index = atoi(&reg_str[len-2]);
+        } else if (reg_str[len-4] == 'd' && reg_str[len-3] == '[' && reg_str[len-1] == ']') {
+          instr->ElementSize = 8;
+          opd->content.reg.Index = atoi(&reg_str[len-2]);
         }
     }
 

@@ -295,7 +295,7 @@ private:
   inline void add_matched_pc(uint64_t pc);
   inline void add_matched_para_pc(uint64_t pc);
   bool match_label(char *lab_str, uint64_t t, uint64_t f);
-  bool match_register(X86Register greg, X86Register rreg, uint32_t regsize = 0);
+  bool match_register(X86Register greg, X86Register rreg, uint32_t regsize = 0, bool HighBits = false);
   bool match_imm(uint64_t val, char *sym);
   bool match_scale(X86Imm *gscale, X86Imm *rscale);
   bool match_offset(X86Imm *goffset, X86Imm *roffset);
@@ -309,6 +309,7 @@ private:
   uint64_t get_imm_map(char *sym);
   uint64_t get_imm_map_wrapper(ARMImm *imm);
   ARMRegister GetGuestRegMap(ARMRegister& reg, uint32_t& regsize);
+  ARMRegister GetGuestRegMap(ARMRegister& reg, uint32_t& regsize, bool&& HighBits);
 
   bool instr_is_match(uint64_t pc);
   bool instrs_is_match(uint64_t pc);

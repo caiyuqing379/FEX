@@ -589,10 +589,10 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
               DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", DestSize, SrcSize, DecodeInst->InstSize);
     #endif
 
-    bool SingleSrc = false, MutiplyOnce = false;
-
-    if (DecodeInst->Flags & (FEXCore::X86Tables::DecodeFlags::FLAG_SEGMENTS))
+    if (DecodeInst->Flags & (FEXCore::X86Tables::DecodeFlags::FLAG_SEGMENTS | FEXCore::X86Tables::DecodeFlags::FLAG_LOCK))
       return;
+
+    bool SingleSrc = false, ThreeSrc = false, MutiplyOnce = false;
 
     if (!strcmp(DecodeInst->TableInfo->Name, "NOP"))
       set_x86_instr_opc(instr, X86_OPC_NOP);
@@ -1116,6 +1116,7 @@ constexpr uint16_t PF_3A_66   = 1;
         if (!strcmp(DecodeInst->TableInfo->Name, "PALIGNR") && (DecodeInst->OP == OPD(0, PF_3A_NONE, 0x0F)
           || DecodeInst->OP == OPD(0, PF_3A_66,   0x0F) || DecodeInst->OP == OPD(1, PF_3A_66, 0x0F))) {
             set_x86_instr_opc(instr, X86_OPC_PALIGNR);
+            ThreeSrc = true;
         }
 #undef OPD
 
@@ -1481,7 +1482,7 @@ constexpr uint16_t PF_3A_66   = 1;
     }
 
     // cmp, add, or, mov, test, sub
-    if (num == 3) {
+    if (num == 3 && !ThreeSrc) {
       instr->opd[1] = instr->opd[2];
       num--;
     }
@@ -1501,5 +1502,4 @@ constexpr uint16_t PF_3A_66   = 1;
     #ifdef DEBUG_RULE_LOG
       output_x86_instr(instr);
     #endif
-    // print_x86_instr(instr);
 }

@@ -139,9 +139,12 @@ typedef enum {
     // FP/NEON
     ARM_OPC_ADDP,
     ARM_OPC_CMEQ,
+    ARM_OPC_CMGT,
     ARM_OPC_CMLT,
     ARM_OPC_DUP,
+    ARM_OPC_EXT,
     ARM_OPC_FMOV,
+    ARM_OPC_INS,
     ARM_OPC_LD1,
     ARM_OPC_SQXTUN,
     ARM_OPC_SQXTUN2,
@@ -216,6 +219,7 @@ typedef struct {
 
 typedef struct {
     ARMRegister num;
+    size_t Index;
     ARMOperandScale scale;
 } ARMRegOperand;
 
@@ -254,7 +258,6 @@ typedef struct ARMInstruction {
     size_t opd_num;     /* number of operands of this instruction */
     size_t OpSize;      /* size of operands: 1, 2, 4, 8 or 16 bytes */
     size_t ElementSize; /* for SIMD&FD */
-    size_t Index;
 
     struct ARMInstruction *prev; /* previous instruction in this block */
     struct ARMInstruction *next; /* next instruction in this block */

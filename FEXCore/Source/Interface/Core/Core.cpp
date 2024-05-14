@@ -793,7 +793,7 @@ namespace FEXCore::Context {
         LogMan::Msg::EFmt("CodeBlocks Size > 1: {}", CodeBlocks->size());
 
       if (IsRuleTrans) {
-        LogMan::Msg::IFmt("Use Translation Block, Skip IR Block.");
+        // LogMan::Msg::IFmt("Use Translation Block, Skip IR Block.");
         IsRuleTrans = false;
         return { nullptr, true, nullptr, 0, 0, 0, 0 };
       }

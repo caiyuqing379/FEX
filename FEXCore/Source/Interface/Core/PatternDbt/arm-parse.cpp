@@ -85,7 +85,7 @@ static int parse_scale(char *line, int idx, ARMOperandScale *pscale)
             strncat(scale_str, &line[idx++], 1);
         set_arm_instr_opd_scale_imm_str(pscale, scale_str);
     } else
-        LogMan::Msg::IFmt( "Error to parsing operand scale value.");
+        LogMan::Msg::EFmt( "Error to parsing operand scale value.");
 
     return idx;
 }
@@ -180,7 +180,7 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
             idx += 2;
         }
     } else
-        LogMan::Msg::EFmt("Error in parsing arm operand: unknown operand type: {}.", line[idx]);
+        LogMan::Msg::EFmt("Error in parsing {} operand: unknown operand type: {}.", get_arm_instr_opc(instr->opc), line[idx]);
 
     if (line[idx] == ',')
         return idx+2;
@@ -259,25 +259,6 @@ bool parse_rule_arm_code(FILE *fp, TranslationRule *rule)
             fseek(fp, (0-strlen(line)), SEEK_CUR);
             break;
         }
-
-        // if (strstr(line, "Condition Code")) {
-        //     int i;
-        //     for(i = 0; i < 4; i++) {
-        //         if (fgets(line, 500, fp)) {
-        //             if (strstr(line, "none"))
-        //                 rule->x86_cc_mapping[i] = 0;
-        //             else if (strstr(line, "arm")) {
-        //                 rule->x86_cc_mapping[i] = 1;
-        //                 if (strstr(line, "!"))
-        //                     rule->x86_cc_mapping[i] = 2;
-        //             }
-        //         } else {
-        //             fprintf(stderr, "Error to parse condition code mapping, exit.\n");
-        //             exit(-1);
-        //         }
-        //     }
-        //     continue;
-        // }
 
         /* check if this line is a comment */
         char fs = line[0];
