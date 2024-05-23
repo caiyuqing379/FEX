@@ -1,5 +1,6 @@
 #include "Interface/Core/JIT/Arm64/JITClass.h"
 
+#include <FEXCore/Debug/InternalThreadState.h>
 #include <FEXCore/Utils/LogManager.h>
 
 #include <cstdio>
@@ -315,7 +316,7 @@ bool FEXCore::CPU::Arm64JITCore::match_operand(X86Instruction *ginstr, X86Instru
 
     if (gopd->type != ropd->type) {
         #ifdef DEBUG_RULE_LOG
-            writeToLogFile("fex-debug-log", "[INFO] Different operand type\n");
+            writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] Different operand type\n");
         #else
             LogMan::Msg::IFmt("Different operand {} type", opd_idx);
         #endif
@@ -325,7 +326,7 @@ bool FEXCore::CPU::Arm64JITCore::match_operand(X86Instruction *ginstr, X86Instru
     if (!opd_idx && rinstr->DestSize && !check_opd_size(ropd, ginstr->DestSize, rinstr->DestSize)) {
         if (debug) {
             #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO] Different dest size - RULE: " + std::to_string(rinstr->DestSize)
+                writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] Different dest size - RULE: " + std::to_string(rinstr->DestSize)
                                 + ", GUEST: " + std::to_string(ginstr->DestSize) + "\n");
             #else
                 LogMan::Msg::IFmt("Different dest size - RULE: {}, GUEST: {}", rinstr->DestSize, ginstr->DestSize);
@@ -414,10 +415,10 @@ bool FEXCore::CPU::Arm64JITCore::match_rule_internal(X86Instruction *instr, Tran
             if (!match_operand(p_guest_instr, p_rule_instr, i)) {
                 if (debug) {
                     #ifdef DEBUG_RULE_LOG
-                        writeToLogFile("fex-debug-log", "[INFO] Rule index " + std::to_string(rule->index)
+                        writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] Rule index " + std::to_string(rule->index)
                                                 + ", unmatched operand index: " + std::to_string(i) + "\n");
-                        output_x86_instr(p_guest_instr);
-                        output_x86_instr(p_rule_instr);
+                        output_x86_instr(p_guest_instr, ThreadState->ThreadManager.PID);
+                        output_x86_instr(p_rule_instr, ThreadState->ThreadManager.PID);
                     #else
                         LogMan::Msg::IFmt("Rule index {}, unmatched operand index: {}", rule->index, i);
                         print_x86_instr(p_guest_instr);
@@ -623,13 +624,6 @@ RuleRecord* FEXCore::CPU::Arm64JITCore::get_translation_rule(uint64_t pc)
     return NULL;
 }
 
-/* For debug */
-#if defined(DEBUG_RULE_TRANSLATION)
-static uint64_t skip_pc[] = {
-};
-static uint64_t take_pc[] = {
-};
-#endif
 
 #ifdef PROFILE_RULE_TRANSLATION
 uint64_t rule_guest_pc = 0;
@@ -667,8 +661,8 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
     bool ismatch = false;
 
     #ifdef DEBUG_RULE_LOG
-      ofstream_x86_instr2(guest_instr);
-      ofstream_rule_arm_instr2(guest_instr);
+      ofstream_x86_instr2(guest_instr, ThreadState->ThreadManager.PID);
+      ofstream_rule_arm_instr2(guest_instr, ThreadState->ThreadManager.PID);
     #endif
 
     LogMan::Msg::IFmt("=====Guest Instr Match Rule Start, Guest PC: 0x{:x}=====\n", guest_instr->pc);
@@ -816,7 +810,7 @@ void FEXCore::CPU::Arm64JITCore::do_rule_translation(RuleRecord *rule_r, uint32_
     #ifdef PROFILE_RULE_TRANSLATION
         num_rules_replace++;
         #ifdef DEBUG_RULE_LOG
-            writeToLogFile("fex-debug-log", "[INFO] ##### PC: 0x" + intToHex(rule_guest_pc) + ", Rule index " +
+            writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] ##### PC: 0x" + intToHex(rule_guest_pc) + ", Rule index " +
                                    std::to_string(rule->index) + ", Total replace num:" +
                                    std::to_string(num_rules_replace) + "#####\n\n");
         #else

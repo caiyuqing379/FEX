@@ -918,13 +918,13 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
 
 #ifdef DEBUG_RULE_LOG
   const auto DisasmEnd = reinterpret_cast<const vixl::aarch64::Instruction*>(JITBlockTailLocation);
-  writeToLogFile("fex-debug-log", "[INFO] Disassemble Begin\n");
-  writeToLogFile("fex-x86-asm", "#IR: ");
+  writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] Disassemble Begin\n");
+  writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-asm.log", "#IR: ");
   bool comein = false, comeout = false;
   for (auto PCToDecode = DisasmBegin; PCToDecode < DisasmEnd; PCToDecode += 4) {
     DisasmDecoder->Decode(PCToDecode);
     auto Output = Disasm->GetOutput();
-    writeToLogFile("fex-debug-log", "[INFO] " + std::string(Output) + "\n");
+    writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] " + std::string(Output) + "\n");
     if (!strcmp(Output, "str x0, [x28, #184]")) {
       comein = true;
       continue;
@@ -932,10 +932,10 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry,
     if (!strcmp(Output, "ldr x0, [x28, #2080]") || strstr(Output, "ldr x0, pc+8") != nullptr)
       comeout = true;
     if (comein && !comeout)
-      writeToLogFile("fex-x86-asm", std::string(Output) + "| ");
+      writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-asm.log", std::string(Output) + "| ");
   }
-  writeToLogFile("fex-debug-log", "[INFO] Disassemble End \n\n");
-  writeToLogFile("fex-x86-asm", "\n");
+  writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] Disassemble End \n\n");
+  writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-asm.log", "\n");
 #endif
 
 #ifdef VIXL_DISASSEMBLER

@@ -46,7 +46,7 @@ typedef struct TranslationRule {
 int rule_hash_key(X86Instruction *, int);
 
 TranslationRule *get_rule(void);
-void parse_translation_rules(void);
+void ParseTranslationRules(uint64_t pid);
 
 extern TranslationRule *rule_table[];
 extern TranslationRule *cache_rule_table[];

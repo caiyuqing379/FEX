@@ -533,7 +533,7 @@ int main(int argc, char **argv, char **const envp) {
     });
   }
 
-  parse_translation_rules();
+  ParseTranslationRules(ParentThread->ThreadManager.PID);
 
   if (AOTIRGenerate()) {
     for(auto &Section: Loader.Sections) {

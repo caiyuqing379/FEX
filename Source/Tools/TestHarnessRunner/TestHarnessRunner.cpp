@@ -302,7 +302,7 @@ int main(int argc, char **argv, char **const envp) {
       return 1;
     }
 
-    parse_translation_rules();
+    ParseTranslationRules(ParentThread->ThreadManager.PID);
 
     int LongJumpVal = setjmp(LongJumpHandler::LongJump);
     if (!LongJumpVal) {

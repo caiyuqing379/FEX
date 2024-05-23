@@ -220,10 +220,10 @@ TranslationRule *get_rule(void)
     return &rule_buf[0];
 }
 
-void flush_file()
+static void flush_file(uint64_t pid)
 {
     std::filesystem::path homeDir = std::filesystem::path(getenv("HOME"));
-    std::filesystem::path combinedPath = homeDir / "fex-x86-asm";
+    std::filesystem::path combinedPath = homeDir / (std::to_string(pid) + "fex-asm.log");
     std::string inputFile = combinedPath.string();
     std::ofstream file(inputFile, std::ios::trunc);
     if (!file.is_open()) {
@@ -232,7 +232,7 @@ void flush_file()
     }
     file.close();
 
-    std::filesystem::path combinedPath2 = homeDir / "fex-debug-log";
+    std::filesystem::path combinedPath2 = homeDir / (std::to_string(pid) + "fex-debug.log");
     std::string inputFile2 = combinedPath2.string();
     std::ofstream file2(inputFile2, std::ios::trunc);
     if (!file2.is_open()) {
@@ -242,7 +242,7 @@ void flush_file()
     file2.close();
 }
 
-void parse_translation_rules(void)
+void ParseTranslationRules(uint64_t pid)
 {
     std::filesystem::path homeDir = std::filesystem::path(getenv("HOME"));
     std::filesystem::path combinedPath = homeDir / "rules4all";
@@ -258,7 +258,7 @@ void parse_translation_rules(void)
     /* 1. init environment */
     init_buf();
     #ifdef DEBUG_RULE_LOG
-      flush_file();
+      flush_file(pid);
     #endif
 
     LogMan::Msg::IFmt("== Loading translation rules from {}...\n", rule_file);

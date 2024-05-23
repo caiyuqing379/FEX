@@ -187,9 +187,9 @@ static ARMEmitter::ExtendedMemOperand  GenerateExtMemOperand(ARMEmitter::Registe
           return ARMEmitter::ExtendedMemOperand(Base.X(), ARMEmitter::IndexType::OFFSET, Imm);
     } else {
       switch(OffsetScale.content.extend) {
-        case ARM_OPD_EXTEND_UXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetRegMap(Index).X(), ARMEmitter::ExtendedType::UXTW, FEXCore::ilog2(amount) );
-        case ARM_OPD_EXTEND_SXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetRegMap(Index).X(), ARMEmitter::ExtendedType::SXTW, FEXCore::ilog2(amount) );
-        case ARM_OPD_EXTEND_SXTX: return ARMEmitter::ExtendedMemOperand(Base.X(), GetRegMap(Index).X(), ARMEmitter::ExtendedType::SXTX, FEXCore::ilog2(amount) );
+        case ARM_OPD_EXTEND_UXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetRegMap(Index).X(), ARMEmitter::ExtendedType::UXTW, FEXCore::ilog2(amount));
+        case ARM_OPD_EXTEND_SXTW: return ARMEmitter::ExtendedMemOperand(Base.X(), GetRegMap(Index).X(), ARMEmitter::ExtendedType::SXTW, FEXCore::ilog2(amount));
+        case ARM_OPD_EXTEND_SXTX: return ARMEmitter::ExtendedMemOperand(Base.X(), GetRegMap(Index).X(), ARMEmitter::ExtendedType::SXTX, FEXCore::ilog2(amount));
         default: LOGMAN_MSG_A_FMT("Unhandled GenerateExtMemOperand OffsetType"); break;
       }
     }
@@ -212,18 +212,28 @@ DEF_OPC(LDR) {
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
           auto ARMReg = GetGuestRegMap(opd1->content.mem.base, Reg1Size);
           auto Base = GetRegMap(ARMReg);
-          int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
+          int64_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
-          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && ((Imm < 0) || (Imm > 0 && (Imm >> 12) != 0))) {
-            if (Imm < 0) {
-              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - Imm);
-            } else {
+          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE)) {
+            // Negative Imm with less than 12 bit
+            if (Imm < 0 && !((0 - Imm) >> 12)) {
+              int32_t s = static_cast<int32_t>(Imm);
+              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - s);
+              MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
+            }
+            else if (Imm < 0 && ((0 - Imm) >> 12)) {
+              OffsetScale.imm.content.val = 1;
+              OffsetScale.content.extend = ARM_OPD_EXTEND_SXTX;
+              LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), Imm);
+              MemSrc = GenerateExtMemOperand(Base, ARM_REG_R21, 0, OffsetScale, PrePost);
+            }
+            else if (Imm > 0 && (Imm >> 12)) {
               LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r22, Imm);
               add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, ARMEmitter::Reg::r22);
+              MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
             }
-            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
           }
 
           if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_LDRH || instr->opc == ARM_OPC_LDR) {
@@ -335,18 +345,28 @@ DEF_OPC(STR) {
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
           auto ARMReg = GetGuestRegMap(opd1->content.mem.base, Reg1Size);
           auto Base = GetRegMap(ARMReg);
-          int32_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
+          int64_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
-          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE) && ((Imm < 0) || (Imm > 0 && (Imm >> 12) != 0))) {
-            if (Imm < 0) {
-              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - Imm);
-            } else {
+          if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE)) {
+            // Negative Imm with less than 12 bit
+            if (Imm < 0 && !((0 - Imm) >> 12)) {
+              int32_t s = static_cast<int32_t>(Imm);
+              sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - s);
+              MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
+            }
+            else if (Imm < 0 && ((0 - Imm) >> 12)) {
+              OffsetScale.imm.content.val = 1;
+              OffsetScale.content.extend = ARM_OPD_EXTEND_SXTX;
+              LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), Imm);
+              MemSrc = GenerateExtMemOperand(Base, ARM_REG_R21, 0, OffsetScale, PrePost);
+            }
+            else if (Imm > 0 && (Imm >> 12)) {
               LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r22, Imm);
               add(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, ARMEmitter::Reg::r22);
+              MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
             }
-            MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
           }
 
           if (SrcReg >= ARM_REG_R0 && SrcReg <= ARM_REG_R31) {
@@ -548,8 +568,9 @@ DEF_OPC(AND) {
     uint8_t     OpSize = instr->OpSize;
 
     uint32_t Reg0Size, Reg1Size, Reg2Size;
+    bool HighBits = false;
     auto DstReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
-    auto SrcReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto SrcReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size, std::forward<bool>(HighBits));
 
     const auto EmitSize =
       (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
@@ -561,7 +582,12 @@ DEF_OPC(AND) {
         uint64_t Imm = get_imm_map_wrapper(&opd2->content.imm);
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
 
-        if ((Imm >> 12) > 0 || !IsImm) {
+        if (HighBits) {
+          lsr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, Src1, 8);
+          Src1 = ARMEmitter::Reg::r21;
+        }
+
+        if ((Imm >> 12) != 0 || !IsImm) {
           LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
           if(instr->opc == ARM_OPC_AND)
             and_(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);  // and imm
@@ -634,8 +660,9 @@ DEF_OPC(ORR) {
     uint8_t     OpSize = instr->OpSize;
 
     uint32_t Reg0Size, Reg1Size, Reg2Size;
+    bool HighBits = false;
     auto DstReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
-    auto SrcReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto SrcReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size, std::forward<bool>(HighBits));
 
     const auto EmitSize =
       (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
@@ -647,11 +674,17 @@ DEF_OPC(ORR) {
         auto Imm = get_imm_map_wrapper(&opd2->content.imm);
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
 
-        if ((Imm >> 12) > 0 || !IsImm) {
+        if (HighBits) {
+          lsr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, Src1, 8);
+          Src1 = ARMEmitter::Reg::r21;
+        }
+
+        if ((Imm >> 12) != 0 || !IsImm) {
           LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
           orr(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);
-        } else
+        } else {
           orr(EmitSize, Dst, Src1, Imm);
+        }
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
 
@@ -702,8 +735,9 @@ DEF_OPC(EOR) {
     uint8_t     OpSize = instr->OpSize;
 
     uint32_t Reg0Size, Reg1Size, Reg2Size;
+    bool HighBits = false;
     auto DstReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
-    auto SrcReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
+    auto SrcReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size, std::forward<bool>(HighBits));
 
     const auto EmitSize =
       (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
@@ -715,7 +749,12 @@ DEF_OPC(EOR) {
         int32_t Imm = get_imm_map_wrapper(&opd2->content.imm);
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
 
-        if ((Imm >> 12) > 0 || !IsImm) {
+        if (HighBits) {
+          lsr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, Src1, 8);
+          Src1 = ARMEmitter::Reg::r21;
+        }
+
+        if ((Imm >> 12) != 0 || !IsImm) {
           LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
           eor(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);
         } else {
@@ -900,22 +939,22 @@ DEF_OPC(ADD) {
         auto Src1 = GetRegMap(SrcReg);
         int32_t Imm = get_imm_map_wrapper(&opd2->content.imm);
 
-        if (Imm < 0) {
+        if (Imm < 0 && !((0 - Imm) >> 12)) {
           if (instr->opc == ARM_OPC_ADD)
             sub(EmitSize, Dst, Src1, 0 - Imm);
           else
             subs(EmitSize, Dst, Src1, 0 - Imm);
-        } else if (Imm > 0 && ((Imm >> 12) > 0)) {
+        } else if (Imm > 0 && !(Imm >> 12)) {
+          if (instr->opc == ARM_OPC_ADD)
+            add(EmitSize, Dst, Src1, Imm);  // LSL12 default false
+          else
+            adds(EmitSize, Dst, Src1, Imm);
+        } else {
           LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
           if (instr->opc == ARM_OPC_ADD)
             add(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);
           else
             adds(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);
-        } else {
-          if (instr->opc == ARM_OPC_ADD)
-            add(EmitSize, Dst, Src1, Imm);  // LSL12 default false
-          else
-            adds(EmitSize, Dst, Src1, Imm);
         }
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_REG) {
@@ -1042,15 +1081,15 @@ DEF_OPC(SUB) {
     auto SrcReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
 
     const auto EmitSize =
-        (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
-        (Reg0Size == 4 || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+      (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
+      (Reg0Size == 4 || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
         auto Dst  = GetRegMap(DstReg);
         auto Src1 = GetRegMap(SrcReg);
         int32_t Imm = get_imm_map_wrapper(&opd2->content.imm);
 
-        if ((Imm >> 12) > 0) {
+        if ((Imm >> 12) != 0) {
           LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
           if (instr->opc == ARM_OPC_SUB) {
             sub(EmitSize, Dst, Src1, ARMEmitter::Reg::r20);
@@ -1237,7 +1276,8 @@ DEF_OPC(TST) {
 
     bool isRegSym = false;
     uint32_t Reg0Size, Reg1Size;
-    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
+    bool HighBits = false;
+    auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size, std::forward<bool>(HighBits));
     auto Dst = GetRegMap(ARMReg);
 
     const auto EmitSize =
@@ -1254,9 +1294,11 @@ DEF_OPC(TST) {
             auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
             uint32_t amt = opd1->content.reg.scale.imm.content.val;
             tst(EmitSize, Dst, Src, Shift, amt);
-        } else if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
+        }
+        else if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_NONE) {
             tst(EmitSize, Dst, Src);
-        } else if (isRegSym) {
+        }
+        else if (isRegSym) {
             unsigned Shift = 32 - (Reg0Size * 8);
             if (Dst == Src) {
               cmn(EmitSize, ARMEmitter::Reg::zr, Dst, ARMEmitter::ShiftType::LSL, Shift);
@@ -1270,6 +1312,11 @@ DEF_OPC(TST) {
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
         uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
+
+        if (HighBits) {
+          lsr(ARMEmitter::Size::i32Bit, ARMEmitter::Reg::r21, Dst, 8);
+          Dst = ARMEmitter::Reg::r21;
+        }
 
         if (!isRegSym) {
             if (IsImm) {
@@ -1285,7 +1332,7 @@ DEF_OPC(TST) {
               and_(EmitSize, ARMEmitter::Reg::r26, Dst, Imm);
             } else {
               LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
-              and_(EmitSize, ARMEmitter::Reg::r26, ARMEmitter::Reg::r20, ARMEmitter::Reg::r20);
+              and_(EmitSize, ARMEmitter::Reg::r26, Dst, ARMEmitter::Reg::r20);
             }
             cmn(EmitSize, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
         }
@@ -1300,7 +1347,7 @@ DEF_OPC(COMPARE) {
     ARMOperand *opd1 = &instr->opd[1];
     uint8_t     OpSize = instr->OpSize;
 
-    bool isRegSym = false;
+    bool isRegSym = false, preIsMem = false;
     uint32_t Reg0Size, Reg1Size;
     auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
@@ -1312,8 +1359,9 @@ DEF_OPC(COMPARE) {
       [ capture_clause ] ( parameters ) -> return_type {
           function_body
       }
-    }*/
-    auto adjust_8_16_cmp = [=] (bool isImm = false, uint32_t regsize = 0, uint64_t Imm = 0, ARMEmitter::Register Src = ARMEmitter::Reg::r20) -> void {
+    */
+    auto adjust_8_16_cmp = [=] (bool isImm = false, uint32_t regsize = 0,
+                    uint64_t Imm = 0, ARMEmitter::Register Src = ARMEmitter::Reg::r20) -> void {
         const auto s32 = ARMEmitter::Size::i32Bit;
         const auto s64 = ARMEmitter::Size::i64Bit;
         unsigned Shift = 32 - (regsize * 8);
@@ -1321,13 +1369,28 @@ DEF_OPC(COMPARE) {
 
         if (isImm) {
             if (regsize == 2) {
-              uxth(s32, ARMEmitter::Reg::r27, Dst);
-              LoadConstant(s32, (ARMEmitter::Reg::r20).X(), Imm);
-              sub(s32, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, ARMEmitter::Reg::r20);
+              if (!preIsMem)
+                uxth(s32, ARMEmitter::Reg::r27, Dst);
+              else
+                mov(s32, ARMEmitter::Reg::r27, Dst);
+              uint16_t u16 = static_cast<uint16_t>(Imm);
+              if (u16 >> 12) {
+                LoadConstant(s32, (ARMEmitter::Reg::r20).X(), u16);
+                sub(s32, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, ARMEmitter::Reg::r20);
+              } else {
+                sub(s32, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, u16);
+              }
             } else {
-              if (regsize == 1)
-                uxtb(s32, ARMEmitter::Reg::r27, Dst);
-              sub(s32, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, Imm);
+              if (regsize == 1) {
+                if (!preIsMem)
+                  uxtb(s32, ARMEmitter::Reg::r27, Dst);
+                else
+                  mov(s32, ARMEmitter::Reg::r27, Dst);
+                sub(s32, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, Imm);
+              } else {
+                LoadConstant(s32, (ARMEmitter::Reg::r20).X(), Imm);
+                sub(s32, ARMEmitter::Reg::r26, ARMEmitter::Reg::r27, ARMEmitter::Reg::r20);
+              }
             }
             cmn(s32, ARMEmitter::Reg::zr, ARMEmitter::Reg::r26, ARMEmitter::ShiftType::LSL, Shift);
             mrs((ARMEmitter::Reg::r20).X(), ARMEmitter::SystemRegister::NZCV);
@@ -1603,11 +1666,14 @@ DEF_OPC(SET_CALL) {
         get_label_map(opd->content.imm.content.sym, &target, &fallthrough);
         LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r20).X(), fallthrough & Mask);
 
-        if ((target >> 12) != 0) {
+        int64_t s = static_cast<int64_t>(target);
+        if (s < 0 && !((~s) >> 12)) {
+          sub(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), 0-s);
+        } else if (s > 0 && !(s >> 12)) {
+          add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), target);
+        } else {
           LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), target);
           add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), (ARMEmitter::Reg::r21).X());
-        } else {
-          add(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), (ARMEmitter::Reg::r20).X(), target);
         }
         str((ARMEmitter::Reg::r20).X(), MemSrc);
         // Set New RIP Reg
@@ -1647,7 +1713,9 @@ DEF_OPC(PC_L) {
         auto RIPDst = GetRegMap(ARMReg);
 
         get_label_map(opd2->content.imm.content.sym, &target, &fallthrough);
-        LoadConstant(ARMEmitter::Size::i64Bit, RIPDst.X(), (fallthrough + target) & Mask);
+        // 32bit this isn't RIP relative but instead absolute
+        int64_t s = static_cast<int64_t>(static_cast<int32_t>(target));
+        LoadConstant(ARMEmitter::Size::i64Bit, RIPDst.X(), (fallthrough + s) & Mask);
 
         auto MemSrc = ARMEmitter::ExtendedMemOperand(RIPDst.X(), ARMEmitter::IndexType::OFFSET, 0x0);
         if (instr->opc == ARM_OPC_PC_LB)
@@ -1657,7 +1725,9 @@ DEF_OPC(PC_L) {
 
     } else if (opd1->type == ARM_OPD_TYPE_IMM) {
         get_label_map(opd1->content.imm.content.sym, &target, &fallthrough);
-        LoadConstant(ARMEmitter::Size::i64Bit, Dst.X(), (fallthrough + target) & Mask);
+        // 32bit this isn't RIP relative but instead absolute
+        int64_t s = static_cast<int64_t>(static_cast<int32_t>(target));
+        LoadConstant(ARMEmitter::Size::i64Bit, Dst.X(), (fallthrough + s) & Mask);
     }
 }
 

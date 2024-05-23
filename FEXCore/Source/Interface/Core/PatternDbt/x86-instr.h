@@ -289,5 +289,5 @@ void set_x86_opd_mem_off_str(X86Operand *opd, char *off_str, bool neg);
 const char *get_x86_reg_str(X86Register );
 bool x86_instr_test_branch(X86Instruction *instr);
 
-void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruction *instr);
+void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruction *instr, uint64_t pid);
 #endif

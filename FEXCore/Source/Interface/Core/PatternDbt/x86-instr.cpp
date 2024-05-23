@@ -572,7 +572,7 @@ void decide_reg_liveness(int succ_define_cc, X86Instruction *insn_seq)
     /* Decide if we need to save condition codes for instructions that define condtion codes */
 }
 
-void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruction *instr)
+void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruction *instr, uint64_t pid)
 {
     uint32_t SrcSize = FEXCore::X86Tables::DecodeFlags::GetSizeSrcFlags(DecodeInst->Flags);
     uint32_t DestSize = FEXCore::X86Tables::DecodeFlags::GetSizeDstFlags(DecodeInst->Flags);
@@ -583,7 +583,7 @@ void DecodeInstToX86Inst(FEXCore::X86Tables::DecodedInst *DecodeInst, X86Instruc
                              " \'" + DecodeInst->TableInfo->Name + "\' with DS: " +
                              std::to_string(DestSize) + ", SS: " + std::to_string(SrcSize) +
                              ", InstSize: " + std::to_string(static_cast<int>(DecodeInst->InstSize)) + "\n";
-      writeToLogFile("fex-debug-log", logContent);
+      writeToLogFile(std::to_string(pid) + "fex-debug.log", logContent);
     #else
       LogMan::Msg::IFmt("Inst at 0x{:x}: 0x{:04x} '{}' with DS: {}, SS: {}, InstSize: {}",
               DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", DestSize, SrcSize, DecodeInst->InstSize);
@@ -1368,7 +1368,7 @@ constexpr uint16_t PF_3A_66   = 1;
             break;
 
           #ifdef DEBUG_RULE_LOG
-            writeToLogFile("fex-debug-log", "[INFO] ====Operand Num: " + std::to_string(num+1) + "\n");
+            writeToLogFile(std::to_string(pid) + "fex-debug.log", "[INFO] ====Operand Num: " + std::to_string(num+1) + "\n");
           #else
             LogMan::Msg::IFmt("====Operand Num: {:x}", num+1);
           #endif
@@ -1377,7 +1377,7 @@ constexpr uint16_t PF_3A_66   = 1;
               bool HighBits = Opd->Data.GPR.HighBits;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      GPR: " + std::to_string(GPR) + "\n");
+                writeToLogFile(std::to_string(pid) + "fex-debug.log", "[INFO]      GPR: " + std::to_string(GPR) + "\n");
               #else
                 LogMan::Msg::IFmt("     GPR: 0x{:x}", GPR);
               #endif
@@ -1391,7 +1391,7 @@ constexpr uint16_t PF_3A_66   = 1;
               uint32_t Literal = Opd->Data.RIPLiteral.Value.u;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      RIPLiteral: 0x" + intToHex(Literal) + "\n");
+                writeToLogFile(std::to_string(pid) + "fex-debug.log", "[INFO]      RIPLiteral: 0x" + intToHex(Literal) + "\n");
               #else
                 LogMan::Msg::IFmt( "     RIPLiteral: 0x{:x}", Literal);
               #endif
@@ -1402,7 +1402,7 @@ constexpr uint16_t PF_3A_66   = 1;
               uint64_t Literal = Opd->Data.Literal.Value;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      Literal: 0x" + intToHex(Literal) + "\n");
+                writeToLogFile(std::to_string(pid) + "fex-debug.log", "[INFO]      Literal: 0x" + intToHex(Literal) + "\n");
               #else
                 LogMan::Msg::IFmt( "     Literal: 0x{:x}", Literal);
               #endif
@@ -1413,7 +1413,7 @@ constexpr uint16_t PF_3A_66   = 1;
               uint8_t GPR = Opd->Data.GPR.GPR;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      GPRDirect: " + std::to_string(GPR) + "\n");
+                writeToLogFile(std::to_string(pid) + "fex-debug.log", "[INFO]      GPRDirect: " + std::to_string(GPR) + "\n");
               #else
                 LogMan::Msg::IFmt( "     GPRDirect: 0x{:x}", GPR);
               #endif
@@ -1429,7 +1429,7 @@ constexpr uint16_t PF_3A_66   = 1;
               int32_t Displacement = Opd->Data.GPRIndirect.Displacement;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      GPRIndirect - GPR: " + std::to_string(GPR)
+                writeToLogFile(std::to_string(pid) + "fex-debug.log", "[INFO]      GPRIndirect - GPR: " + std::to_string(GPR)
                                              + ", Displacement: " + std::to_string(Displacement) + "\n");
               #else
                 LogMan::Msg::IFmt( "     GPRIndirect - GPR: 0x{:x}, Displacement: 0x{:x}", GPR, Displacement);
@@ -1449,7 +1449,7 @@ constexpr uint16_t PF_3A_66   = 1;
               uint8_t Scale = Opd->Data.SIB.Scale;
 
               #ifdef DEBUG_RULE_LOG
-                writeToLogFile("fex-debug-log", "[INFO]      SIB - Base: " + std::to_string(Base)
+                writeToLogFile(std::to_string(pid) + "fex-debug.log", "[INFO]      SIB - Base: " + std::to_string(Base)
                                               + ", Offset: " + std::to_string(Offset)
                                               + ", Index: " + std::to_string(Index)
                                               + ", Scale: " + std::to_string(Scale) + "\n");
@@ -1500,6 +1500,6 @@ constexpr uint16_t PF_3A_66   = 1;
     set_x86_instr_size(instr, DecodeInst->InstSize);
 
     #ifdef DEBUG_RULE_LOG
-      output_x86_instr(instr);
+      output_x86_instr(instr, pid);
     #endif
 }

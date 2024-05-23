@@ -589,7 +589,7 @@ bool Decoder::NormalOp(FEXCore::X86Tables::X86InstInfo const *Info, uint16_t Op,
 
   DecodeInst->InstSize = InstructionSize;
 
-  DecodeInstToX86Inst(DecodeInst, x86_instr);
+  DecodeInstToX86Inst(DecodeInst, x86_instr, this->pid);
 
   LOGMAN_THROW_AA_FMT(Bytes == 0, "Inst at 0x{:x}: 0x{:04x} '{}' Had an instruction of size {} with {} remaining",
                      DecodeInst->PC, DecodeInst->OP, DecodeInst->TableInfo->Name ?: "UND", InstructionSize, Bytes);
@@ -1207,9 +1207,10 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
     // Do a bit of pointer math to figure out where we are in code
     InstStream = AdjustAddrForSpecialRegion(_InstStream, EntryPoint, RIPToDecode);
 
+    this->pid = Thread->ThreadManager.PID;
     #ifdef DEBUG_RULE_LOG
       std::string logContent = "#### Current PC Block: " + intToHex(RIPToDecode) + "\n" + "1.Guest:";
-      writeToLogFile("fex-x86-asm", logContent);
+      writeToLogFile(std::to_string(Thread->ThreadManager.PID) + "fex-asm.log", logContent);
     #endif
 
     while (1) {
@@ -1280,7 +1281,7 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
           logContent += (intToHex(static_cast<int>(Byte)) + " ");
         }
         logContent += "\n\n";
-        writeToLogFile("fex-debug-log", logContent);
+        writeToLogFile(std::to_string(Thread->ThreadManager.PID) + "fex-debug.log", logContent);
       #endif
 
       if (FinalInstruction || !CanContinue) {
