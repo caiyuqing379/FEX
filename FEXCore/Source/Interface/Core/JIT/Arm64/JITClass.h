@@ -307,7 +307,7 @@ private:
   bool match_rule_internal(X86Instruction *instr, TranslationRule *rule, FEXCore::Frontend::Decoder::DecodedBlocks const *tb);
   void get_label_map(char *lab_str, uint64_t *t, uint64_t *f);
   uint64_t get_imm_map(char *sym);
-  uint64_t get_imm_map_wrapper(ARMImm *imm);
+  uint64_t GetImmMapWrapper(ARMImm *imm);
   ARMRegister GetGuestRegMap(ARMRegister& reg, uint32_t& regsize);
   ARMRegister GetGuestRegMap(ARMRegister& reg, uint32_t& regsize, bool&& HighBits);
 

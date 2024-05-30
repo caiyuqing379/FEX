@@ -48,21 +48,6 @@ typedef struct {
     int para_opc[20];
 } RuleRecord;
 
-bool instr_is_match(uint64_t);
-bool instrs_is_match(uint64_t);
-bool tb_rule_matched(void);
-RuleRecord *get_translation_rule(uint64_t);
 
-bool check_translation_rule(uint64_t);
-void remove_guest_instruction(FEXCore::Frontend::Decoder::DecodedBlocks *, uint64_t);
-
-/* Try to match instructions in this tb to existing rules */
-bool match_translation_rule(FEXCore::Frontend::Decoder::DecodedBlocks const *);
-void do_rule_translation(RuleRecord *, uint32_t *);
-
-void get_label_map(char *, uint64_t *, uint64_t *);
-uint64_t get_imm_map(char *);
-int32_t get_offset_map(char *);
-ARMRegister GetGuestRegMap(ARMRegister& reg, uint32_t& regsize);
 bool is_last_access(ARMInstruction *, ARMRegister);
 #endif

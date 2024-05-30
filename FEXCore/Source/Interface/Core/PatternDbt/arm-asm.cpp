@@ -159,17 +159,6 @@ static ARMEmitter::VRegister GetVRegMap(ARMRegister& reg)
   return reg_invalid;
 }
 
-uint64_t FEXCore::CPU::Arm64JITCore::get_imm_map_wrapper(ARMImm *imm)
-{
-    if (imm->type == ARM_IMM_TYPE_NONE)
-        return 0;
-
-    if (imm->type == ARM_IMM_TYPE_VAL)
-        return imm->content.val;
-
-    return get_imm_map(imm->content.sym);
-}
-
 static ARMEmitter::ExtendedMemOperand  GenerateExtMemOperand(ARMEmitter::Register Base,
                                             ARMRegister Index,
                                             int32_t Imm,
@@ -212,7 +201,7 @@ DEF_OPC(LDR) {
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
           auto ARMReg = GetGuestRegMap(opd1->content.mem.base, Reg1Size);
           auto Base = GetRegMap(ARMReg);
-          int64_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
+          int64_t Imm = GetImmMapWrapper(&opd1->content.mem.offset);
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
@@ -223,7 +212,8 @@ DEF_OPC(LDR) {
               sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - s);
               MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
             }
-            else if (Imm < 0 && ((0 - Imm) >> 12)) {
+            else if ((Imm < 0 && ((0 - Imm) >> 12)) || ((instr->opc == ARM_OPC_LDRH) && (Imm & 0b1))
+            || ((instr->opc == ARM_OPC_LDR) && ((Imm & 0b11)))) {
               OffsetScale.imm.content.val = 1;
               OffsetScale.content.extend = ARM_OPD_EXTEND_SXTX;
               LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), Imm);
@@ -314,9 +304,9 @@ DEF_OPC(LDP) {
         ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto RegPair2 = GetRegMap(ARMReg);
         ARMReg = GetGuestRegMap(opd2->content.mem.base, Reg2Size);
-        auto Base     = GetRegMap(ARMReg);
+        auto Base = GetRegMap(ARMReg);
         ARMMemIndexType  PrePost = opd2->content.mem.pre_post;
-        int32_t Imm = get_imm_map_wrapper(&opd2->content.mem.offset);
+        int32_t Imm = GetImmMapWrapper(&opd2->content.mem.offset);
 
         if (PrePost == ARM_MEM_INDEX_TYPE_PRE)
             ldp<ARMEmitter::IndexType::PRE>(RegPair1.X(), RegPair2.X(), Base, Imm);
@@ -345,7 +335,7 @@ DEF_OPC(STR) {
           ARMMemIndexType  PrePost = opd1->content.mem.pre_post;
           auto ARMReg = GetGuestRegMap(opd1->content.mem.base, Reg1Size);
           auto Base = GetRegMap(ARMReg);
-          int64_t Imm = get_imm_map_wrapper(&opd1->content.mem.offset);
+          int64_t Imm = GetImmMapWrapper(&opd1->content.mem.offset);
 
           auto MemSrc = GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
@@ -356,7 +346,8 @@ DEF_OPC(STR) {
               sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21, Base, 0 - s);
               MemSrc = GenerateExtMemOperand((ARMEmitter::Reg::r21).X(), Index, 0, OffsetScale, PrePost);
             }
-            else if (Imm < 0 && ((0 - Imm) >> 12)) {
+            else if ((Imm < 0 && ((0 - Imm) >> 12)) || ((instr->opc == ARM_OPC_STRH) && (Imm & 0b1))
+            || ((instr->opc == ARM_OPC_STR) && ((Imm & 0b11)))) {
               OffsetScale.imm.content.val = 1;
               OffsetScale.content.extend = ARM_OPD_EXTEND_SXTX;
               LoadConstant(ARMEmitter::Size::i64Bit, (ARMEmitter::Reg::r21).X(), Imm);
@@ -432,7 +423,7 @@ DEF_OPC(STP) {
         ARMReg = GetGuestRegMap(opd2->content.mem.base, Reg2Size);
         auto Base     = GetRegMap(ARMReg);
         ARMMemIndexType  PrePost = opd2->content.mem.pre_post;
-        int32_t Imm = get_imm_map_wrapper(&opd2->content.mem.offset);
+        int32_t Imm = GetImmMapWrapper(&opd2->content.mem.offset);
 
         if (Reg0Size) OpSize = 1 << (Reg0Size-1);
 
@@ -520,7 +511,7 @@ DEF_OPC(MOV) {
         if (opd1->content.imm.type == ARM_IMM_TYPE_SYM && !strcmp(opd1->content.imm.content.sym, "LVMask"))
           Constant = 0x80'40'20'10'08'04'02'01ULL;
         else
-          Constant = get_imm_map_wrapper(&opd1->content.imm);
+          Constant = GetImmMapWrapper(&opd1->content.imm);
         LoadConstant(ARMEmitter::Size::i64Bit, Dst, Constant);
     } else
         LogMan::Msg::EFmt( "[arm] Unsupported operand type for mov instruction.");
@@ -579,7 +570,7 @@ DEF_OPC(AND) {
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
         auto Dst  = GetRegMap(DstReg);
         auto Src1 = GetRegMap(SrcReg);
-        uint64_t Imm = get_imm_map_wrapper(&opd2->content.imm);
+        uint64_t Imm = GetImmMapWrapper(&opd2->content.imm);
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
 
         if (HighBits) {
@@ -671,7 +662,7 @@ DEF_OPC(ORR) {
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
         auto Dst  = GetRegMap(DstReg);
         auto Src1 = GetRegMap(SrcReg);
-        auto Imm = get_imm_map_wrapper(&opd2->content.imm);
+        auto Imm = GetImmMapWrapper(&opd2->content.imm);
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
 
         if (HighBits) {
@@ -746,7 +737,7 @@ DEF_OPC(EOR) {
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
         auto Dst  = GetRegMap(DstReg);
         auto Src1 = GetRegMap(SrcReg);
-        int32_t Imm = get_imm_map_wrapper(&opd2->content.imm);
+        int32_t Imm = GetImmMapWrapper(&opd2->content.imm);
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
 
         if (HighBits) {
@@ -886,7 +877,7 @@ DEF_OPC(Shift) {
       (Reg0Size == 4 || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
-        int32_t shift = get_imm_map_wrapper(&opd2->content.imm);
+        int32_t shift = GetImmMapWrapper(&opd2->content.imm);
 
         if (instr->opc == ARM_OPC_LSL) {
             lsl(EmitSize, Dst, Src1, shift);
@@ -937,7 +928,7 @@ DEF_OPC(ADD) {
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
         auto Dst  = GetRegMap(DstReg);
         auto Src1 = GetRegMap(SrcReg);
-        int32_t Imm = get_imm_map_wrapper(&opd2->content.imm);
+        int32_t Imm = GetImmMapWrapper(&opd2->content.imm);
 
         if (Imm < 0 && !((0 - Imm) >> 12)) {
           if (instr->opc == ARM_OPC_ADD)
@@ -1087,7 +1078,7 @@ DEF_OPC(SUB) {
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG && opd2->type == ARM_OPD_TYPE_IMM) {
         auto Dst  = GetRegMap(DstReg);
         auto Src1 = GetRegMap(SrcReg);
-        int32_t Imm = get_imm_map_wrapper(&opd2->content.imm);
+        int32_t Imm = GetImmMapWrapper(&opd2->content.imm);
 
         if ((Imm >> 12) != 0) {
           LoadConstant(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r20, Imm);
@@ -1280,15 +1271,15 @@ DEF_OPC(TST) {
     auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size, std::forward<bool>(HighBits));
     auto Dst = GetRegMap(ARMReg);
 
-    const auto EmitSize =
-      (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
-      (Reg0Size == 4 || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
-
-    if (Reg0Size == 1 || Reg0Size == 2) isRegSym = true;
-
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_REG) {
         ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
         auto Src = GetRegMap(ARMReg);
+
+        const auto EmitSize =
+          ((Reg0Size & 0x3) || (Reg1Size & 0x3) || OpSize == 4) ? ARMEmitter::Size::i32Bit :
+          ((Reg0Size == 4) || (Reg1Size == 4) || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+
+        if (Reg0Size == 1 || Reg0Size == 2 || Reg1Size == 1 || Reg1Size == 2) isRegSym = true;
 
         if (!isRegSym && opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
             auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
@@ -1310,7 +1301,14 @@ DEF_OPC(TST) {
             LogMan::Msg::EFmt("[arm] Unsupported reg for TST instruction.");
 
     } else if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
-        uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
+        uint64_t Imm = GetImmMapWrapper(&opd1->content.imm);
+
+        const auto EmitSize =
+          (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
+          (Reg0Size == 4 || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+
+        if (Reg0Size == 1 || Reg0Size == 2) isRegSym = true;
+
         const auto IsImm = vixl::aarch64::Assembler::IsImmLogical(Imm, RegSizeInBits(EmitSize));
 
         if (HighBits) {
@@ -1351,8 +1349,6 @@ DEF_OPC(COMPARE) {
     uint32_t Reg0Size, Reg1Size;
     auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
-
-    if (Reg0Size == 1 || Reg0Size == 2) isRegSym = true;
 
     /*
       lambda expression:
@@ -1416,11 +1412,13 @@ DEF_OPC(COMPARE) {
     };
 
     if (opd0->type == ARM_OPD_TYPE_REG && opd1->type == ARM_OPD_TYPE_IMM) {
-        uint64_t Imm = get_imm_map_wrapper(&opd1->content.imm);
+        uint64_t Imm = GetImmMapWrapper(&opd1->content.imm);
 
         const auto EmitSize =
           (Reg0Size & 0x3 || OpSize == 4) ? ARMEmitter::Size::i32Bit :
           (Reg0Size == 4 || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+
+        if (Reg0Size == 1 || Reg0Size == 2) isRegSym = true;
 
         if (!isRegSym && instr->opc == ARM_OPC_CMP) {
             if ((Imm >> 12) != 0) {
@@ -1446,8 +1444,10 @@ DEF_OPC(COMPARE) {
         auto Src = GetRegMap(ARMReg);
 
         const auto EmitSize =
-          (Reg1Size & 0x3) ? ARMEmitter::Size::i32Bit :
-          (Reg1Size == 4) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+          ((Reg0Size & 0x3) || (Reg1Size & 0x3) || OpSize == 4) ? ARMEmitter::Size::i32Bit :
+          (Reg0Size == 4 || Reg1Size == 4 || OpSize == 8) ? ARMEmitter::Size::i64Bit : ARMEmitter::Size::i32Bit;
+
+        if (Reg0Size == 1 || Reg0Size == 2 || Reg1Size == 1 || Reg1Size == 2) isRegSym = true;
 
         if (opd1->content.reg.num != ARM_REG_INVALID && opd1->content.reg.scale.type == ARM_OPD_SCALE_TYPE_SHIFT) {
             auto Shift = GetShiftType(opd1->content.reg.scale.content.direct);
@@ -1549,8 +1549,8 @@ DEF_OPC(BFXIL) {
     const auto Dst = GetRegMap(ARMReg);
     ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
     const auto Src = GetRegMap(ARMReg);
-    uint32_t lsb = get_imm_map_wrapper(&opd2->content.imm);
-    uint32_t width = get_imm_map_wrapper(&opd3->content.imm);
+    uint32_t lsb = GetImmMapWrapper(&opd2->content.imm);
+    uint32_t width = GetImmMapWrapper(&opd3->content.imm);
 
     // If Dst and SrcDst match then this turns in to a single instruction.
     bfxil(EmitSize, Dst, Src, lsb, width);
@@ -2026,7 +2026,7 @@ DEF_OPC(EXT) {
 
     const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
     const auto ElementSize = instr->ElementSize;
-    auto Index = get_imm_map_wrapper(&opd3->content.imm);
+    auto Index = GetImmMapWrapper(&opd3->content.imm);
 
     // AArch64 ext op has bit arrangement as [Vm:Vn] so arguments need to be swapped
     uint32_t Reg0Size, Reg1Size, Reg2Size;

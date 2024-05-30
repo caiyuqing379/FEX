@@ -151,21 +151,6 @@ bool FEXCore::CPU::Arm64JITCore::match_register(X86Register greg, X86Register rr
         return (gmap->num == greg);
     }
 
-    /* check if this guest register has another map */
-    /*
-    gmap = g_reg_map;
-    while (gmap) {
-        if (gmap->num != greg) {
-            gmap = gmap->next;
-            continue;
-        }
-
-        if (debug && (gmap->sym != rreg))
-            fprintf(stderr, "Unmatch reg: have anther map: %d %d %d\n", greg, gmap->sym, rreg);
-        return (gmap->sym == rreg);
-    }
-    */
-
     /* append this map to register map buffer */
     gmap = &g_reg_map_buf[g_reg_map_buf_index++];
     assert(g_reg_map_buf_index < MAX_MAP_BUF_LEN);
@@ -234,8 +219,8 @@ bool FEXCore::CPU::Arm64JITCore::match_scale(X86Imm *gscale, X86Imm *rscale)
 
 bool FEXCore::CPU::Arm64JITCore::match_offset(X86Imm *goffset, X86Imm *roffset)
 {
-    int32_t off_val;
     char *sym;
+    int32_t off_val;
 
     if (roffset->type != X86_IMM_TYPE_NONE &&
         goffset->type == X86_IMM_TYPE_NONE)
@@ -252,7 +237,7 @@ bool FEXCore::CPU::Arm64JITCore::match_offset(X86Imm *goffset, X86Imm *roffset)
     if (goffset->type == X86_IMM_TYPE_NONE ||
         roffset->type == X86_IMM_TYPE_NONE) {
         if (debug) {
-            LogMan::Msg::IFmt( "Unmatch offset: none");
+            LogMan::Msg::IFmt("Unmatch offset: none");
         }
         return false;
     }
@@ -497,6 +482,17 @@ uint64_t FEXCore::CPU::Arm64JITCore::get_imm_map(char *sym)
     if (debug)
         LogMan::Msg::IFmt("get imm val: {}", t_str);
     return std::stoull(t_str);
+}
+
+uint64_t FEXCore::CPU::Arm64JITCore::GetImmMapWrapper(ARMImm *imm)
+{
+    if (imm->type == ARM_IMM_TYPE_NONE)
+        return 0;
+
+    if (imm->type == ARM_IMM_TYPE_VAL)
+        return imm->content.val;
+
+    return get_imm_map(imm->content.sym);
 }
 
 static ARMRegister guest_host_reg_map(X86Register& reg)
