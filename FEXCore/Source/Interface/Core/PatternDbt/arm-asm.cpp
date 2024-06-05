@@ -1697,15 +1697,12 @@ DEF_OPC(SET_CALL) {
 DEF_OPC(PC_L) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
+    uint8_t  OpSize = instr->OpSize;
     uint64_t target, fallthrough, Mask = ~0ULL;
 
     uint32_t Reg0Size, Reg1Size;
     auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetRegMap(ARMReg);
-
-    if (instr->OpSize == 4) {
-      Mask = 0xFFFF'FFFFULL;
-    }
 
     if (opd1->type == ARM_OPD_TYPE_REG) {
         ARMOperand *opd2 = &instr->opd[2];
@@ -1720,6 +1717,10 @@ DEF_OPC(PC_L) {
         auto MemSrc = ARMEmitter::ExtendedMemOperand(RIPDst.X(), ARMEmitter::IndexType::OFFSET, 0x0);
         if (instr->opc == ARM_OPC_PC_LB)
           ldrb(Dst, MemSrc);
+        else if (instr->opc == ARM_OPC_PC_LW)
+          ldrh(Dst, MemSrc);
+        else if (Reg0Size & 0x3 || OpSize == 4)
+          ldr(Dst.W(), MemSrc);
         else
           ldr(Dst.X(), MemSrc);
 
@@ -1735,15 +1736,12 @@ DEF_OPC(PC_L) {
 DEF_OPC(PC_S) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
+    uint8_t  OpSize = instr->OpSize;
     uint64_t target, fallthrough, Mask = ~0ULL;
 
     uint32_t Reg0Size, Reg1Size;
     auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Src = GetRegMap(ARMReg);
-
-    if (instr->OpSize == 4) {
-      Mask = 0xFFFF'FFFFULL;
-    }
 
     if (opd1->type == ARM_OPD_TYPE_REG) {
       ARMOperand *opd2 = &instr->opd[2];
@@ -1756,6 +1754,10 @@ DEF_OPC(PC_S) {
       auto MemSrc = ARMEmitter::ExtendedMemOperand(RIPDst.X(), ARMEmitter::IndexType::OFFSET, 0x0);
       if (instr->opc == ARM_OPC_PC_SB)
         strb(Src, MemSrc);
+      else if (instr->opc == ARM_OPC_PC_SW)
+        strh(Src, MemSrc);
+      else if (Reg0Size & 0x3 || OpSize == 4)
+        str(Src.W(), MemSrc);
       else
         str(Src.X(), MemSrc);
     }
@@ -2198,18 +2200,15 @@ DEF_OPC(UMOV) {
 DEF_OPC(LD1) {
     ARMOperand *opd0 = &instr->opd[0];
     ARMOperand *opd1 = &instr->opd[1];
-    ARMOperand *opd2 = &instr->opd[2];
     const auto OpSize = instr->OpSize;
 
     const auto Is256Bit = OpSize == Core::CPUState::XMM_AVX_REG_SIZE;
     const auto ElementSize = instr->ElementSize;
 
-    uint32_t Reg0Size, Reg1Size, Reg2Size;
+    uint32_t Reg0Size, Reg1Size;
     auto ARMReg = GetGuestRegMap(opd0->content.reg.num, Reg0Size);
     auto Dst = GetVRegMap(ARMReg);
     ARMReg = GetGuestRegMap(opd1->content.reg.num, Reg1Size);
-    auto DstSrc = GetVRegMap(ARMReg);
-    ARMReg = GetGuestRegMap(opd2->content.reg.num, Reg2Size);
     auto MemReg = GetRegMap(ARMReg);
 
     LOGMAN_THROW_AA_FMT(ElementSize == 1 || ElementSize == 2 ||
@@ -2219,9 +2218,6 @@ DEF_OPC(LD1) {
     if (Is256Bit) {
       LOGMAN_MSG_A_FMT("Unsupported 256-bit VLoadVectorElement");
     } else {
-      if (Dst != DstSrc && ElementSize != 16) {
-        mov(Dst.Q(), DstSrc.Q());
-      }
       switch (ElementSize) {
       case 1:
         ld1<ARMEmitter::SubRegSize::i8Bit>(Dst.Q(), opd0->content.reg.Index, MemReg);
@@ -2353,6 +2349,8 @@ DEF_OPC(ZIP) {
 
 void FEXCore::CPU::Arm64JITCore::assemble_arm_instr(ARMInstruction *instr, RuleRecord *rrule)
 {
+    LogMan::Msg::IFmt("ARM instr in the asm: {}.", get_arm_instr_opc(instr->opc));
+
     switch (instr->opc) {
         case ARM_OPC_LDRB:
         case ARM_OPC_LDRSB:
@@ -2456,10 +2454,12 @@ void FEXCore::CPU::Arm64JITCore::assemble_arm_instr(ARMInstruction *instr, RuleR
             break;
         case ARM_OPC_PC_L:
         case ARM_OPC_PC_LB:
+        case ARM_OPC_PC_LW:
             Opc_PC_L(instr, rrule);
             break;
         case ARM_OPC_PC_S:
         case ARM_OPC_PC_SB:
+        case ARM_OPC_PC_SW:
             Opc_PC_S(instr, rrule);
             break;
         case ARM_OPC_ADDP:

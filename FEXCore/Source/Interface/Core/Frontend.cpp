@@ -779,14 +779,14 @@ bool Decoder::DecodeInstruction(uint64_t PC) {
   auto create_x86_instr = [&](uint64_t pc) -> X86Instruction* {
       X86Instruction* instr = &instr_buffer[instr_buffer_index];
       if (instr_buffer_index >= 1000)
-          LogMan::Msg::IFmt("Instruction buffer is not enough!");
+          LogMan::Msg::EFmt("Instruction buffer is not enough!");
 
       instr->pc = pc;
       instr->next = nullptr;
 
-      if (instr_block_start == instr_buffer_index)
+      if (instr_block_start == instr_buffer_index) {
           instr->prev = nullptr;
-      else {
+      } else {
           instr->prev = &instr_buffer[instr_buffer_index-1];
           instr->prev->next = instr;
       }
@@ -1300,6 +1300,9 @@ void Decoder::DecodeInstructionsAtEntry(FEXCore::Core::InternalThreadState *Thre
     CurrentBlockDecoding.DecodedInstructions = &DecodedBuffer[BlockStartOffset];
     BlockInfo.TotalInstructionCount += BlockNumberOfInstructions;
   }
+
+  delete[] instr_buffer;
+  instr_buffer = nullptr;
 
   for (auto CodePage : CodePages) {
     AddContainedCodePage(PC, CodePage, FHU::FEX_PAGE_SIZE);

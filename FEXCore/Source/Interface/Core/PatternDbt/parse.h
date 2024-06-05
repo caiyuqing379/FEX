@@ -5,7 +5,6 @@
 #include "x86-instr.h"
 
 #define PROFILE_RULE_TRANSLATION
-#define DEBUG_RULE_TRANSLATION
 
 #define X86_CC_NUM 4
 

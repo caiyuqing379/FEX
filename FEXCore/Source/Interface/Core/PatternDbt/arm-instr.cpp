@@ -129,8 +129,10 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_SET_CALL] = "set_call",
     [ARM_OPC_PC_L]  = "pc_l",
     [ARM_OPC_PC_LB] = "pc_lb",
+    [ARM_OPC_PC_LW] = "pc_lw",
     [ARM_OPC_PC_S]  = "pc_s",
     [ARM_OPC_PC_SB] = "pc_sb",
+    [ARM_OPC_PC_SW] = "pc_sw",
 
     // FP/NEON
     [ARM_OPC_ADDP]  = "addp",
@@ -200,17 +202,6 @@ void print_mem_opd(ARMMemOperand *opd)
         fprintf(stderr,", offset: %s", opd->offset.content.sym);
     print_opd_scale(&opd->scale);
     print_opd_index_type(opd->pre_post);
-}
-
-static void print_reg_liveness(bool *reg_liveness)
-{
-    int reg;
-
-    fprintf(stderr,"    ");
-    for (reg = ARM_REG_CF; reg < ARM_REG_NUM; reg++)
-        fprintf(stderr," %s: %s ",
-                arm_reg_str[reg], reg_liveness[reg] ? "true" : "false");
-    fprintf(stderr,"\n");
 }
 
 void print_arm_instr_seq(ARMInstruction *instr_seq)
@@ -370,9 +361,6 @@ void set_arm_instr_opd_size(ARMInstruction *instr)
       instr->OpSize = 2;
     else if (instr->opc == ARM_OPC_SXTW)
       instr->OpSize = 4;
-    else if (instr->opc == ARM_OPC_PC_L || instr->opc == ARM_OPC_PC_LB
-      || instr->opc == ARM_OPC_PC_S || instr->opc == ARM_OPC_PC_SB) // 64 bit system
-      instr->OpSize = 8;
 }
 
 void set_arm_instr_opd_type(ARMInstruction *instr, int opd_index, ARMOperandType type)
@@ -413,6 +401,11 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
         if (!opd_index)
           instr->OpSize = 8;
         reg_str[0] = 'r';
+    }
+    else if (reg_str[0] == 'q') {
+        if (!opd_index)
+          instr->OpSize = 16;
+        reg_str[0] = 'v';
     }
     else if (!opd_index && len >= 5) {
         if (reg_str[len-3] == '1' && reg_str[len-2] == '6' && reg_str[len-1] == 'b') {

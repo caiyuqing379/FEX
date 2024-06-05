@@ -90,7 +90,7 @@ static int parse_scale(char *line, int idx, ARMOperandScale *pscale)
     return idx;
 }
 
-static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, int opd_idx)
+static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, int opd_idx, int index)
 {
     ARMOperand *opd = &instr->opd[opd_idx];
     char fc = line[idx];
@@ -110,11 +110,14 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
             set_arm_opd_imm_sym_str(opd, imm_str);
         else
             set_arm_opd_imm_val_str(opd, imm_str);
-    } else if (fc == 'r' || fc == 'v' || fc == 'w' || fc == 'x') {
+    } else if (fc == 'r' || fc == 'v' || fc == 'q' || fc == '{' || fc == 'w' || fc == 'x') {
         /* Register Operand
            1. Read register string, e.g., "reg0", "reg1".
            2. Check the scale type and content */
         char reg_str[20] = "\0";
+
+        if (fc == '{')
+          idx++;
 
         while (line[idx] != ',' && line[idx] != '\n')
             strncat(reg_str, &line[idx++], 1);
@@ -180,7 +183,7 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
             idx += 2;
         }
     } else
-        LogMan::Msg::EFmt("Error in parsing {} operand: unknown operand type: {}.", get_arm_instr_opc(instr->opc), line[idx]);
+        LogMan::Msg::EFmt("Error in NO.{} parsing {} operand: unknown operand type: {}.", index, get_arm_instr_opc(instr->opc), line[idx]);
 
     if (line[idx] == ',')
         return idx+2;
@@ -223,7 +226,7 @@ static void adjust_arm_instr(ARMInstruction *instr)
     set_arm_instr_opd_num(instr, 2);
 }
 
-static ARMInstruction *parse_rule_arm_instruction(char *line, uint64_t pc)
+static ARMInstruction *parse_rule_arm_instruction(char *line, uint64_t pc, int index)
 {
     ARMInstruction *instr = rule_arm_instr_alloc(pc);
     int opd_idx;
@@ -235,7 +238,7 @@ static ARMInstruction *parse_rule_arm_instruction(char *line, uint64_t pc)
 
     opd_idx = 0;
     while (i < len && line[i] != '\n')
-        i = parse_rule_arm_operand(line, i, instr, opd_idx++);
+        i = parse_rule_arm_operand(line, i, instr, opd_idx++, index);
 
     set_arm_instr_opd_size(instr);
     set_arm_instr_opd_num(instr, opd_idx);
@@ -264,7 +267,7 @@ bool parse_rule_arm_code(FILE *fp, TranslationRule *rule)
         char fs = line[0];
         if (fs == '#')
             continue;
-        ARMInstruction *cur = parse_rule_arm_instruction(line, pc);
+        ARMInstruction *cur = parse_rule_arm_instruction(line, pc, rule->index);
         if (!code_head) {
             code_head = code_tail = cur;
         } else {

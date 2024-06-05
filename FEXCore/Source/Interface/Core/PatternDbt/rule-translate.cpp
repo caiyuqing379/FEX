@@ -625,7 +625,6 @@ RuleRecord* FEXCore::CPU::Arm64JITCore::get_translation_rule(uint64_t pc)
 uint64_t rule_guest_pc = 0;
 uint32_t num_rules_hit = 0;
 uint32_t num_rules_replace = 0;
-uint32_t static_inst_rule_counter = 0;
 #endif
 
 static bool is_save_cc(X86Instruction *pins, int icount)
@@ -689,14 +688,20 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
             TranslationRule *cur_rule = cache_rule_table[hindex];
 
             save_map_buf_index();
+            uint32_t num_rules_match = 0;
             while (cur_rule) {
 
                 if (cur_rule->guest_instr_num != i)
                     goto next;
 
+                num_rules_match++;
+
                 if (match_rule_internal(cur_head, cur_rule, transblock)) {
-                    if (debug)
-                        LogMan::Msg::IFmt("##### Match rule {} success #####\n", cur_rule->index);
+                    #if defined(PROFILE_RULE_TRANSLATION) && defined(DEBUG_RULE_LOG)
+                        writeToLogFile(std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log", "[INFO] #####  Rule index " +
+                            std::to_string(cur_rule->index) + ", match num:" +
+                            std::to_string(num_rules_match) + "#####\n\n");
+                    #endif
                     break;
                 }
 
@@ -710,14 +715,6 @@ bool FEXCore::CPU::Arm64JITCore::MatchTranslationRule(const void *tb)
                 uint64_t target_pc = 0;
 
                 match_insts += i;
-
-                #ifdef PROFILE_RULE_TRANSLATION
-                  rule_guest_pc = guest_instr->pc;
-                  num_rules_hit++;
-                  static_inst_rule_counter += i;
-                  cur_rule->hit_num++;
-                  cur_rule->match_counter += i;
-                #endif
 
                 /* Check target_pc for this rule */
                 for (j = 1; j < i; j++)

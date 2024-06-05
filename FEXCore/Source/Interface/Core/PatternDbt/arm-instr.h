@@ -133,8 +133,10 @@ typedef enum {
     ARM_OPC_SET_CALL,
     ARM_OPC_PC_L,
     ARM_OPC_PC_LB,
+    ARM_OPC_PC_LW,
     ARM_OPC_PC_S,
     ARM_OPC_PC_SB,
+    ARM_OPC_PC_SW,
 
     // FP/NEON
     ARM_OPC_ADDP,
