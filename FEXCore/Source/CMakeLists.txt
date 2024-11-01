@@ -1,5 +1,44 @@
 set (MAN_DIR share/man CACHE PATH "MAN_DIR")
 
+set (PATTERN_LIB_NAME "pattern")
+set (PATTERN_LIB_SRCS
+  Interface/Core/PatternMatcher.cpp
+  Interface/Core/Pattern/arm-asm.cpp
+  Interface/Core/Pattern/arm-instr.cpp
+  Interface/Core/Pattern/HostParse.cpp
+  Interface/Core/Pattern/parse.cpp
+  Interface/Core/Pattern/RiscvInst.cpp
+  Interface/Core/Pattern/rule-translate.cpp
+  Interface/Core/Pattern/x86-instr.cpp
+  Interface/Core/Pattern/x86-parse.cpp
+  Utils/LogManager.cpp
+)
+add_library(${PATTERN_LIB_NAME} SHARED ${PATTERN_LIB_SRCS})
+target_include_directories(${PATTERN_LIB_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+
+target_include_directories(${PATTERN_LIB_NAME} PRIVATE IncludePrivate/)
+target_include_directories(${PATTERN_LIB_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/)
+
+target_include_directories(${PATTERN_LIB_NAME} PUBLIC "${PROJECT_SOURCE_DIR}/include/")
+target_include_directories(${PATTERN_LIB_NAME} PUBLIC "${CMAKE_BINARY_DIR}/include/")
+set (DEPENDS biscuit fmt::fmt vixl xxhash FEXHeaderUtils)
+target_link_libraries(${PATTERN_LIB_NAME} ${DEPENDS})
+
+if (CMAKE_BUILD_TYPE MATCHES "RELEASE")
+  target_link_options(${PATTERN_LIB_NAME}
+    PRIVATE
+    "LINKER:--gc-sections"
+    "LINKER:--strip-all"
+    "LINKER:--as-needed"
+  )
+endif()
+
+install(TARGETS ${PATTERN_LIB_NAME}
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  COMPONENT Libraries
+)
+
 set (FEXCORE_BASE_SRCS
   Interface/Config/Config.cpp
   Utils/Allocator.cpp

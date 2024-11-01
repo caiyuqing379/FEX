@@ -11,6 +11,7 @@ $end_info$
 
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <malloc.h>
 
 namespace LogMan {
@@ -26,8 +27,7 @@ void MFmt(const char *fmt, const fmt::format_args& args) {
   for (auto& Handler : Handlers) {
     Handler(msg.c_str());
   }
-
-  FEX_TRAP_EXECUTION;
+  abort();
 }
 } // namespace Throw
 

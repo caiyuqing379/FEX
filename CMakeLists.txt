@@ -46,6 +46,9 @@ if (NOT CONTAINS_MINGW EQUAL -1)
   set (ENABLE_JEMALLOC FALSE)
 endif()
 
+add_subdirectory(External/biscuit)
+include_directories(SYSTEM External/biscuit/include/)
+
 if (ENABLE_FEXCORE_PROFILER)
   add_definitions(-DENABLE_FEXCORE_PROFILER=1)
   string(TOUPPER "${FEXCORE_PROFILER_BACKEND}" FEXCORE_PROFILER_BACKEND)
