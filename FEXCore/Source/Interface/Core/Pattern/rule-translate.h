@@ -62,6 +62,7 @@ typedef struct GuestRegisterMapping {
 typedef struct LabelMapping {
     char lab_str[20];
     uint64_t target;
+    size_t instsize;
     uint64_t fallthrough;
 
     struct LabelMapping *next;
@@ -72,6 +73,7 @@ typedef struct {
     uint64_t target_pc;     /* Branch target pc.
                                Only valid if the last instruction of current tb is not branch
                                and covered by this rule */
+    size_t blocksize;
     X86Instruction *last_guest;   /* last guest instr */
     TranslationRule *rule;  /* Translation rule for this instruction sequence.
                                Only valid at the first instruction */

@@ -11,7 +11,7 @@ PatternMatcher::PatternMatcher(ARCH Arch, FEXCore::Context::ContextImpl *Ctx,
                                const std::vector<int> &XMMTempIdx)
     : Arch(Arch), Ctx(Ctx), Thread(Thread), GPRMappedIdx(GPRMappedIdx),
       GPRTempIdx(GPRTempIdx), XMMMappedIdx(XMMMappedIdx),
-      XMMTempIdx(XMMTempIdx) {}
+      XMMTempIdx(XMMTempIdx), RVAssembler(std::make_unique<biscuit::Assembler>(4096)) {}
 
 void PatternMatcher::Prepare(ARCH Arch) {
   // 准备工作，例如加载规则或初始化状态
@@ -27,10 +27,8 @@ int PatternMatcher::GetRuleIndex(uint64_t pc) {
 
 void PatternMatcher::SetCodeBuffer(uint8_t *Buffer, size_t Size) {
   // 设置代码缓冲区的位置
-  if (Arch == ARM64) {
-
-  } else { // rv64
-    RVAssembler->SwapCodeBuffer(biscuit::CodeBuffer(Buffer, Size));
+  if (Arch == RV64) {
+     RVAssembler->SwapCodeBuffer(biscuit::CodeBuffer(Buffer, Size));
   }
 }
 
@@ -42,7 +40,7 @@ void PatternMatcher::SetEpilogue(uint8_t *Code, size_t Size) {
   // 设置尾声代码
 }
 
-std::pair<uint8_t *, size_t> PatternMatcher::EmitCode() {
+size_t PatternMatcher::EmitCode() {
   // 根据规则生成Host指令
   // 1. 在CodeBuffer中写入指令
   // 2. 写入RIP
@@ -51,19 +49,18 @@ RuleRecord *rule_r = GetTranslationRule(BlockPC);;
   TranslationRule *rule;
 
   if (!rule_r)
-    return {NULL, 0};
+    return 0;
 
   rule = rule_r->rule;
   l_map = rule_r->l_map;
   imm_map = rule_r->imm_map;
   g_reg_map = rule_r->g_reg_map;
 
-  auto BlockStartHostCode = RVAssembler->GetCursorPointer();
-
   RISCVInstruction *riscv_code = rule->riscv_host;
 
   /* Assemble host instructions in the rule */
   while (riscv_code) {
+    print_riscv_instr(riscv_code);
     switch (riscv_code->opc) {
 #define REGISTER_OP(op, x)                                                     \
   case RISCV_OPC_##op:                                                         \
@@ -76,15 +73,15 @@ RuleRecord *rule_r = GetTranslationRule(BlockPC);;
     default:
       LogMan::Msg::EFmt(
           "Unsupported riscv instruction in the assembler: {}, rule index: {}.",
-          get_riscv_instr_opc(riscv_code->opc), rule_r->rule->index);
+          get_riscv_instr_opc(riscv_code->opc), rule->index);
     }
 
     riscv_code = riscv_code->next;
   }
 
-  return {BlockStartHostCode,
-          static_cast<uint32_t>(RVAssembler->GetCursorPointer() -
-                                BlockStartHostCode)}; // 返回生成的代码和大小
+  RVAssembler->RET();
+
+  return RVAssembler->GetCursorOffset(); // 返回生成的代码和大小
 }
 
 RISCVRegister PatternMatcher::GuestMapRiscvReg(X86Register &reg) {
@@ -161,20 +158,6 @@ RISCVRegister PatternMatcher::GuestMapRiscvReg(X86Register &reg) {
 
 RISCVRegister PatternMatcher::GetRiscvTmpReg(RISCVRegister &reg) {
   switch (reg) {
-  case RISCV_REG_T0:
-    return get_riscv_reg(GPRTempIdx[0]);
-  case RISCV_REG_T1:
-    return get_riscv_reg(GPRTempIdx[1]);
-  case RISCV_REG_T2:
-    return get_riscv_reg(GPRTempIdx[2]);
-  case RISCV_REG_T3:
-    return get_riscv_reg(GPRTempIdx[3]);
-  case RISCV_REG_T4:
-    return get_riscv_reg(GPRTempIdx[4]);
-  case RISCV_REG_T5:
-    return get_riscv_reg(GPRTempIdx[5]);
-  case RISCV_REG_T6:
-    return get_riscv_reg(GPRTempIdx[6]);
   case RISCV_REG_VT0:
     return get_riscv_reg(2 * RISCV_REG_NUM + XMMTempIdx[0]);
   case RISCV_REG_VT1:
@@ -203,7 +186,7 @@ RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg) {
     return reg;
   }
 
-  if (RISCV_REG_T0 <= reg && reg <= RISCV_REG_VT6) {
+  if (RISCV_REG_VT0 <= reg && reg <= RISCV_REG_VT6) {
     return GetRiscvTmpReg(reg);
   }
 
@@ -493,13 +476,16 @@ uint64_t PatternMatcher::GetRVImmMapWrapper(RISCVImm *imm) {
   return GetImmMap(imm->content.sym);
 }
 
-void PatternMatcher::GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f) {
+void PatternMatcher::GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f, size_t *s) {
   LabelMapping *lmap = l_map;
 
   while (lmap) {
     if (!strcmp(lmap->lab_str, lab_str)) {
       *t = lmap->target;
       *f = lmap->fallthrough;
+      if (s != nullptr) {
+        *s = lmap->instsize;
+      }
       return;
     }
     lmap = lmap->next;

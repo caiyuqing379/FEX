@@ -113,7 +113,7 @@ public:
   // 另外：每个块结束时，将Guest对应的目标地址（跳转或者函数调用）写入RIP对应的Host的寄存器，
   // 不尝试链接其他块，因为外部不会传入其他翻译的块
   // 并以ret指令返回到Dispatcher，作为结束指令
-  std::pair<uint8_t *, size_t> EmitCode();
+  size_t EmitCode();
   // 查询基本块匹配时的规则index
   int GetRuleIndex(uint64_t pc);
 
@@ -129,12 +129,12 @@ private:
   inline void recover_map_buf_index(void);
   inline void init_map_ptr(void);
 
-  inline void add_rule_record(TranslationRule *rule, uint64_t pc, uint64_t t_pc,
+  inline void add_rule_record(TranslationRule *rule, uint64_t pc, uint64_t t_pc, size_t blocksize,
                               X86Instruction *last_guest, bool update_cc,
                               bool save_cc, int pa_opc[20]);
   inline void add_matched_pc(uint64_t pc);
   inline void add_matched_para_pc(uint64_t pc);
-  bool match_label(char *lab_str, uint64_t t, uint64_t f);
+  bool match_label(char *lab_str, uint64_t t, size_t s,uint64_t f);
   bool match_register(X86Register greg, X86Register rreg, uint32_t regsize = 0,
                       bool HighBits = false);
   bool match_imm(uint64_t val, char *sym);
@@ -160,7 +160,7 @@ private:
   void GenArm64Code(RuleRecord *rule_r);
 
 private:
-  void GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f);
+  void GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f, size_t *s = nullptr);
   uint64_t GetImmMap(char *sym);
   uint64_t GetARMImmMapWrapper(ARMImm *imm);
   uint64_t GetRVImmMapWrapper(RISCVImm *imm);
@@ -228,6 +228,8 @@ private:
   uint64_t pc_para_matched_buf[800];
   int pc_para_matched_buf_index;
 
+  uint32_t num_rules_match;
+
 private:
   ARCH Arch;
   FEXCore::Context::ContextImpl *Ctx;
@@ -237,8 +239,8 @@ private:
   const std::vector<int> &XMMMappedIdx;
   const std::vector<int> &XMMTempIdx;
 
-  fextl::unique_ptr<biscuit::Assembler> RVAssembler;
-  fextl::unique_ptr<FEXCore::ARMEmitter::Emitter> ARMAssembler;
+  std::unique_ptr<biscuit::Assembler> RVAssembler;
+  std::unique_ptr<FEXCore::ARMEmitter::Emitter> ARMAssembler;
 
   uint64_t BlockPC;
 };

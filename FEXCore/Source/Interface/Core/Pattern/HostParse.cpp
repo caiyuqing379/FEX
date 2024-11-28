@@ -299,9 +299,9 @@ static int parse_rule_riscv_operand(char *line, int idx, RISCVInstruction *instr
                 set_riscv_opd_mem_off_val(opd, imm_str);
 
             if (ispcrel_hi)
-                set_riscv_opd_imm_pcrel_hi(opd);
+                set_riscv_opd_mem_off_pcrel_hi(opd);
             else if(ispcrel_lo)
-                set_riscv_opd_imm_pcrel_lo(opd);
+                set_riscv_opd_mem_off_pcrel_lo(opd);
 
             if (ispcrel_hi || ispcrel_lo)
                 idx++; // skip ')'
@@ -314,8 +314,8 @@ static int parse_rule_riscv_operand(char *line, int idx, RISCVInstruction *instr
 
             set_riscv_instr_opd_mem_base_str(instr, opd_idx, reg_str);
         }
-    } else if (fc == 'r' || fc == 'x' || fc == 'f' || fc == 'v'
-        || fc == 't' || fc == 's' || fc == '{') {
+    } else if (fc == 'r' || fc == 'x' || fc == 'a' || fc == 'f' 
+        || fc == 'v' || fc == 't' || fc == 's' || fc == '{') {
         /* Register Operand
            1. Read register string, e.g., "reg0", "reg1".*/
         char reg_str[20] = "\0";

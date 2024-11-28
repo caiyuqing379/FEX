@@ -20,7 +20,7 @@
 
     } else if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG
       && opd2->type == RISCV_OPD_TYPE_IMM) {
-        int32_t imm = GetRVImmMapWrapper(&opd2->content.imm);
+        // int32_t imm = GetRVImmMapWrapper(&opd2->content.imm);
 
         if (instr->opc == RISCV_OPC_VSETVLI) {
           RVAssembler->VSETVLI(rd, rs1, biscuit::SEW::E8, biscuit::LMUL::M1, biscuit::VTA::No, biscuit::VMA::No);

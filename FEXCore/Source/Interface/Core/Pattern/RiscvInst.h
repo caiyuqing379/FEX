@@ -39,8 +39,6 @@ typedef enum {
     RISCV_REG_V24, RISCV_REG_V25, RISCV_REG_V26, RISCV_REG_V27,
     RISCV_REG_V28, RISCV_REG_V29, RISCV_REG_V30, RISCV_REG_V31,
 
-    RISCV_REG_T0, RISCV_REG_T1, RISCV_REG_T2, RISCV_REG_T3,
-    RISCV_REG_T4, RISCV_REG_T5, RISCV_REG_T6,
     RISCV_REG_VT0, RISCV_REG_VT1, RISCV_REG_VT2, RISCV_REG_VT3,
     RISCV_REG_VT4, RISCV_REG_VT5, RISCV_REG_VT6,
 
@@ -128,6 +126,12 @@ typedef enum {
     RISCV_OPC_SD,
 
     // Pseudo
+    RISCV_OPC_CMP,
+    RISCV_OPC_CMPB,
+    RISCV_OPC_CMPW,
+    RISCV_OPC_CMPQ,
+    RISCV_OPC_TEST,
+    RISCV_OPC_TESTB,
     RISCV_OPC_BEQZ,
     RISCV_OPC_J,
     RISCV_OPC_MV,
@@ -136,6 +140,7 @@ typedef enum {
     // Jump & Link
     RISCV_OPC_JAL,
     RISCV_OPC_JALR,
+    RISCV_OPC_CALL,
 
     // Multiply-Divide
     RISCV_OPC_MUL,
@@ -358,6 +363,8 @@ void set_riscv_instr_opd_reg_str(RISCVInstruction *instr, int opd_index, char *r
 
 void set_riscv_instr_opd_mem_base(RISCVInstruction *instr, int opd_index, int regno);
 void set_riscv_instr_opd_mem_base_str(RISCVInstruction *instr, int opd_index, char *reg_str);
+void set_riscv_opd_mem_off_pcrel_hi(RISCVOperand *opd);
+void set_riscv_opd_mem_off_pcrel_lo(RISCVOperand *opd);
 
 void set_riscv_opd_type(RISCVOperand *opd, RISCVOperandType type);
 

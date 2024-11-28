@@ -469,6 +469,19 @@ static inline bool insn_define_cc(X86Opcode opc) {
   return false;
 }
 
+bool is_update_cc(X86Instruction *instr, int icount) {
+  X86Instruction *head = instr;
+  int i;
+
+  for (i = 0; i < icount; i++) {
+    if (insn_define_cc(head->opc))
+      return true;
+    head = head->next;
+  }
+
+  return false;
+}
+
 void decide_reg_liveness(int succ_define_cc, X86Instruction *insn_seq) {
   bool cur_liveness[X86_REG_NUM];
   X86Instruction *tail;

@@ -56,6 +56,7 @@ inline void PatternMatcher::init_map_ptr(void) {
 
 inline void PatternMatcher::add_rule_record(TranslationRule *rule, uint64_t pc,
                                             uint64_t t_pc,
+                                            size_t blocksize,
                                             X86Instruction *last_guest,
                                             bool update_cc, bool save_cc,
                                             int pa_opc[20]) {
@@ -65,6 +66,7 @@ inline void PatternMatcher::add_rule_record(TranslationRule *rule, uint64_t pc,
 
   p->pc = pc;
   p->target_pc = t_pc;
+  p->blocksize = blocksize;
   p->last_guest = last_guest;
   p->rule = rule;
   p->update_cc = update_cc;
@@ -88,7 +90,7 @@ inline void PatternMatcher::add_matched_para_pc(uint64_t pc) {
   assert(pc_para_matched_buf_index < MAX_GUEST_INSTR_LEN);
 }
 
-bool PatternMatcher::match_label(char *lab_str, uint64_t t, uint64_t f) {
+bool PatternMatcher::match_label(char *lab_str, uint64_t t, size_t s, uint64_t f) {
   LabelMapping *lmap = l_map;
 
   while (lmap) {
@@ -105,6 +107,7 @@ bool PatternMatcher::match_label(char *lab_str, uint64_t t, uint64_t f) {
   assert(label_map_buf_index < MAX_MAP_BUF_LEN);
   strcpy(lmap->lab_str, lab_str);
   lmap->target = t;
+  lmap->instsize = s;
   lmap->fallthrough = f;
 
   lmap->next = l_map;
@@ -335,6 +338,7 @@ bool PatternMatcher::match_operand(X86Instruction *ginstr,
       assert(ropd->content.imm.type == X86_IMM_TYPE_SYM);
       return match_label(ropd->content.imm.content.sym,
                          gopd->content.imm.content.val,
+                         ginstr->InstSize,
                          ginstr->pc + ginstr->InstSize);
     } else /* match imm operand */
       return match_opd_imm(&gopd->content.imm, &ropd->content.imm);
@@ -663,15 +667,13 @@ bool PatternMatcher::MatchBlock(const void *tb) {
       TranslationRule *cur_rule = cache_rule_table[hindex];
 
       save_map_buf_index();
-      uint32_t num_rules_match = 0;
-      while (cur_rule) {
 
+      while (cur_rule) {
         if (cur_rule->guest_instr_num != i)
           goto next;
 
-        num_rules_match++;
-
         if (match_rule_internal(cur_head, cur_rule, transblock)) {
+          num_rules_match++;
 #if defined(PROFILE_RULE_TRANSLATION) && defined(DEBUG_RULE_LOG)
           writeToLogFile(
               std::to_string(ThreadState->ThreadManager.PID) + "fex-debug.log",
@@ -679,6 +681,7 @@ bool PatternMatcher::MatchBlock(const void *tb) {
                   ", match num:" + std::to_string(num_rules_match) +
                   "#####\n\n");
 #endif
+LogMan::Msg::IFmt("=====Hit index {}, num {}=====\n", cur_rule->index, num_rules_match);
           break;
         }
 
@@ -690,18 +693,23 @@ bool PatternMatcher::MatchBlock(const void *tb) {
       if (cur_rule) {
         X86Instruction *temp = cur_head;
         uint64_t target_pc = 0;
+        size_t blocksize = 0;
 
         match_insts += i;
 
         /* Check target_pc for this rule */
-        for (j = 1; j < i; j++)
+        for (j = 1; j < i; j++) {
+          blocksize += temp->InstSize;
           temp = temp->next;
-        if (!temp->next) // last instr
+        }
+        if (!temp->next) {// last instr
+          blocksize += temp->InstSize;
           target_pc = temp->pc + temp->InstSize;
+        }
 
         int pa_opc[20];
         if (!opd_para) {
-          add_rule_record(cur_rule, cur_head->pc, target_pc, temp, true,
+          add_rule_record(cur_rule, cur_head->pc, target_pc, blocksize, temp, is_update_cc(cur_head, i),
                           is_save_cc(cur_head, i), pa_opc);
         }
 

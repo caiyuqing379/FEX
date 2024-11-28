@@ -37,10 +37,10 @@ static const RISCVRegister riscv_reg_table[] = {
 
 static const char *riscv_reg_str[] = {
     "none",
-    "x0", "ra", "sp", "x3", "x4", "x5", "x6", "x7",
-    "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
-    "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",
-    "x24", "x25", "x26", "x27", "x28", "x29", "x30", "x31",
+    "x0", "ra", "sp", "gp", "tp", "t0", "t1", "t2",
+    "fp", "s1", "a0", "a1", "a2", "a3", "a4", "a5",
+    "a6", "a7", "s2", "s3", "s4", "s5", "s6", "s7",
+    "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6",
 
     "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
     "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
@@ -52,7 +52,6 @@ static const char *riscv_reg_str[] = {
     "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
     "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
 
-    "t0", "t1", "t2", "t3", "t4", "t5", "t6",
     "vt0", "vt1", "vt2", "vt3", "vt4", "vt5", "vt6",
 
     "reg0", "reg1", "reg2", "reg3", "reg4", "reg5", "reg6", "reg7",
@@ -131,6 +130,12 @@ static const char *riscv_opc_str[] = {
     [RISCV_OPC_SD]    = "sd",
 
     // Pseudo
+    [RISCV_OPC_CMP]   = "cmp",
+    [RISCV_OPC_CMPB]  = "cmpb",
+    [RISCV_OPC_CMPW]  = "cmpw",
+    [RISCV_OPC_CMPQ]  = "cmpq",
+    [RISCV_OPC_TEST]  = "test",
+    [RISCV_OPC_TESTB] = "testb",
     [RISCV_OPC_BEQZ]  = "beqz",
     [RISCV_OPC_J]     = "j",
     [RISCV_OPC_MV]    = "mv",
@@ -139,6 +144,7 @@ static const char *riscv_opc_str[] = {
     // Jump & Link
     [RISCV_OPC_JAL]   = "jal",
     [RISCV_OPC_JALR]  = "jalr",
+    [RISCV_OPC_CALL]  = "call",
 
     // Multiply-Divide
     [RISCV_OPC_MUL]   = "mul",
@@ -500,6 +506,20 @@ void set_riscv_opd_mem_off_str(RISCVOperand *opd, char *off_str)
 
     mopd->offset.type = RISCV_IMM_TYPE_SYM;
     strcpy(mopd->offset.content.sym, off_str);
+}
+
+void set_riscv_opd_mem_off_pcrel_hi(RISCVOperand *opd)
+{
+    RISCVImmOperand *iopd = &opd->content.mem.offset;
+
+    iopd->pcrel = RISCV_IMM_PCREL_HI;
+}
+
+void set_riscv_opd_mem_off_pcrel_lo(RISCVOperand *opd)
+{
+    RISCVImmOperand *iopd = &opd->content.mem.offset;
+
+    iopd->pcrel = RISCV_IMM_PCREL_LO;
 }
 
 RISCVRegister get_riscv_reg(int regno)

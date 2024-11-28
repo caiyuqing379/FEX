@@ -1,4 +1,12 @@
 #include <cstdint>
+
+#define FLAG_OFFSET_CF 704
+#define FLAG_OFFSET_PF 706
+#define FLAG_OFFSET_AF 708
+#define FLAG_OFFSET_ZF 710
+#define FLAG_OFFSET_SF 711
+#define FLAG_OFFSET_OF 715
+
 public:
   DEF_RV_OPC(Shifts) {
     RISCVOperand *opd0 = &instr->opd[0];
@@ -67,14 +75,44 @@ public:
     auto rd = GetRiscvGPR(rvreg0);
     auto rs1 = GetRiscvGPR(rvreg1);
 
-    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG && opd2->type == RISCV_OPD_TYPE_IMM) {
+    if (instr->opc == RISCV_OPC_MV && opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG) {
+        // Move (ADDI rd, rs, 0)
+        RVAssembler->ADDI(rd, rs1, 0);
+
+    } else if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG && opd2->type == RISCV_OPD_TYPE_IMM) {
+        if (instr->opc == RISCV_OPC_ADDI && opd1->content.imm.pcrel == RISCV_IMM_PCREL_LO) {
+            // get new rip
+            uint64_t target, fallthrough;
+            size_t instsize;
+            GetLabelMap(opd1->content.imm.content.sym, &target, &fallthrough, &instsize);
+
+            const auto uimm = static_cast<uint32_t>(target + instsize);
+            const auto lower = uimm & 0xFFF;
+            const auto upper = (uimm & 0xFFFFF000) >> 12;
+            const auto needs_increment = (uimm & 0x800) != 0;
+
+            // Sign-extend the lower portion if the MSB of it is set.
+            const auto new_lower = needs_increment ? static_cast<int32_t>(lower << 20) >> 20
+                                           : static_cast<int32_t>(lower);
+            const auto new_upper = needs_increment ? upper + 1 : upper;
+
+            if (rd == biscuit::x31) {
+              RVAssembler->LUI(biscuit::x5, static_cast<int32_t>(new_upper));
+              RVAssembler->ADDI(biscuit::x5, biscuit::x5, new_lower);
+              RVAssembler->ADD(rd, biscuit::x5, biscuit::x31);
+            } else {
+              RVAssembler->LUI(rd, static_cast<int32_t>(new_upper));
+              RVAssembler->ADDI(rd, rd, new_lower);
+              RVAssembler->ADD(rd, rd, biscuit::x31);
+            }
+            return;
+        }
+        
         int32_t Imm = GetRVImmMapWrapper(&opd2->content.imm);
 
         // I-immediate[11:0], x86 imm > riscv imm?
         if (instr->opc == RISCV_OPC_ADDI) {
           RVAssembler->ADDI(rd, rs1, Imm);
-        } else if (instr->opc == RISCV_OPC_MV) {
-          RVAssembler->ADDI(rd, rs1, 0);
         } else if (instr->opc == RISCV_OPC_ADDIW) {
           RVAssembler->ADDIW(rd, rs1, Imm);
         }
@@ -104,7 +142,7 @@ public:
     auto rvreg0 = GetRiscvReg(opd0->content.reg.num);
     auto rd = GetRiscvGPR(rvreg0);
 
-    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG) {
+    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
         int32_t Imm = GetRVImmMapWrapper(&opd1->content.imm);
         // I-immediate[11:0], x86 imm > riscv imm?
         RVAssembler->LI(rd, Imm);
@@ -149,14 +187,15 @@ public:
     auto rvreg0 = GetRiscvReg(opd0->content.reg.num);
     auto rd = GetRiscvGPR(rvreg0);
 
-    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
-        int32_t Imm = GetRVImmMapWrapper(&opd1->content.imm);
+    uint64_t target, fallthrough;
 
-        // I-immediate[11:0]
+    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
+        // get new rip
+        GetLabelMap(opd1->content.imm.content.sym, &target, &fallthrough);
+        int32_t imm = fallthrough + target;
+
         if (instr->opc == RISCV_OPC_LUI) {
-          RVAssembler->LUI(rd, Imm);
-        } else if (instr->opc == RISCV_OPC_AUIPC) {
-          RVAssembler->AUIPC(rd, Imm);
+          RVAssembler->LUI(rd, imm);
         }
 
     } else
@@ -184,6 +223,13 @@ public:
             RVAssembler->ORI(rd, rs1, imm);
         } else if (instr->opc == RISCV_OPC_ANDI) {
             RVAssembler->ANDI(rd, rs1, imm);
+            RVAssembler->NOT(biscuit::x5, rd);      // PF
+            RVAssembler->SEQZ(biscuit::x6, rd);     // ZF
+            RVAssembler->SB(biscuit::x0, FLAG_OFFSET_CF, biscuit::x9);
+            RVAssembler->SB(biscuit::x5, FLAG_OFFSET_PF, biscuit::x9);
+            RVAssembler->SB(biscuit::x6, FLAG_OFFSET_ZF, biscuit::x9);
+            RVAssembler->SB(biscuit::x0, FLAG_OFFSET_SF, biscuit::x9);
+            RVAssembler->SB(biscuit::x0, FLAG_OFFSET_OF, biscuit::x9);
         }
 
     } else if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG && opd2->type == RISCV_OPD_TYPE_REG) {
@@ -247,6 +293,126 @@ public:
         LogMan::Msg::EFmt("[RISC-V] Unsupported operand type for Compare instruction.");
   }
 
+  DEF_RV_OPC(CMP) {
+    RISCVOperand *opd0 = &instr->opd[0];
+    RISCVOperand *opd1 = &instr->opd[1];
+    uint8_t OpSize = instr->OpSize;
+
+    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
+      auto rvreg0 = GetRiscvReg(opd0->content.reg.num);
+      auto rs = GetRiscvGPR(rvreg0);
+
+      int32_t imm = GetRVImmMapWrapper(&opd1->content.imm);
+
+      if (biscuit::IsValidSigned12BitImm(imm)) {
+        RVAssembler->ADDI(biscuit::x26, rs, -imm);
+        RVAssembler->XOR(biscuit::x5, rs, biscuit::x26);
+        RVAssembler->SLLI(biscuit::x5, biscuit::x5, 59);
+        RVAssembler->SRLI(biscuit::x5, biscuit::x5, 63);  // AF
+        RVAssembler->NOT(biscuit::x7, biscuit::x26);      // PF
+        RVAssembler->SLTI(biscuit::x29, biscuit::x26, 0);
+        RVAssembler->SRLI(biscuit::x6, biscuit::x26, OpSize*8-1);   // SF
+        RVAssembler->SEQZ(biscuit::x28, biscuit::x26);    // ZF
+        RVAssembler->SLTI(biscuit::x25, rs, imm);
+        RVAssembler->XOR(biscuit::x29, biscuit::x29, biscuit::x25); // OF
+        RVAssembler->SLTIU(biscuit::x25, rs, imm);
+      } else {
+        RVAssembler->ADDIW(biscuit::x25, rs, 0);
+        RVAssembler->LI(biscuit::x26, imm);
+        if (imm < 0)
+          RVAssembler->ADDW(biscuit::x27, rs, biscuit::x26);
+        else
+          RVAssembler->SUBW(biscuit::x27, rs, biscuit::x26);
+        RVAssembler->XOR(biscuit::x5, rs, biscuit::x27);
+        RVAssembler->NOT(biscuit::x5, biscuit::x5);      // PF
+        RVAssembler->SLLI(biscuit::x5, biscuit::x5, 59);
+        RVAssembler->SRLI(biscuit::x5, biscuit::x5, 63);  // AF
+        RVAssembler->NOT(biscuit::x7, biscuit::x27);      // PF
+        RVAssembler->SLTI(biscuit::x29, biscuit::x27, 0);
+        RVAssembler->SRLIW(biscuit::x6, biscuit::x27, OpSize*8-1);
+        RVAssembler->SEQZ(biscuit::x28, biscuit::x27);    // ZF
+        RVAssembler->SLT(biscuit::x8, biscuit::x25, biscuit::x26);
+        RVAssembler->XOR(biscuit::x29, biscuit::x29, biscuit::x8);   // OF
+        RVAssembler->SLTU(biscuit::x25, biscuit::x25, biscuit::x26);  // CF
+      }
+
+      RVAssembler->SB(biscuit::x25, FLAG_OFFSET_CF, biscuit::x9);
+      RVAssembler->SB(biscuit::x7, FLAG_OFFSET_PF, biscuit::x9);
+      RVAssembler->SB(biscuit::x5, FLAG_OFFSET_AF, biscuit::x9);
+      RVAssembler->SB(biscuit::x28, FLAG_OFFSET_ZF, biscuit::x9);
+      RVAssembler->SB(biscuit::x6, FLAG_OFFSET_SF, biscuit::x9);
+      RVAssembler->SB(biscuit::x29, FLAG_OFFSET_OF, biscuit::x9);
+    } else
+        LogMan::Msg::EFmt("[RISC-V] Unsupported operand type for CMP instruction.");
+  }
+
+  DEF_RV_OPC(CMPB) {
+    RISCVOperand *opd0 = &instr->opd[0];
+    RISCVOperand *opd1 = &instr->opd[1];
+
+    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
+      auto rvreg0 = GetRiscvReg(opd0->content.reg.num);
+      auto rs = GetRiscvGPR(rvreg0);
+
+      RVAssembler->NOT(biscuit::x6, rs);      // PF
+      if (instr->opc == RISCV_OPC_CMPB) {
+        RVAssembler->SRLI(biscuit::x5, rs, 7);  // SF
+      } else if (instr->opc == RISCV_OPC_CMPQ) {
+        RVAssembler->SRLI(biscuit::x5, rs, 63);
+      }
+      RVAssembler->SEQZ(biscuit::x7, rs);    // ZF
+
+      RVAssembler->SB(biscuit::x0, FLAG_OFFSET_CF, biscuit::x9);
+      RVAssembler->SB(biscuit::x6, FLAG_OFFSET_PF, biscuit::x9);
+      RVAssembler->SB(biscuit::x0, FLAG_OFFSET_AF, biscuit::x9);
+      RVAssembler->SB(biscuit::x7, FLAG_OFFSET_ZF, biscuit::x9);
+      RVAssembler->SB(biscuit::x5, FLAG_OFFSET_SF, biscuit::x9);
+      RVAssembler->SB(biscuit::x0, FLAG_OFFSET_OF, biscuit::x9);
+    } else
+        LogMan::Msg::EFmt("[RISC-V] Unsupported operand type for CMP instruction.");
+  }
+
+  DEF_RV_OPC(TEST) {
+    RISCVOperand *opd0 = &instr->opd[0];
+    RISCVOperand *opd1 = &instr->opd[1];
+    uint8_t OpSize = instr->OpSize;
+
+    auto rvreg0 = GetRiscvReg(opd0->content.reg.num);
+    auto rs0 = GetRiscvGPR(rvreg0);
+
+    if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG) {
+      auto rvreg1 = GetRiscvReg(opd1->content.reg.num);
+      auto rs1 = GetRiscvGPR(rvreg1);
+
+      if (rs0 == rs1) {
+        RVAssembler->ADDIW(biscuit::x28, rs0, 0);
+        RVAssembler->NOT(biscuit::x6, rs0);      // PF
+        RVAssembler->SRLIW(biscuit::x5, rs0, OpSize*8-1);
+        RVAssembler->SEQZ(biscuit::x7, biscuit::x28);    // ZF
+        RVAssembler->SB(biscuit::x0, FLAG_OFFSET_CF, biscuit::x9);
+        RVAssembler->SB(biscuit::x6, FLAG_OFFSET_PF, biscuit::x9);
+        RVAssembler->SB(biscuit::x7, FLAG_OFFSET_ZF, biscuit::x9);
+        RVAssembler->SB(biscuit::x5, FLAG_OFFSET_SF, biscuit::x9);
+        RVAssembler->SB(biscuit::x0, FLAG_OFFSET_OF, biscuit::x9);
+      } else 
+        LogMan::Msg::EFmt("[RISC-V] TEST rs0 != rs1.");
+
+    } else if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
+        int32_t imm = GetRVImmMapWrapper(&opd1->content.imm);
+
+        RVAssembler->NOT(biscuit::x6, rs0);      // PF
+        RVAssembler->SEQZ(biscuit::x5, rs0);    // ZF
+        RVAssembler->ANDI(rs0, rs0, imm);
+        RVAssembler->SB(biscuit::x0, FLAG_OFFSET_CF, biscuit::x9);
+        RVAssembler->SB(biscuit::x6, FLAG_OFFSET_PF, biscuit::x9);
+        RVAssembler->SB(biscuit::x5, FLAG_OFFSET_ZF, biscuit::x9);
+        RVAssembler->SB(biscuit::x0, FLAG_OFFSET_SF, biscuit::x9);
+        RVAssembler->SB(biscuit::x0, FLAG_OFFSET_OF, biscuit::x9);
+        //   LogMan::Msg::EFmt("[RISC-V] TEST opcode error.");
+    } else
+        LogMan::Msg::EFmt("[RISC-V] Unsupported operand type for TEST instruction.");
+  }
+
   DEF_RV_OPC(Branch) {
     RISCVOperand *opd0 = &instr->opd[0];
     RISCVOperand *opd1 = &instr->opd[1];
@@ -255,43 +421,110 @@ public:
     auto rvreg0 = GetRiscvReg(opd0->content.reg.num);
     auto rd = GetRiscvGPR(rvreg0);
 
+    uint64_t target, fallthrough;
+
     if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
-        int32_t imm = GetRVImmMapWrapper(&opd1->content.imm);
+        GetLabelMap(opd1->content.imm.content.sym, &target, &fallthrough);
+        int32_t imm = rrule->blocksize;
+
+        if (!rrule->update_cc) {
+            if (instr->opc == RISCV_OPC_BEQZ) {
+                RVAssembler->LBU(biscuit::x5, FLAG_OFFSET_ZF, biscuit::x9);
+                RVAssembler->ANDI(biscuit::x5, biscuit::x5, 1);
+                RVAssembler->BEQZ(biscuit::x5, 10);
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, target + imm);
+                RVAssembler->C_JALR(biscuit::x1);
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, imm);
+            } else if (instr->opc == RISCV_OPC_BGTZ) {
+                RVAssembler->LBU(biscuit::x5, FLAG_OFFSET_CF, biscuit::x9);
+                RVAssembler->LBU(biscuit::x6, FLAG_OFFSET_ZF, biscuit::x9);
+                RVAssembler->XOR(biscuit::x5, biscuit::x5, biscuit::x6);
+                RVAssembler->ANDI(biscuit::x5, biscuit::x5, 1);
+                RVAssembler->BNEZ(biscuit::x5, 10);
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, target + imm);
+                RVAssembler->C_JALR(biscuit::x1);
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, imm);
+            }
+            return;
+        }
 
         if (instr->opc == RISCV_OPC_BLTZ) {
-            RVAssembler->BLTZ(rd, imm);
+            RVAssembler->BLTZ(rd, 3*4);
         } else if (instr->opc == RISCV_OPC_BLEZ) {
-            RVAssembler->BLEZ(rd, imm);
+            RVAssembler->BLEZ(rd, 3*4);
         } else if (instr->opc == RISCV_OPC_BGEZ) {
-            RVAssembler->BGEZ(rd, imm);
+            RVAssembler->BGEZ(rd, 3*4);
         } else if (instr->opc == RISCV_OPC_BGTZ) {
-            RVAssembler->BGTZ(rd, imm);
+            RVAssembler->BGTZ(rd, 3*4);
         } else if (instr->opc == RISCV_OPC_BNEZ) {
-            RVAssembler->BNEZ(rd, imm);
+            RVAssembler->BNEZ(rd, 3*4);
+        } else if (instr->opc == RISCV_OPC_BEQZ) {
+            RVAssembler->BEQZ(rd, 3*4);
+        }
+
+        RVAssembler->ADDI(biscuit::x31, biscuit::x31, imm);
+        RVAssembler->RET();
+        if (biscuit::IsValidSigned12BitImm(target + imm)) {
+          RVAssembler->ADDI(biscuit::x31, biscuit::x31, target + imm);
+        } else {
+          RVAssembler->LI(biscuit::x8, target + imm);
+          RVAssembler->ADD(biscuit::x31, biscuit::x31, biscuit::x8);
         }
 
     } else if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG && opd2->type == RISCV_OPD_TYPE_IMM) {
         auto rvreg1 = GetRiscvReg(opd1->content.reg.num);
         auto rs1 = GetRiscvGPR(rvreg1);
-        int32_t imm = GetRVImmMapWrapper(&opd2->content.imm);
 
-        // I-immediate[11:0], x86 imm > riscv imm?
+        GetLabelMap(opd2->content.imm.content.sym, &target, &fallthrough);
+        int32_t imm = rrule->blocksize;
+
+        if (!rrule->update_cc) {
+            if (instr->opc == RISCV_OPC_BLE) {
+                RVAssembler->LBU(biscuit::x5, FLAG_OFFSET_CF, biscuit::x9);
+                RVAssembler->ANDI(biscuit::x5, biscuit::x5, 1);
+                RVAssembler->BNEZ(biscuit::x5, 5*4);
+                RVAssembler->LBU(biscuit::x5, FLAG_OFFSET_ZF, biscuit::x9);
+                RVAssembler->ANDI(biscuit::x5, biscuit::x5, 1);
+                RVAssembler->BNEZ(biscuit::x5, 8);
+                RVAssembler->C_ADDI(biscuit::x31, imm);
+                RVAssembler->C_JALR(biscuit::x1);
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, target + imm);
+            } else if (instr->opc == RISCV_OPC_BNE) {
+                RVAssembler->LBU(biscuit::x5, FLAG_OFFSET_ZF, biscuit::x9);
+                RVAssembler->ANDI(biscuit::x5, biscuit::x5, 1);
+                RVAssembler->BEQZ(biscuit::x5, 10);
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, target + imm);
+                RVAssembler->C_JALR(biscuit::x1);
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, imm);
+            }
+            return;
+        }
+
         if (instr->opc == RISCV_OPC_BEQ) {
-            RVAssembler->BEQ(rd, rs1, imm);
+            RVAssembler->BEQ(rd, rs1, 3*4);
         } else if (instr->opc == RISCV_OPC_BNE) {
-            RVAssembler->BNE(rd, rs1, imm);
+            RVAssembler->BNE(rd, rs1, 3*4);
         } else if (instr->opc == RISCV_OPC_BLT) {
-            RVAssembler->BLT(rd, rs1, imm);
+            RVAssembler->BLT(rd, rs1, 3*4);
         } else if (instr->opc == RISCV_OPC_BLE) {
-            RVAssembler->BLE(rd, rs1, imm);
+            RVAssembler->BLE(rd, rs1, 3*4);
         } else if (instr->opc == RISCV_OPC_BGT) {
-            RVAssembler->BGT(rd, rs1, imm);
+            RVAssembler->BGT(rd, rs1, 3*4);
         } else if (instr->opc == RISCV_OPC_BGE) {
-            RVAssembler->BGE(rd, rs1, imm);
+            RVAssembler->BGE(rd, rs1, 3*4);
         } else if (instr->opc == RISCV_OPC_BLTU) {
-            RVAssembler->BLTU(rd, rs1, imm);
+            RVAssembler->BLTU(rd, rs1, 3*4);
         } else if (instr->opc == RISCV_OPC_BGEU) {
-            RVAssembler->BGEU(rd, rs1, imm);
+            RVAssembler->BGEU(rd, rs1, 3*4);
+        }
+
+        RVAssembler->ADDI(biscuit::x31, biscuit::x31, imm);
+        RVAssembler->RET();
+        if (biscuit::IsValidSigned12BitImm(target + imm)) {
+          RVAssembler->ADDI(biscuit::x31, biscuit::x31, target + imm);
+        } else {
+          RVAssembler->LI(biscuit::x8, target + imm);
+          RVAssembler->ADD(biscuit::x31, biscuit::x31, biscuit::x8);
         }
 
     } else
@@ -306,6 +539,44 @@ public:
     auto rd = GetRiscvGPR(rvreg0);
 
     if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_MEM) {
+        if (opd1->content.mem.offset.pcrel == RISCV_IMM_PCREL_LO) {
+            // get new rip
+            uint64_t target, fallthrough;
+            size_t instsize;
+            GetLabelMap(opd1->content.mem.offset.content.sym, &target, &fallthrough, &instsize);
+
+            const auto uimm = static_cast<uint32_t>(target + instsize);
+            const auto lower = uimm & 0xFFF;
+            const auto upper = (uimm & 0xFFFFF000) >> 12;
+            const auto needs_increment = (uimm & 0x800) != 0;
+
+            // Sign-extend the lower portion if the MSB of it is set.
+            const auto new_lower = needs_increment ? static_cast<int32_t>(lower << 20) >> 20
+                                           : static_cast<int32_t>(lower);
+            const auto new_upper = needs_increment ? upper + 1 : upper;
+
+            if (rd == biscuit::x31) {
+              RVAssembler->LUI(biscuit::x5, static_cast<int32_t>(new_upper));
+              RVAssembler->ADD(biscuit::x5, biscuit::x5, biscuit::x31);
+              if (instr->opc == RISCV_OPC_LD)
+                RVAssembler->LD(rd, new_lower, biscuit::x5);
+              else if (instr->opc == RISCV_OPC_LB)
+                RVAssembler->LB(rd, new_lower, biscuit::x5);
+              else if (instr->opc == RISCV_OPC_LW)
+                RVAssembler->LB(rd, new_lower, biscuit::x5);
+            } else {
+              RVAssembler->LUI(rd, static_cast<int32_t>(new_upper));
+              RVAssembler->ADD(rd, rd, biscuit::x31);
+              if (instr->opc == RISCV_OPC_LD)
+                RVAssembler->LD(rd, new_lower, rd);
+              else if (instr->opc == RISCV_OPC_LB)
+                RVAssembler->LB(rd, new_lower, rd);
+              else if (instr->opc == RISCV_OPC_LW)
+                RVAssembler->LW(rd, new_lower, rd);
+            }
+            return;
+        }
+
         auto rvreg1 = GetRiscvReg(opd1->content.mem.base);
         auto rs1 = GetRiscvGPR(rvreg1);
         int32_t imm = GetRVImmMapWrapper(&opd1->content.mem.offset);
@@ -313,6 +584,8 @@ public:
         // I-immediate[11:0], x86 imm > riscv imm?
         if (instr->opc == RISCV_OPC_LB) {
             RVAssembler->LB(rd, imm, rs1);
+        } else if (instr->opc == RISCV_OPC_LBU) {
+            RVAssembler->LBU(rd, imm, rs1);
         } else if (instr->opc == RISCV_OPC_LH) {
             RVAssembler->LH(rd, imm, rs1);
         } else if (instr->opc == RISCV_OPC_LHU) {
@@ -337,6 +610,40 @@ public:
     auto rd = GetRiscvGPR(rvreg0);
 
     if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_MEM) {
+        if (opd1->content.mem.offset.pcrel == RISCV_IMM_PCREL_LO) {
+            // get new rip
+            uint64_t target, fallthrough;
+            size_t instsize;
+            GetLabelMap(opd1->content.mem.offset.content.sym, &target, &fallthrough, &instsize);
+
+            const auto uimm = static_cast<uint32_t>(target + instsize);
+            const auto lower = uimm & 0xFFF;
+            const auto upper = (uimm & 0xFFFFF000) >> 12;
+            const auto needs_increment = (uimm & 0x800) != 0;
+
+            // Sign-extend the lower portion if the MSB of it is set.
+            const auto new_lower = needs_increment ? static_cast<int32_t>(lower << 20) >> 20
+                                           : static_cast<int32_t>(lower);
+            const auto new_upper = needs_increment ? upper + 1 : upper;
+
+            if (rd == biscuit::x31) {
+              RVAssembler->LUI(biscuit::x5, static_cast<int32_t>(new_upper));
+              RVAssembler->ADD(biscuit::x5, biscuit::x5, biscuit::x31);
+              if (instr->opc == RISCV_OPC_SD)
+                RVAssembler->SD(rd, new_lower, biscuit::x5);
+              else if (instr->opc == RISCV_OPC_SB)
+                RVAssembler->SB(rd, new_lower, biscuit::x5);
+            } else {
+              RVAssembler->LUI(rd, static_cast<int32_t>(new_upper));
+              RVAssembler->ADD(rd, rd, biscuit::x31);
+              if (instr->opc == RISCV_OPC_SD)
+                RVAssembler->SD(rd, new_lower, rd);
+              else if (instr->opc == RISCV_OPC_SB)
+                RVAssembler->SB(rd, new_lower, rd);
+            }
+            return;
+        }
+
         auto rvreg1 = GetRiscvReg(opd1->content.mem.base);
         auto rs1 = GetRiscvGPR(rvreg1);
         int32_t imm = GetRVImmMapWrapper(&opd1->content.mem.offset);
@@ -367,25 +674,53 @@ public:
     uint64_t target, fallthrough;
 
     if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_IMM) {
-        // I-immediate[11:0], x86 imm > riscv imm?
+
         if (instr->opc == RISCV_OPC_JAL) {
             // get new rip
             GetLabelMap(opd1->content.imm.content.sym, &target, &fallthrough);
-            RVAssembler->JAL(rd, fallthrough + target);
+            int32_t imm = rrule->blocksize;
+            if (biscuit::IsValidSigned12BitImm(target + imm)) {
+                RVAssembler->ADDI(biscuit::x31, biscuit::x31, target + imm);
+            } else {
+                RVAssembler->LI(biscuit::x5, target + imm);
+                RVAssembler->ADD(biscuit::x31, biscuit::x31, biscuit::x5);
+            }
         }
 
     } else if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG && opd2->type == RISCV_OPD_TYPE_IMM) {
-        // I-immediate[11:0], x86 imm > riscv imm?
+
         if (instr->opc == RISCV_OPC_JALR) {
             auto rvreg1 = GetRiscvReg(opd1->content.reg.num);
             auto rs1 = GetRiscvGPR(rvreg1);
 
             GetLabelMap(opd2->content.imm.content.sym, &target, &fallthrough);
-            RVAssembler->JALR(rd, fallthrough + target, rs1);
+            int32_t imm = (fallthrough + target) & 0xFFF;
+            RVAssembler->JALR(rd, imm, rs1);
         }
 
     } else
         LogMan::Msg::EFmt("[RISC-V] Unsupported operand type for Jump instruction.");
+  }
+
+  DEF_RV_OPC(CALL) {
+    RISCVOperand *opd0 = &instr->opd[0];
+
+    uint64_t target, fallthrough;
+    int32_t imm = rrule->blocksize;
+
+    if (opd0->type == RISCV_OPD_TYPE_IMM) {
+        if (instr->opc == RISCV_OPC_CALL) {
+            GetLabelMap(opd0->content.imm.content.sym, &target, &fallthrough);
+        
+            RVAssembler->ADDI(biscuit::x5, biscuit::x31, imm);  // retval = rip + InstSize
+            RVAssembler->SD(biscuit::x5, -8, biscuit::x17);   // push retval
+            RVAssembler->LI(biscuit::x5, target + imm);
+            RVAssembler->ADD(biscuit::x31, biscuit::x31, biscuit::x5);
+            RVAssembler->ADDI(biscuit::x17, biscuit::x17, -8);// rsp = rsp - 8
+        }
+
+    } else
+        LogMan::Msg::EFmt("[RISC-V] Unsupported operand type for CALL instruction.");
   }
 
   DEF_RV_OPC(Multiply) {
