@@ -134,7 +134,7 @@ private:
                               bool save_cc, int pa_opc[20]);
   inline void add_matched_pc(uint64_t pc);
   inline void add_matched_para_pc(uint64_t pc);
-  bool match_label(char *lab_str, uint64_t t, size_t s,uint64_t f);
+  bool match_label(char *lab_str, uint64_t t, uint64_t f);
   bool match_register(X86Register greg, X86Register rreg, uint32_t regsize = 0,
                       bool HighBits = false);
   bool match_imm(uint64_t val, char *sym);
@@ -160,7 +160,7 @@ private:
   void GenArm64Code(RuleRecord *rule_r);
 
 private:
-  void GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f, size_t *s = nullptr);
+  void GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f);
   uint64_t GetImmMap(char *sym);
   uint64_t GetARMImmMapWrapper(ARMImm *imm);
   uint64_t GetRVImmMapWrapper(RISCVImm *imm);
@@ -179,6 +179,7 @@ private:
   RISCVRegister GuestMapRiscvReg(X86Register &reg);
   RISCVRegister GetRiscvTmpReg(RISCVRegister &reg);
   RISCVRegister GetRiscvReg(RISCVRegister &reg);
+  RISCVRegister GetRiscvReg(RISCVRegister &reg, uint32_t &regsize);
   biscuit::GPR GetRiscvGPR(RISCVRegister &reg);
   biscuit::FPR GetRiscvFPR(RISCVRegister &reg);
   biscuit::Vec GetRiscvVec(RISCVRegister &reg);
@@ -243,6 +244,7 @@ private:
   std::unique_ptr<FEXCore::ARMEmitter::Emitter> ARMAssembler;
 
   uint64_t BlockPC;
+  biscuit::GPR GPRTempRes;
 };
 
 } // namespace FEXCore::Pattern

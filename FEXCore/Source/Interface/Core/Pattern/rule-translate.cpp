@@ -65,6 +65,7 @@ inline void PatternMatcher::add_rule_record(TranslationRule *rule, uint64_t pc,
   assert(rule_record_buf_index < MAX_RULE_RECORD_BUF_LEN);
 
   p->pc = pc;
+  p->entry = pc;
   p->target_pc = t_pc;
   p->blocksize = blocksize;
   p->last_guest = last_guest;
@@ -90,7 +91,7 @@ inline void PatternMatcher::add_matched_para_pc(uint64_t pc) {
   assert(pc_para_matched_buf_index < MAX_GUEST_INSTR_LEN);
 }
 
-bool PatternMatcher::match_label(char *lab_str, uint64_t t, size_t s, uint64_t f) {
+bool PatternMatcher::match_label(char *lab_str, uint64_t t, uint64_t f) {
   LabelMapping *lmap = l_map;
 
   while (lmap) {
@@ -107,7 +108,6 @@ bool PatternMatcher::match_label(char *lab_str, uint64_t t, size_t s, uint64_t f
   assert(label_map_buf_index < MAX_MAP_BUF_LEN);
   strcpy(lmap->lab_str, lab_str);
   lmap->target = t;
-  lmap->instsize = s;
   lmap->fallthrough = f;
 
   lmap->next = l_map;
@@ -338,7 +338,6 @@ bool PatternMatcher::match_operand(X86Instruction *ginstr,
       assert(ropd->content.imm.type == X86_IMM_TYPE_SYM);
       return match_label(ropd->content.imm.content.sym,
                          gopd->content.imm.content.val,
-                         ginstr->InstSize,
                          ginstr->pc + ginstr->InstSize);
     } else /* match imm operand */
       return match_opd_imm(&gopd->content.imm, &ropd->content.imm);
@@ -775,8 +774,6 @@ void remove_guest_instruction(DecodedBlocks *tb, uint64_t pc) {
 
 static ARMInstruction *arm_host;
 void PatternMatcher::GenArm64Code(RuleRecord *rule_r) {
-  TranslationRule *rule;
-
   if (!rule_r)
     return;
 }

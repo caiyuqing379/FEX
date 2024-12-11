@@ -56,6 +56,8 @@ RuleRecord *rule_r = GetTranslationRule(BlockPC);;
   imm_map = rule_r->imm_map;
   g_reg_map = rule_r->g_reg_map;
 
+  GPRTempRes = biscuit::x0;
+
   RISCVInstruction *riscv_code = rule->riscv_host;
 
   /* Assemble host instructions in the rule */
@@ -179,14 +181,21 @@ RISCVRegister PatternMatcher::GetRiscvTmpReg(RISCVRegister &reg) {
 }
 
 RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg) {
+  uint32_t regsize=0;
+  return GetRiscvReg(reg, regsize);
+}
+
+RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg, uint32_t &regsize) {
   if (reg == RISCV_REG_INVALID)
     LOGMAN_MSG_A_FMT("RISC-V Reg is Invalid!");
 
   if (RISCV_REG_X0 <= reg && reg <= RISCV_REG_V31) {
+    regsize = 0;
     return reg;
   }
 
   if (RISCV_REG_VT0 <= reg && reg <= RISCV_REG_VT6) {
+    regsize = 0;
     return GetRiscvTmpReg(reg);
   }
 
@@ -194,6 +203,7 @@ RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg) {
 
   while (gmap) {
     if (!strcmp(get_riscv_reg_str(reg), get_x86_reg_str(gmap->sym))) {
+      regsize = gmap->regsize;
       RISCVRegister riscvreg = GuestMapRiscvReg(gmap->num);
       if (riscvreg == RISCV_REG_INVALID) {
         LogMan::Msg::EFmt("Unsupported reg num - RISCV: {}, x86: {}",
@@ -476,16 +486,13 @@ uint64_t PatternMatcher::GetRVImmMapWrapper(RISCVImm *imm) {
   return GetImmMap(imm->content.sym);
 }
 
-void PatternMatcher::GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f, size_t *s) {
+void PatternMatcher::GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f) {
   LabelMapping *lmap = l_map;
 
   while (lmap) {
     if (!strcmp(lmap->lab_str, lab_str)) {
       *t = lmap->target;
       *f = lmap->fallthrough;
-      if (s != nullptr) {
-        *s = lmap->instsize;
-      }
       return;
     }
     lmap = lmap->next;

@@ -70,6 +70,7 @@ typedef struct LabelMapping {
 
 typedef struct {
     uint64_t pc;            /* Simulated guest pc */
+    uint64_t entry;
     uint64_t target_pc;     /* Branch target pc.
                                Only valid if the last instruction of current tb is not branch
                                and covered by this rule */
