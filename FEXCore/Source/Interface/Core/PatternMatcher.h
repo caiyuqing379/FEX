@@ -183,6 +183,7 @@ private:
   biscuit::GPR GetRiscvGPR(RISCVRegister &reg);
   biscuit::FPR GetRiscvFPR(RISCVRegister &reg);
   biscuit::Vec GetRiscvVec(RISCVRegister &reg);
+  std::pair<int32_t, uint32_t> ProcessImmediate(uint32_t imm);
 
 private:
 #define DEF_RV_OPC(x) void Opc_##x(RISCVInstruction *instr, RuleRecord *rrule)

@@ -62,7 +62,7 @@ RuleRecord *rule_r = GetTranslationRule(BlockPC);;
 
   /* Assemble host instructions in the rule */
   while (riscv_code) {
-    print_riscv_instr(riscv_code);
+    // print_riscv_instr(riscv_code);
     switch (riscv_code->opc) {
 #define REGISTER_OP(op, x)                                                     \
   case RISCV_OPC_##op:                                                         \
@@ -499,4 +499,18 @@ void PatternMatcher::GetLabelMap(char *lab_str, uint64_t *t, uint64_t *f) {
   }
 
   assert(0);
+}
+
+std::pair<int32_t, uint32_t> PatternMatcher::ProcessImmediate(uint32_t imm) {
+  const auto uimm = static_cast<uint32_t>(imm);
+  const auto lower = uimm & 0xFFF;
+  const auto upper = (uimm & 0xFFFFF000) >> 12;
+  const auto needs_increment = (uimm & 0x800) != 0;
+
+  // Sign-extend the lower portion if the MSB of it is set.
+  const auto new_lower = needs_increment ? static_cast<int32_t>(lower << 20) >> 20
+                                               : static_cast<int32_t>(lower);
+  const auto new_upper = needs_increment ? upper + 1 : upper;
+
+  return {new_lower, new_upper};
 }

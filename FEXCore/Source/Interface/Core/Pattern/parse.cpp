@@ -287,7 +287,9 @@ void ParseTranslationRules(int arch, uint64_t pid)
             counter++;
 
             /* get the index of this rule */
-            strncpy(idx, line, strlen(line) - strlen(substr));
+            const char *position = strstr(line, substr);
+            int index = position - line;
+            strncpy(idx, line, index);
             rule->index = atoi(idx);
 
             parse_rule_x86_code(fp, rule);
