@@ -140,6 +140,8 @@ static const char *riscv_opc_str[] = {
     [RISCV_OPC_J]     = "j",
     [RISCV_OPC_MV]    = "mv",
     [RISCV_OPC_RET]   = "ret",
+    [RISCV_OPC_LDAPS] = "ldaps",
+    [RISCV_OPC_SAVE_FLAGS] = "saveflags",
 
     // Jump & Link
     [RISCV_OPC_JAL]   = "jal",

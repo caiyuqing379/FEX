@@ -136,6 +136,8 @@ typedef enum {
     RISCV_OPC_J,
     RISCV_OPC_MV,
     RISCV_OPC_RET,
+    RISCV_OPC_LDAPS,
+    RISCV_OPC_SAVE_FLAGS,
 
     // Jump & Link
     RISCV_OPC_JAL,
