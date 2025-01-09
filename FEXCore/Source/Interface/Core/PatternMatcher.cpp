@@ -121,37 +121,53 @@ RISCVRegister PatternMatcher::GuestMapRiscvReg(X86Register &reg) {
   case X86_REG_R15:
     return get_riscv_reg(GPRMappedIdx[15]);
   case X86_REG_XMM0:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[0]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[0]);
+    return RISCV_REG_V0;
   case X86_REG_XMM1:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[1]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[1]);
+    return RISCV_REG_V1;
   case X86_REG_XMM2:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[2]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[2]);
+    return RISCV_REG_V2;
   case X86_REG_XMM3:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[3]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[3]);
+    return RISCV_REG_V3;
   case X86_REG_XMM4:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[4]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[4]);
+    return RISCV_REG_V4;
   case X86_REG_XMM5:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[5]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[5]);
+    return RISCV_REG_V5;
   case X86_REG_XMM6:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[6]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[6]);
+    return RISCV_REG_V6;
   case X86_REG_XMM7:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[7]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[7]);
+    return RISCV_REG_V7;
   case X86_REG_XMM8:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[8]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[8]);
+    return RISCV_REG_V8;
   case X86_REG_XMM9:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[9]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[9]);
+    return RISCV_REG_V9;
   case X86_REG_XMM10:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[10]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[10]);
+    return RISCV_REG_V10;
   case X86_REG_XMM11:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[11]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[11]);
+    return RISCV_REG_V11;
   case X86_REG_XMM12:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[12]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[12]);
+    return RISCV_REG_V12;
   case X86_REG_XMM13:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[13]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[13]);
+    return RISCV_REG_V13;
   case X86_REG_XMM14:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[14]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[14]);
+    return RISCV_REG_V14;
   case X86_REG_XMM15:
-    return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[15]);
+    // return get_riscv_reg(2 * RISCV_REG_NUM + XMMMappedIdx[15]);
+    return RISCV_REG_V15;
   default:
     LOGMAN_MSG_A_FMT("Unsupported guest symbol reg num");
     return RISCV_REG_INVALID;
