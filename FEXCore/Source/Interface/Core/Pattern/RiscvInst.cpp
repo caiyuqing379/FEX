@@ -129,6 +129,8 @@ static const char *riscv_opc_str[] = {
     [RISCV_OPC_SW]    = "sw",
     [RISCV_OPC_SD]    = "sd",
 
+    [RISCV_OPC_ZEXT]  = "zext",
+
     // Pseudo
     [RISCV_OPC_CMP]   = "cmp",
     [RISCV_OPC_CMPB]  = "cmpb",
@@ -141,6 +143,7 @@ static const char *riscv_opc_str[] = {
     [RISCV_OPC_MV]    = "mv",
     [RISCV_OPC_RET]   = "ret",
     [RISCV_OPC_LDAPS] = "ldaps",
+    [RISCV_OPC_SDAPS] = "sdaps",
     [RISCV_OPC_SAVE_FLAGS] = "saveflags",
     [RISCV_OPC_SAVE_FPZ] = "savefpz",
 

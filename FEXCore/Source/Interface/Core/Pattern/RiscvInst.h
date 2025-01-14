@@ -125,6 +125,8 @@ typedef enum {
     RISCV_OPC_SW,
     RISCV_OPC_SD,
 
+    RISCV_OPC_ZEXT,
+
     // Pseudo
     RISCV_OPC_CMP,
     RISCV_OPC_CMPB,
@@ -137,6 +139,7 @@ typedef enum {
     RISCV_OPC_MV,
     RISCV_OPC_RET,
     RISCV_OPC_LDAPS,
+    RISCV_OPC_SDAPS,
     RISCV_OPC_SAVE_FLAGS,
     RISCV_OPC_SAVE_FPZ,
 
