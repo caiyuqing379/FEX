@@ -180,6 +180,7 @@ private:
   RISCVRegister GetRiscvTmpReg(RISCVRegister &reg);
   RISCVRegister GetRiscvReg(RISCVRegister &reg);
   RISCVRegister GetRiscvReg(RISCVRegister &reg, uint32_t &regsize);
+  RISCVRegister GetRiscvReg(RISCVRegister &reg, uint32_t &regsize, bool &&HighBits);
   biscuit::GPR GetRiscvGPR(RISCVRegister &reg);
   biscuit::FPR GetRiscvFPR(RISCVRegister &reg);
   biscuit::Vec GetRiscvVec(RISCVRegister &reg);

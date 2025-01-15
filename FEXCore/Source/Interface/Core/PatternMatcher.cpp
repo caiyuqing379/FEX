@@ -202,11 +202,17 @@ RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg) {
 }
 
 RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg, uint32_t &regsize) {
+  bool HighBits = false;
+  return GetRiscvReg(reg, regsize, std::forward<bool>(HighBits));
+}
+
+RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg, uint32_t &regsize, bool &&HighBits) {
   if (reg == RISCV_REG_INVALID)
     LOGMAN_MSG_A_FMT("RISC-V Reg is Invalid!");
 
   if (RISCV_REG_X0 <= reg && reg <= RISCV_REG_V31) {
     regsize = 0;
+    HighBits = false;
     return reg;
   }
 
@@ -220,6 +226,7 @@ RISCVRegister PatternMatcher::GetRiscvReg(RISCVRegister &reg, uint32_t &regsize)
   while (gmap) {
     if (!strcmp(get_riscv_reg_str(reg), get_x86_reg_str(gmap->sym))) {
       regsize = gmap->regsize;
+      HighBits = gmap->HighBits;
       RISCVRegister riscvreg = GuestMapRiscvReg(gmap->num);
       if (riscvreg == RISCV_REG_INVALID) {
         LogMan::Msg::EFmt("Unsupported reg num - RISCV: {}, x86: {}",

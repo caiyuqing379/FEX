@@ -410,20 +410,12 @@ public:
           RVAssembler->ADDIW(biscuit::x25, rs, 0);
         }
         RVAssembler->LI(biscuit::x26, imm);
-        if (imm < 0) {
-          if (OpSize >= 4)
-            RVAssembler->ADD(biscuit::x27, rs, biscuit::x26);
-          else
-            RVAssembler->ADDW(biscuit::x27, rs, biscuit::x26);
-        } else {
-          if (OpSize >= 4)
-            RVAssembler->SUB(biscuit::x27, rs, biscuit::x26);
-          else
-            RVAssembler->SUBW(biscuit::x27, rs, biscuit::x26);
-        }
+        if (OpSize >= 4)
+          RVAssembler->SUB(biscuit::x27, rs, biscuit::x26);
+        else
+          RVAssembler->SUBW(biscuit::x27, rs, biscuit::x26);
         GPRTempRes = biscuit::x27;
         RVAssembler->XOR(biscuit::x5, rs, biscuit::x27);
-        RVAssembler->NOT(biscuit::x5, biscuit::x5);      // PF
         RVAssembler->SLLI(biscuit::x5, biscuit::x5, 59);
         RVAssembler->SRLI(biscuit::x5, biscuit::x5, 63);  // AF
         RVAssembler->NOT(biscuit::x7, biscuit::x27);      // PF
@@ -435,7 +427,7 @@ public:
         }
         RVAssembler->SEQZ(biscuit::x28, biscuit::x27);    // ZF
         RVAssembler->SLT(biscuit::x8, biscuit::x25, biscuit::x26);
-        RVAssembler->XOR(biscuit::x29, biscuit::x29, biscuit::x8);   // OF
+        RVAssembler->XOR(biscuit::x29, biscuit::x29, biscuit::x8);    // OF
         RVAssembler->SLTU(biscuit::x25, biscuit::x25, biscuit::x26);  // CF
       }
     } else if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG) {
@@ -506,7 +498,8 @@ public:
     RISCVOperand *opd1 = &instr->opd[1];
 
     uint32_t OpSize;
-    auto rvreg0 = GetRiscvReg(opd0->content.reg.num, OpSize);
+    bool HighBits = false;
+    auto rvreg0 = GetRiscvReg(opd0->content.reg.num, OpSize, std::forward<bool>(HighBits));
     auto rs0 = GetRiscvGPR(rvreg0);
 
     if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG) {
@@ -567,6 +560,10 @@ public:
         }
 
         if (imm >= 0) {
+          if (HighBits) {
+            RVAssembler->SRLI(biscuit::x5, rs0, 8);
+            rs0 = biscuit::x5;
+          }
           RVAssembler->ANDI(biscuit::x28, rs0, imm);
           GPRTempRes = biscuit::x28;
           RVAssembler->NOT(biscuit::x5, biscuit::x28);      // PF
@@ -784,7 +781,7 @@ public:
         if (!biscuit::IsValidSigned12BitImm(imm)) {
             auto [new_lower, new_upper] = ProcessImmediate(imm);
             RVAssembler->LUI(biscuit::x5, static_cast<int32_t>(new_upper));
-            RVAssembler->ADD(biscuit::x5, biscuit::x5, biscuit::x31);
+            RVAssembler->ADD(biscuit::x5, biscuit::x5, rs1);
             rs1 = biscuit::x5;
             imm = new_lower;
         }
@@ -837,6 +834,14 @@ public:
         auto rvreg1 = GetRiscvReg(opd1->content.mem.base);
         auto rs1 = GetRiscvGPR(rvreg1);
         int32_t imm = GetRVImmMapWrapper(&opd1->content.mem.offset);
+
+        if (!biscuit::IsValidSigned12BitImm(imm)) {
+            auto [new_lower, new_upper] = ProcessImmediate(imm);
+            RVAssembler->LUI(biscuit::x5, static_cast<int32_t>(new_upper));
+            RVAssembler->ADD(biscuit::x5, biscuit::x5, rs1);
+            rs1 = biscuit::x5;
+            imm = new_lower;
+        }
 
         // I-immediate[11:0], x86 imm > riscv imm?
         if (instr->opc == RISCV_OPC_SB) {
@@ -1062,7 +1067,7 @@ public:
         if (!biscuit::IsValidSigned12BitImm(imm)) {
             auto [new_lower, new_upper] = ProcessImmediate(imm);
             RVAssembler->LUI(biscuit::x5, static_cast<int32_t>(new_upper));
-            RVAssembler->ADD(biscuit::x5, biscuit::x5, biscuit::x31);
+            RVAssembler->ADD(biscuit::x5, biscuit::x5, rs1);
             rs1 = biscuit::x5;
             imm = new_lower;
         }
@@ -1095,7 +1100,7 @@ public:
         if (!biscuit::IsValidSigned12BitImm(imm)) {
             auto [new_lower, new_upper] = ProcessImmediate(imm);
             RVAssembler->LUI(biscuit::x5, static_cast<int32_t>(new_upper));
-            RVAssembler->ADD(biscuit::x5, biscuit::x5, biscuit::x31);
+            RVAssembler->ADD(biscuit::x5, biscuit::x5, rs1);
             rs1 = biscuit::x5;
             imm = new_lower;
         }
