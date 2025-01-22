@@ -1,3 +1,11 @@
+/**
+ * @file arm-asm.cpp
+ * @brief ARM指令汇编器的实现
+ *
+ * 本文件包含了用于将ARM指令转换为机器码的各种函数。
+ * 主要功能包括条件码映射、寄存器映射、以及各种ARM指令的汇编实现。
+ */
+
 #include "Interface/Core/ArchHelpers/Arm64Emitter.h"
 #include "Interface/Core/ArchHelpers/CodeEmitter/Emitter.h"
 #include "Interface/Core/ArchHelpers/CodeEmitter/Registers.h"
@@ -144,6 +152,12 @@ void PatternMatcher::LoadConstant(FEXCore::ARMEmitter::Size s,
   void FEXCore::Pattern::PatternMatcher::Opc_##x(ARMInstruction *instr,        \
                                                  RuleRecord *rrule)
 
+/**
+ * @brief 将ARM条件码映射到ARMEmitter中的条件码枚举
+ *
+ * @param Cond ARM条件码
+ * @return ARMEmitter::Condition 对应的ARMEmitter条件码
+ */
 static ARMEmitter::Condition MapBranchCC(ARMConditionCode Cond) {
   switch (Cond) {
   case ARM_CC_EQ:
@@ -195,6 +209,12 @@ static ARMEmitter::ShiftType GetShiftType(ARMOperandScaleDirect direct) {
   }
 }
 
+/**
+ * @brief 获取指定的扩展类型
+ *
+ * @param extend ARM操作数比例扩展类型
+ * @return ARMEmitter::ExtendedType 对应的ARMEmitter扩展类型
+ */
 static ARMEmitter::ExtendedType GetExtendType(ARMOperandScaleExtend extend) {
   switch (extend) {
   case ARM_OPD_EXTEND_UXTB:
@@ -218,6 +238,12 @@ static ARMEmitter::ExtendedType GetExtendType(ARMOperandScaleExtend extend) {
   }
 }
 
+/**
+ * @brief 将ARM寄存器映射到ARMEmitter寄存器
+ *
+ * @param reg ARM寄存器
+ * @return ARMEmitter::Register 对应的ARMEmitter寄存器
+ */
 static ARMEmitter::Register GetRegMap(ARMRegister &reg) {
   ARMEmitter::Register reg_invalid(255);
   switch (reg) {
@@ -300,6 +326,12 @@ static ARMEmitter::Register GetRegMap(ARMRegister &reg) {
   return reg_invalid;
 }
 
+/**
+ * @brief 将ARM向量寄存器映射到ARMEmitter向量寄存器
+ *
+ * @param reg ARM向量寄存器
+ * @return ARMEmitter::VRegister 对应的ARMEmitter向量寄存器
+ */
 static ARMEmitter::VRegister GetVRegMap(ARMRegister &reg) {
   ARMEmitter::VRegister reg_invalid(255);
   switch (reg) {
@@ -373,6 +405,16 @@ static ARMEmitter::VRegister GetVRegMap(ARMRegister &reg) {
   return reg_invalid;
 }
 
+/**
+ * @brief 生成扩展内存操作数
+ *
+ * @param Base 基址寄存器
+ * @param Index 索引寄存器
+ * @param Imm 立即数偏移
+ * @param OffsetScale 偏移比例
+ * @param OffsetType 偏移类型
+ * @return ARMEmitter::ExtendedMemOperand 生成的扩展内存操作数
+ */
 static ARMEmitter::ExtendedMemOperand
 GenerateExtMemOperand(ARMEmitter::Register Base, ARMRegister Index, int32_t Imm,
                       ARMOperandScale OffsetScale, ARMMemIndexType OffsetType) {
@@ -410,6 +452,12 @@ GenerateExtMemOperand(ARMEmitter::Register Base, ARMRegister Index, int32_t Imm,
   }
 }
 
+/**
+ * @brief 实现LDR(加载)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(LDR) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -433,8 +481,9 @@ DEF_OPC(LDR) {
       auto MemSrc =
           GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
+      // 处理特殊情况：负立即数、大立即数等
       if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE)) {
-        // Negative Imm with less than 12 bit
+        // 负立即数且位数小于12位
         if (Imm < 0 && !((0 - Imm) >> 12)) {
           int32_t s = static_cast<int32_t>(Imm);
           ARMAssembler->sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21,
@@ -459,6 +508,7 @@ DEF_OPC(LDR) {
         }
       }
 
+      // 根据不同的加载指令和操作数类型生成相应的加载指令
       if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_LDRH ||
           instr->opc == ARM_OPC_LDR) {
         if (SrcReg >= ARM_REG_R0 && SrcReg <= ARM_REG_R31) {
@@ -525,6 +575,12 @@ DEF_OPC(LDR) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for ldr instruction.");
 }
 
+/**
+ * @brief 实现LDP(加载对)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(LDP) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -542,6 +598,7 @@ DEF_OPC(LDP) {
     ARMMemIndexType PrePost = opd2->content.mem.pre_post;
     int32_t Imm = GetARMImmMapWrapper(&opd2->content.mem.offset);
 
+    // 根据不同的索引类型生成相应的LDP指令
     if (PrePost == ARM_MEM_INDEX_TYPE_PRE)
       ARMAssembler->ldp<ARMEmitter::IndexType::PRE>(RegPair1.X(), RegPair2.X(),
                                                     Base, Imm);
@@ -555,6 +612,12 @@ DEF_OPC(LDP) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for ldp instruction.");
 }
 
+/**
+ * @brief 实现STR(存储)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(STR) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -578,8 +641,9 @@ DEF_OPC(STR) {
       auto MemSrc =
           GenerateExtMemOperand(Base, Index, Imm, OffsetScale, PrePost);
 
+      // 处理特殊情况：负立即数、大立即数等
       if ((Index == ARM_REG_INVALID) && (PrePost == ARM_MEM_INDEX_TYPE_NONE)) {
-        // Negative Imm with less than 12 bit
+        // 负立即数且位数小于12位
         if (Imm < 0 && !((0 - Imm) >> 12)) {
           int32_t s = static_cast<int32_t>(Imm);
           ARMAssembler->sub(ARMEmitter::Size::i64Bit, ARMEmitter::Reg::r21,
@@ -604,6 +668,7 @@ DEF_OPC(STR) {
         }
       }
 
+      // 根据不同的存储指令和操作数类型生成相应的存储指令
       if (SrcReg >= ARM_REG_R0 && SrcReg <= ARM_REG_R31) {
         const auto Src = GetRegMap(SrcReg);
         switch (OpSize) {
@@ -651,6 +716,12 @@ DEF_OPC(STR) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for str instruction.");
 }
 
+/**
+ * @brief 实现STP(存储对)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(STP) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -672,6 +743,7 @@ DEF_OPC(STP) {
     if (Reg0Size)
       OpSize = 1 << (Reg0Size - 1);
 
+    // 根据操作数大小和索引类型生成相应的STP指令
     if (OpSize == 8) {
       if (PrePost == ARM_MEM_INDEX_TYPE_PRE)
         ARMAssembler->stp<ARMEmitter::IndexType::PRE>(RegPair1.X(),
@@ -698,6 +770,12 @@ DEF_OPC(STP) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for stp instruction.");
 }
 
+/**
+ * @brief 实现SXTW(符号扩展字到双字)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(SXTW) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -711,6 +789,12 @@ DEF_OPC(SXTW) {
   ARMAssembler->sxtw(Dst.X(), Src.W());
 }
 
+/**
+ * @brief 实现MOV(移动)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(MOV) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -769,6 +853,12 @@ DEF_OPC(MOV) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for mov instruction.");
 }
 
+/**
+ * @brief 实现MVN(按位取反后移动)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(MVN) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -805,6 +895,12 @@ DEF_OPC(MVN) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for mvn instruction.");
 }
 
+/**
+ * @brief 实现AND(按位与)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(AND) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -905,6 +1001,12 @@ DEF_OPC(AND) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for and instruction.");
 }
 
+/**
+ * @brief 实现ORR(按位或)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(ORR) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -987,6 +1089,12 @@ DEF_OPC(ORR) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for orr instruction.");
 }
 
+/**
+ * @brief 实现EOR(按位异或)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(EOR) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1069,6 +1177,12 @@ DEF_OPC(EOR) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for eor instruction.");
 }
 
+/**
+ * @brief 实现BIC(位清除)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(BIC) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1138,6 +1252,12 @@ DEF_OPC(BIC) {
     LogMan::Msg::IFmt("[arm] Unsupported operand type for bic instruction.");
 }
 
+/**
+ * @brief 实现移位指令(LSL, LSR, ASR)
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(Shift) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1196,6 +1316,12 @@ DEF_OPC(Shift) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for shift instruction.");
 }
 
+/**
+ * @brief 实现ADD(加法)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(ADD) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1355,6 +1481,12 @@ void PatternMatcher::FlipCF() {
                     (ARMEmitter::Reg::r20).X());
 }
 
+/**
+ * @brief 实现SUB(减法)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(SUB) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1508,6 +1640,12 @@ DEF_OPC(SBC) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for SBC instruction.");
 }
 
+/**
+ * @brief 实现MUL(乘法)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(MUL) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1540,6 +1678,12 @@ DEF_OPC(MUL) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for MUL instruction.");
 }
 
+/**
+ * @brief 实现CLZ(计数前导零)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(CLZ) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1563,6 +1707,12 @@ DEF_OPC(CLZ) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for CLZ instruction.");
 }
 
+/**
+ * @brief 实现TST(测试)指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(TST) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1654,6 +1804,12 @@ DEF_OPC(TST) {
     LogMan::Msg::EFmt("[arm] Unsupported operand type for TST instruction.");
 }
 
+/**
+ * @brief 实现比较指令(CMP, CMPB, CMPW, CMN)
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(COMPARE) {
   ARMOperand *opd0 = &instr->opd[0];
   ARMOperand *opd1 = &instr->opd[1];
@@ -1849,6 +2005,12 @@ DEF_OPC(COMPARE) {
         "[arm] Unsupported operand type for compare instruction.");
 }
 
+/**
+ * @brief 实现条件选择指令(CSEL, CSET)
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param rrule 指向RuleRecord结构的指针
+ */
 DEF_OPC(CSEX) {
   ARMOperand *opd0 = &instr->opd[0];
   uint8_t OpSize = instr->OpSize;
@@ -2941,6 +3103,11 @@ void PatternMatcher::assemble_arm_instr(ARMInstruction *instr,
   }
 }
 
+/**
+ * @brief 生成退出代码
+ *
+ * @param target_pc 目标PC值
+ */
 void PatternMatcher::assemble_arm_exit(uint64_t target_pc) {
   ARMAssembler->ret();
 }

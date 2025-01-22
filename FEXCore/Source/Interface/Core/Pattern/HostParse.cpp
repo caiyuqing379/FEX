@@ -1,3 +1,11 @@
+/**
+ * @file host-parse.cpp
+ * @brief host主机架构指令解析器的实现
+ *
+ * 本文件包含了用于解析ARM/RISC-V指令的各种函数和数据结构。
+ * 主要功能包括解析ARM/RISC-V指令的操作码、操作数，以及整个ARM/RISC-V代码序列。
+ * 这些功能主要用于解析转换规则中的ARM/RISC-V代码部分。
+ */
 #include <FEXCore/Utils/LogManager.h>
 
 #include <cstdio>
@@ -9,16 +17,23 @@
 #include "RiscvInst.h"
 #include "HostParse.h"
 
+// ARM指令缓冲区的最大长度
 #define RULE_ARM_INSTR_BUF_LEN 1000000
-
+// 单条指令的最大长度
 #define RULE_RISCV_INSTR_BUF_LEN 1000000
 
+// ARM指令缓冲区与当前索引
 static ARMInstruction *rule_arm_instr_buf;
 static int rule_arm_instr_buf_index;
 
 static RISCVInstruction *rule_riscv_instr_buf;
 static int rule_riscv_instr_buf_index;
 
+/**
+ * @brief 初始化ARM指令缓冲区
+ *
+ * 分配内存并初始化ARM指令缓冲区。
+ */
 void RuleArmInstrBufInit(void)
 {
     rule_arm_instr_buf = new ARMInstruction[RULE_ARM_INSTR_BUF_LEN];
@@ -28,6 +43,11 @@ void RuleArmInstrBufInit(void)
     rule_arm_instr_buf_index = 0;
 }
 
+/**
+ * @brief 初始化RISC-V指令缓冲区
+ *
+ * 分配内存并初始化RISC-V指令缓冲区。
+ */
 void RuleRiscvInstrBufInit(void)
 {
     rule_riscv_instr_buf = new RISCVInstruction[RULE_RISCV_INSTR_BUF_LEN];
@@ -37,6 +57,12 @@ void RuleRiscvInstrBufInit(void)
     rule_riscv_instr_buf_index = 0;
 }
 
+/**
+ * @brief 分配一个新的ARM指令结构体
+ *
+ * @param pc 指令的程序计数器值
+ * @return ARMInstruction* 新分配的ARM指令结构体指针
+ */
 static ARMInstruction *rule_arm_instr_alloc(uint64_t pc)
 {
     ARMInstruction *instr = &rule_arm_instr_buf[rule_arm_instr_buf_index++];
@@ -48,6 +74,12 @@ static ARMInstruction *rule_arm_instr_alloc(uint64_t pc)
     return instr;
 }
 
+/**
+ * @brief 分配一个新的RISC-V指令结构体
+ *
+ * @param pc 指令的程序计数器值
+ * @return RISCVInstruction* 新分配的RISC-V指令结构体指针
+ */
 static RISCVInstruction *rule_riscv_instr_alloc(uint64_t pc)
 {
     RISCVInstruction *instr = &rule_riscv_instr_buf[rule_riscv_instr_buf_index++];
@@ -59,6 +91,13 @@ static RISCVInstruction *rule_riscv_instr_alloc(uint64_t pc)
     return instr;
 }
 
+/**
+ * @brief 解析ARM指令的操作码
+ *
+ * @param line 包含指令的字符串
+ * @param instr 指向ARMInstruction结构的指针
+ * @return int 解析后的字符串索引
+ */
 static int parse_rule_arm_opcode(char *line, ARMInstruction *instr)
 {
     char opc_str[20] = "\0";
@@ -82,6 +121,13 @@ static int parse_rule_arm_opcode(char *line, ARMInstruction *instr)
         return i;
 }
 
+/**
+ * @brief 解析RISC-V令的操作码
+ *
+ * @param line 包含指令的字符串
+ * @param instr 指向RISCVInstruction结构的指针
+ * @return int 解析后的字符串索引
+ */
 static int parse_rule_riscv_opcode(char *line, RISCVInstruction *instr)
 {
     char opc_str[20] = "\0";
@@ -101,6 +147,14 @@ static int parse_rule_riscv_opcode(char *line, RISCVInstruction *instr)
         return i;
 }
 
+/**
+ * @brief 解析操作数的比例因子
+ *
+ * @param line 包含操作数的字符串
+ * @param idx 当前解析的起始索引
+ * @param pscale 指向ARMOperandScale结构的指针
+ * @return int 解析后的字符串索引
+ */
 static int parse_scale(char *line, int idx, ARMOperandScale *pscale)
 {
     char direct_str[10] = "\0";
@@ -135,6 +189,19 @@ static int parse_scale(char *line, int idx, ARMOperandScale *pscale)
     return idx;
 }
 
+/**
+ * @brief 解析ARM指令的操作数
+ *
+ * 这个函数处理三种主要的操作数类型：立即数、寄存器和内存操作数。
+ * 函数会根据操作数的类型设置相应的字段，并返回解析后的新索引位置。
+ *
+ * @param line 包含操作数的字符串
+ * @param idx 当前解析的起始索引
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_idx 操作数在指令中的索引
+ * @param index 指令在序列中的索引（用于错误报告）
+ * @return int 解析后的字符串索引
+ */
 static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, int opd_idx, int index)
 {
     ARMOperand *opd = &instr->opd[opd_idx];
@@ -241,6 +308,19 @@ static int parse_rule_arm_operand(char *line, int idx, ARMInstruction *instr, in
         return idx;
 }
 
+/**
+ * @brief 解析RISC-V指令的操作数
+ *
+ * 这个函数处理三种主要的操作数类型：立即数、寄存器和内存操作数。
+ * 函数会根据操作数的类型设置相应的字段，并返回解析后的新索引位置。
+ *
+ * @param line 包含操作数的字符串
+ * @param idx 当前解析的起始索引
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_idx 操作数在指令中的索引
+ * @param index 指令在序列中的索引（用于错误报告）
+ * @return int 解析后的字符串索引
+ */
 static int parse_rule_riscv_operand(char *line, int idx, RISCVInstruction *instr, int opd_idx, int index)
 {
     RISCVOperand *opd = &instr->opd[opd_idx];
@@ -314,7 +394,7 @@ static int parse_rule_riscv_operand(char *line, int idx, RISCVInstruction *instr
 
             set_riscv_instr_opd_mem_base_str(instr, opd_idx, reg_str);
         }
-    } else if (fc == 'r' || fc == 'x' || fc == 'a' || fc == 'f' 
+    } else if (fc == 'r' || fc == 'x' || fc == 'a' || fc == 'f'
         || fc == 'v' || fc == 't' || fc == 's' || fc == '{') {
         /* Register Operand
            1. Read register string, e.g., "reg0", "reg1".*/
@@ -342,6 +422,11 @@ static int parse_rule_riscv_operand(char *line, int idx, RISCVInstruction *instr
         return idx;
 }
 
+/**
+ * @brief 调整特定的ARM指令(如 ASR, LSL, LSR)为等效的MOV指令
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ */
 static void adjust_arm_instr(ARMInstruction *instr)
 {
     if (instr->opc != ARM_OPC_ASR && instr->opc != ARM_OPC_LSL &&
@@ -375,6 +460,14 @@ static void adjust_arm_instr(ARMInstruction *instr)
     set_arm_instr_opd_num(instr, 2);
 }
 
+/**
+ * @brief 解析单条ARM指令
+ *
+ * @param line 包含指令的字符串
+ * @param pc 指令的程序计数器值
+ * @param index 指令在序列中的索引
+ * @return ARMInstruction* 解析后的ARM指令结构体指针
+ */
 static ARMInstruction *parse_rule_arm_instruction(char *line, uint64_t pc, int index)
 {
     ARMInstruction *instr = rule_arm_instr_alloc(pc);
@@ -397,6 +490,14 @@ static ARMInstruction *parse_rule_arm_instruction(char *line, uint64_t pc, int i
     return instr;
 }
 
+/**
+ * @brief 解析单条RISC-V指令
+ *
+ * @param line 包含指令的字符串
+ * @param pc 指令的程序计数器值
+ * @param index 指令在序列中的索引
+ * @return RISCVInstruction* 解析后的RISC-V指令结构体指针
+ */
 static RISCVInstruction *parse_rule_riscv_instruction(char *line, uint64_t pc, int index)
 {
     RISCVInstruction *instr = rule_riscv_instr_alloc(pc);
@@ -417,6 +518,13 @@ static RISCVInstruction *parse_rule_riscv_instruction(char *line, uint64_t pc, i
     return instr;
 }
 
+/**
+ * @brief 解析规则中的Host代码序列
+ *
+ * @param fp 指向规则文件的文件指针
+ * @param rule 指向TranslationRule结构的指针
+ * @return bool 解析是否成功
+ */
 bool ParseRuleHostCode(int arch, FILE *fp, TranslationRule *rule)
 {
     uint64_t pc = 0;
@@ -455,7 +563,7 @@ bool ParseRuleHostCode(int arch, FILE *fp, TranslationRule *rule)
                 riscv_code_tail = cur;
             }
         }
-        pc += 4; // fake value
+        pc += 4; // 假设的值，实际应根据指令长度调整
     }
 
     if (arch == 0) {

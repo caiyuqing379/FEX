@@ -1,3 +1,11 @@
+/**
+ * @file rule-translate.cpp
+ * @brief 实现规则匹配和翻译的功能
+ *
+ * 本文件包含了用于匹配指令序列与预定义规则，以及执行相应翻译的函数。
+ * 主要功能包括初始化缓冲区、匹配操作数、检查翻译规则、执行规则翻译等。
+ */
+
 #include "Interface/Core/PatternMatcher.h"
 
 // #include <FEXCore/Debug/InternalThreadState.h>
@@ -11,6 +19,7 @@
 #include "RuleDebug.h"
 #include "rule-translate.h"
 
+// 定义各种缓冲区的最大长度
 #define MAX_RULE_RECORD_BUF_LEN 800
 #define MAX_GUEST_INSTR_LEN 800
 #define MAX_HOST_RULE_LEN 800
@@ -20,10 +29,14 @@
 
 using namespace FEXCore::Pattern;
 
+// 调试标志/匹配指令计数器/匹配计数器
 static int debug = 0;
 static int match_insts = 0;
 static int match_counter = 10;
 
+/**
+ * @brief 重置各种缓冲区和索引
+ */
 inline void PatternMatcher::reset_buffer(void) {
   imm_map_buf_index = 0;
   label_map_buf_index = 0;
@@ -35,18 +48,27 @@ inline void PatternMatcher::reset_buffer(void) {
   pc_para_matched_buf_index = 0;
 }
 
+/**
+ * @brief 保存当前的映射缓冲区索引
+ */
 inline void PatternMatcher::save_map_buf_index(void) {
   imm_map_buf_index_pre = imm_map_buf_index;
   g_reg_map_buf_index_pre = g_reg_map_buf_index;
   label_map_buf_index_pre = label_map_buf_index;
 }
 
+/**
+ * @brief 恢复之前保存的映射缓冲区索引
+ */
 inline void PatternMatcher::recover_map_buf_index(void) {
   imm_map_buf_index = imm_map_buf_index_pre;
   g_reg_map_buf_index = g_reg_map_buf_index_pre;
   label_map_buf_index = label_map_buf_index_pre;
 }
 
+/**
+ * @brief 初始化映射指针
+ */
 inline void PatternMatcher::init_map_ptr(void) {
   imm_map = NULL;
   g_reg_map = NULL;
@@ -54,6 +76,17 @@ inline void PatternMatcher::init_map_ptr(void) {
   reg_map_num = 0;
 }
 
+/**
+ * @brief 添加规则记录
+ *
+ * @param rule 翻译规则
+ * @param pc 程序计数器
+ * @param t_pc 目标程序计数器
+ * @param last_guest 最后一条客户端指令
+ * @param update_cc 是否更新条件码
+ * @param save_cc 是否保存条件码
+ * @param pa_opc 参数化操作码数组
+ */
 inline void PatternMatcher::add_rule_record(TranslationRule *rule, uint64_t pc,
                                             uint64_t t_pc,
                                             size_t blocksize,
@@ -79,18 +112,36 @@ inline void PatternMatcher::add_rule_record(TranslationRule *rule, uint64_t pc,
     p->para_opc[i] = pa_opc[i];
 }
 
+/**
+ * @brief 添加匹配的PC
+ *
+ * @param pc 程序计数器
+ */
 inline void PatternMatcher::add_matched_pc(uint64_t pc) {
   pc_matched_buf[pc_matched_buf_index++] = pc;
 
   assert(pc_matched_buf_index < MAX_GUEST_INSTR_LEN);
 }
 
+/**
+ * @brief 添加参数化匹配的PC
+ *
+ * @param pc 程序计数器
+ */
 inline void PatternMatcher::add_matched_para_pc(uint64_t pc) {
   pc_para_matched_buf[pc_para_matched_buf_index++] = pc;
 
   assert(pc_para_matched_buf_index < MAX_GUEST_INSTR_LEN);
 }
 
+/**
+ * @brief 匹配标签
+ *
+ * @param lab_str 标签字符串
+ * @param t 目标地址
+ * @param f fallthrough地址
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_label(char *lab_str, uint64_t t, uint64_t f) {
   LabelMapping *lmap = l_map;
 
@@ -116,6 +167,15 @@ bool PatternMatcher::match_label(char *lab_str, uint64_t t, uint64_t f) {
   return true;
 }
 
+/**
+ * @brief 匹配寄存器
+ *
+ * @param greg 客户端寄存器
+ * @param rreg 规则寄存器
+ * @param regsize 寄存器大小
+ * @param HighBits 是否为高位
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_register(X86Register greg, X86Register rreg,
                                     uint32_t regsize, bool HighBits) {
   GuestRegisterMapping *gmap = g_reg_map;
@@ -173,6 +233,13 @@ bool PatternMatcher::match_register(X86Register greg, X86Register rreg,
   return true;
 }
 
+/**
+ * @brief 匹配立即数
+ *
+ * @param val 立即数值
+ * @param sym 立即数符号
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_imm(uint64_t val, char *sym) {
   ImmMapping *imap = imm_map;
 
@@ -187,7 +254,7 @@ bool PatternMatcher::match_imm(uint64_t val, char *sym) {
     imap = imap->next;
   }
 
-  /* add this map to immediate map buffer */
+  // 将此映射添加到立即数映射缓冲区
   imap = &imm_map_buf[imm_map_buf_index++];
   assert(imm_map_buf_index < MAX_MAP_BUF_LEN);
   strcpy(imap->imm_str, sym);
@@ -199,6 +266,13 @@ bool PatternMatcher::match_imm(uint64_t val, char *sym) {
   return true;
 }
 
+/**
+ * @brief 匹配比例因子
+ *
+ * @param gscale 客户端比例因子
+ * @param rscale 规则比例因子
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_scale(X86Imm *gscale, X86Imm *rscale) {
   if (gscale->type == X86_IMM_TYPE_NONE && rscale->type == X86_IMM_TYPE_NONE)
     return true;
@@ -214,6 +288,13 @@ bool PatternMatcher::match_scale(X86Imm *gscale, X86Imm *rscale) {
     return match_imm(gscale->content.val, rscale->content.sym);
 }
 
+/**
+ * @brief 匹配偏移量
+ *
+ * @param goffset 客户端偏移量
+ * @param roffset 规则偏移量
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_offset(X86Imm *goffset, X86Imm *roffset) {
   char *sym;
   int32_t off_val;
@@ -242,6 +323,13 @@ bool PatternMatcher::match_offset(X86Imm *goffset, X86Imm *roffset) {
   return match_imm(off_val, sym);
 }
 
+/**
+ * @brief 匹配立即数操作数
+ *
+ * @param gopd 客户端立即数操作数
+ * @param ropd 规则立即数操作数
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_opd_imm(X86ImmOperand *gopd, X86ImmOperand *ropd) {
   if (gopd->type == X86_IMM_TYPE_NONE && ropd->type == X86_IMM_TYPE_NONE)
     return true;
@@ -257,6 +345,14 @@ bool PatternMatcher::match_opd_imm(X86ImmOperand *gopd, X86ImmOperand *ropd) {
   }
 }
 
+/**
+ * @brief 匹配寄存器操作数
+ *
+ * @param gopd 客户端寄存器操作数
+ * @param ropd 规则寄存器操作数
+ * @param regsize 寄存器大小
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd,
                                    uint32_t regsize) {
   /* physical reg, but high bit not match */
@@ -269,6 +365,13 @@ bool PatternMatcher::match_opd_reg(X86RegOperand *gopd, X86RegOperand *ropd,
   return match_register(gopd->num, ropd->num, regsize, gopd->HighBits);
 }
 
+/**
+ * @brief 匹配内存操作数
+ *
+ * @param gopd 客户端内存操作数
+ * @param ropd 规则内存操作数
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_opd_mem(X86MemOperand *gopd, X86MemOperand *ropd) {
   return (match_register(gopd->base, ropd->base) &&
           match_register(gopd->index, ropd->index) &&
@@ -276,6 +379,14 @@ bool PatternMatcher::match_opd_mem(X86MemOperand *gopd, X86MemOperand *ropd) {
           match_scale(&gopd->scale, &ropd->scale));
 }
 
+/**
+ * @brief 检查操作数大小
+ *
+ * @param ropd 规则操作数
+ * @param gsize 客户端大小
+ * @param rsize 规则大小
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::check_opd_size(X86Operand *ropd, uint32_t gsize,
                                     uint32_t rsize) {
   if ((ropd->type == X86_OPD_TYPE_REG && X86_REG_RAX <= ropd->content.reg.num &&
@@ -287,7 +398,16 @@ bool PatternMatcher::check_opd_size(X86Operand *ropd, uint32_t gsize,
   return true;
 }
 
-/* Try to match operand in guest instruction (gopd) and and the rule (ropd) */
+/**
+ * @brief 匹配操作数
+ *
+ * 尝试匹配客户端指令(gopd)和规则(ropd)中的操作数
+ *
+ * @param ginstr 客户端指令
+ * @param rinstr 规则指令
+ * @param opd_idx 操作数索引
+ * @return bool 是否匹配成功
+ */
 bool PatternMatcher::match_operand(X86Instruction *ginstr,
                                    X86Instruction *rinstr, int opd_idx) {
   X86Operand *gopd = &ginstr->opd[opd_idx];
@@ -354,13 +474,20 @@ bool PatternMatcher::match_operand(X86Instruction *ginstr,
 // not used
 static bool check_instr(X86Instruction *ginstr) { return true; }
 
-// return:
-// 0: not matched
-// 1: matched
-// 2: matched but condition is different
-bool PatternMatcher::match_rule_internal(
-    X86Instruction *instr, TranslationRule *rule,
-    const void *tb) {
+/**
+ * @brief 内部规则匹配函数
+ *
+ * @param instr 客户端指令
+ * @param rule 翻译规则
+ * @param tb 解码后的基本块
+ * @return bool 是否匹配成功
+ *    0: not matched
+ *    1: matched
+ *    2: matched but condition is different
+ */
+bool PatternMatcher::match_rule_internal(X86Instruction *instr,
+                                        TranslationRule *rule,
+                                        const void *tb) {
   X86Instruction *p_rule_instr = rule->x86_guest;
   X86Instruction *p_guest_instr = instr;
   X86Instruction *last_guest_instr = NULL;
@@ -452,6 +579,12 @@ bool PatternMatcher::match_rule_internal(
   return true;
 }
 
+/**
+ * @brief 获取guset寄存器映射的ARM架构寄存器
+ *
+ * @param reg X86寄存器
+ * @return ARMRegister 对应的ARM寄存器
+ */
 static ARMRegister guest_host_reg_map(X86Register &reg) {
   switch (reg) {
   case X86_REG_RAX:
@@ -524,11 +657,26 @@ static ARMRegister guest_host_reg_map(X86Register &reg) {
   }
 }
 
+/**
+ * @brief 获取客户寄存器映射
+ *
+ * @param reg ARM寄存器引用
+ * @param regsize 寄存器大小引用
+ * @return ARMRegister 映射后的ARM寄存器
+ */
 ARMRegister PatternMatcher::GetGuestRegMap(ARMRegister &reg,
                                            uint32_t &regsize) {
   return GetGuestRegMap(reg, regsize, false);
 }
 
+/**
+ * @brief 获取客户寄存器映射（带高位标志）
+ *
+ * @param reg ARM寄存器引用
+ * @param regsize 寄存器大小引用
+ * @param HighBits 高位标志
+ * @return ARMRegister 映射后的ARM寄存器
+ */
 ARMRegister PatternMatcher::GetGuestRegMap(ARMRegister &reg, uint32_t &regsize,
                                            bool &&HighBits) {
   if (reg == ARM_REG_INVALID)
@@ -562,6 +710,12 @@ ARMRegister PatternMatcher::GetGuestRegMap(ARMRegister &reg, uint32_t &regsize,
   return ARM_REG_INVALID;
 }
 
+/**
+ * @brief 检查指令是否匹配
+ *
+ * @param pc 程序计数器
+ * @return bool 是否匹配
+ */
 bool PatternMatcher::InstIsMatch(uint64_t pc) {
   for (int i = 0; i < pc_matched_buf_index; i++) {
     if (pc_matched_buf[i] == pc)
@@ -569,7 +723,12 @@ bool PatternMatcher::InstIsMatch(uint64_t pc) {
   }
   return false;
 }
-
+/**
+ * @brief 检查是否存在匹配的指令序列
+ *
+ * @param pc 程序计数器
+ * @return bool 是否存在匹配
+ */
 bool PatternMatcher::InstParaIsMatch(uint64_t pc) {
   for (int i = 0; i < pc_para_matched_buf_index; i++) {
     if (pc_para_matched_buf[i] == pc)
@@ -578,8 +737,19 @@ bool PatternMatcher::InstParaIsMatch(uint64_t pc) {
   return InstIsMatch(pc);
 }
 
+/**
+ * @brief 获取翻译规则
+ *
+ * @return bool 是否存在匹配的翻译规则
+ */
 bool PatternMatcher::TBRuleMatched(void) { return (pc_matched_buf_index != 0); }
 
+/**
+ * @brief 匹配翻译规则
+ *
+ * @param pc 程序计数器
+ * @return bool 是否存在匹配的翻译规则
+ */
 bool PatternMatcher::CheckTranslationRule(uint64_t pc) {
   int i;
   for (i = 0; i < rule_record_buf_index; i++) {
@@ -589,6 +759,12 @@ bool PatternMatcher::CheckTranslationRule(uint64_t pc) {
   return false;
 }
 
+/**
+ * @brief 获取翻译规则
+ *
+ * @param pc 程序计数器
+ * @return RuleRecord* 匹配的规则记录指针，如果没有匹配则返回NULL
+ */
 RuleRecord *PatternMatcher::GetTranslationRule(uint64_t pc) {
   int i;
   for (i = 0; i < rule_record_buf_index; i++) {
@@ -606,6 +782,13 @@ uint32_t num_rules_hit = 0;
 uint32_t num_rules_replace = 0;
 #endif
 
+/**
+ * @brief 检查是否需要保存条件码
+ *
+ * @param pins 指令序列的起始指针
+ * @param icount 指令数量
+ * @return bool 是否需要保存条件码
+ */
 static bool is_save_cc(X86Instruction *pins, int icount) {
   X86Instruction *head = pins;
   int i;
@@ -619,7 +802,12 @@ static bool is_save_cc(X86Instruction *pins, int icount) {
   return false;
 }
 
-/* Try to match instructions in this tb with existing rules */
+/**
+ * @brief 尝试将给定的翻译块(tb)中的指令与已有的翻译规则进行匹配
+ *
+ * @param tb 指向翻译块的指针
+ * @return bool 是否成功匹配
+ */
 bool PatternMatcher::MatchBlock(const void *tb) {
   auto transblock = static_cast<const DecodedBlocks *>(tb);
   if (match_counter <= 0)
@@ -750,6 +938,12 @@ final:
     return ismatch && InstIsMatch(BlockPC);
 }
 
+/**
+ * @brief 从翻译块中移除客户端指令
+ *
+ * @param tb 指向翻译块的指针
+ * @param pc 要移除的指令的程序计数器
+ */
 void remove_guest_instruction(DecodedBlocks *tb, uint64_t pc) {
   X86Instruction *head = tb->guest_instr;
 
@@ -778,6 +972,13 @@ void PatternMatcher::GenArm64Code(RuleRecord *rule_r) {
     return;
 }
 
+/**
+ * @brief 检查是否是最后的访问
+ *
+ * @param insn 当前指令
+ * @param reg 要检查的寄存器
+ * @return bool 是否是最后的访问
+ */
 bool is_last_access(ARMInstruction *insn, ARMRegister reg) {
   ARMInstruction *head = arm_host;
   int i;

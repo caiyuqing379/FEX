@@ -1,3 +1,11 @@
+/**
+ * @file arm-instr.cpp
+ * @brief ARM指令处理和操作的实现
+ *
+ * 本文件包含了用于处理ARM指令的各种函数和数据结构。
+ * 主要功能包括ARM指令的解码、编码、打印和操作。
+ */
+
 #include <FEXCore/Utils/LogManager.h>
 
 #include <stdio.h>
@@ -6,6 +14,11 @@
 
 #include "arm-instr.h"
 
+/**
+ * @brief ARM寄存器枚举数组
+ *
+ * 定义了ARM架构中所有可用的寄存器。
+ */
 static const ARMRegister arm_reg_table[] = {
     ARM_REG_R0, ARM_REG_R1, ARM_REG_R2, ARM_REG_R3,
     ARM_REG_R4, ARM_REG_R5, ARM_REG_R6, ARM_REG_R7,
@@ -25,6 +38,11 @@ static const ARMRegister arm_reg_table[] = {
     ARM_REG_V28, ARM_REG_V29, ARM_REG_V30, ARM_REG_V31,
 };
 
+/**
+ * @brief ARM条件码枚举数组
+ *
+ * 定义了ARM架构中所有可用的条件码。
+ */
 static const ARMConditionCode arm_cc_table[] = {
     ARM_CC_EQ, ARM_CC_NE, ARM_CC_CS, ARM_CC_CC, ARM_CC_MI,
     ARM_CC_PL, ARM_CC_VS, ARM_CC_VC, ARM_CC_HI, ARM_CC_LS,
@@ -32,6 +50,11 @@ static const ARMConditionCode arm_cc_table[] = {
     ARM_CC_XX
 };
 
+/**
+ * @brief ARM寄存器的字符串表示
+ *
+ * 用于将寄存器枚举值转换为对应的字符串表示。
+ */
 static const char *arm_reg_str[] = {
     "none",
     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
@@ -53,20 +76,34 @@ static const char *arm_reg_str[] = {
     "reg24", "reg25", "reg26", "reg27", "reg28", "reg29", "reg30", "reg31",
 };
 
+/**
+ * @brief ARM条件码的字符串表示
+ *
+ * 用于将条件码枚举值转换为对应的字符串表示。
+ */
 static const char *arm_cc_str[] = {
     "ERROR",
     "eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
     "hi", "ls", "ge", "lt", "gt", "le", "al", "xx"
 };
 
+/**
+ * @brief ARM内存操作的索引类型字符串表示
+ */
 static const char *arm_index_type_str[] = {
     "ERROR", "PRE", "POST"
 };
 
+/**
+ * @brief ARM移位操作的方向字符串表示
+ */
 static const char *arm_direct_str[] = {
     "ERROR", "lsl", "lsr", "asr", "ror"
 };
 
+/**
+ * @brief ARM扩展操作的字符串表示
+ */
 [[maybe_unused]] static const char *arm_extend_str[] = {
     "ERROR",
     "uxtb", "uxth", "uxtw", "uxtx",
@@ -74,6 +111,11 @@ static const char *arm_direct_str[] = {
     "lsl"
 };
 
+/**
+ * @brief ARM操作码的字符串表示
+ *
+ * 用于将操作码枚举值转换为对应的字符串表示。
+ */
 static const char *arm_opc_str[] = {
     [ARM_OPC_INVALID] = "**** unsupported (arm) ****",
     [ARM_OPC_LDRB]  = "ldrb",
@@ -151,12 +193,22 @@ static const char *arm_opc_str[] = {
     [ARM_OPC_ZIP2]  = "zip2"
 };
 
+/**
+ * @brief 打印指令的条件码
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ */
 static void print_instr_cc(ARMInstruction *instr)
 {
     if (instr->cc != ARM_CC_INVALID)
         fprintf(stderr,"cc:%s \n", arm_cc_str[instr->cc]);
 }
 
+/**
+ * @brief 打印立即数操作数
+ *
+ * @param opd 指向ARMImmOperand结构的指针
+ */
 void print_imm_opd(ARMImmOperand *opd)
 {
     if (opd->type == ARM_IMM_TYPE_VAL)
@@ -165,12 +217,22 @@ void print_imm_opd(ARMImmOperand *opd)
         fprintf(stderr,"%s \n", opd->content.sym);
 }
 
+/**
+ * @brief 打印操作数的索引类型（前索引或后索引）
+ *
+ * @param pre_post 索引类型
+ */
 static void print_opd_index_type(ARMMemIndexType pre_post)
 {
     if (pre_post != ARM_MEM_INDEX_TYPE_NONE)
         fprintf(stderr,", index type: %s\n", arm_index_type_str[pre_post]);
 }
 
+/**
+ * @brief 打印操作数的比例因子
+ *
+ * @param scale 指向ARMOperandScale结构的指针
+ */
 void print_opd_scale(ARMOperandScale *scale)
 {
     if (scale->type == ARM_OPD_SCALE_TYPE_SHIFT || scale->type == ARM_OPD_SCALE_TYPE_EXT) {
@@ -185,12 +247,22 @@ void print_opd_scale(ARMOperandScale *scale)
         fprintf(stderr," none scale\n");
 }
 
+/**
+ * @brief 打印寄存器操作数
+ *
+ * @param opd 指向ARMRegOperand结构的指针
+ */
 void print_reg_opd(ARMRegOperand *opd)
 {
     fprintf(stderr,"%s ", arm_reg_str[opd->num]);
     print_opd_scale(&opd->scale);
 }
 
+/**
+ * @brief 打印内存操作数
+ *
+ * @param opd 指向ARMMemOperand结构的指针
+ */
 void print_mem_opd(ARMMemOperand *opd)
 {
     fprintf(stderr,"[base: %s", arm_reg_str[opd->base]);
@@ -204,6 +276,11 @@ void print_mem_opd(ARMMemOperand *opd)
     print_opd_index_type(opd->pre_post);
 }
 
+/**
+ * @brief 打印ARM指令序列
+ *
+ * @param instr_seq 指向ARMInstruction结构的指针，表示指令序列的起始
+ */
 void print_arm_instr_seq(ARMInstruction *instr_seq)
 {
     ARMInstruction *head = instr_seq;
@@ -232,6 +309,11 @@ void print_arm_instr_seq(ARMInstruction *instr_seq)
     }
 }
 
+/**
+ * @brief 打印单条ARM指令
+ *
+ * @param instr_seq 指向ARMInstruction结构的指针，表示要打印的指令
+ */
 void print_arm_instr(ARMInstruction *instr_seq)
 {
     ARMInstruction *head = instr_seq;
@@ -254,11 +336,23 @@ void print_arm_instr(ARMInstruction *instr_seq)
     fprintf(stderr,"\n");
 }
 
+/**
+ * @brief 获取ARM指令操作码的字符串表示
+ *
+ * @param opc ARM操作码枚举值
+ * @return const char* 操作码的字符串表示
+ */
 const char *get_arm_instr_opc(ARMOpcode opc)
 {
     return arm_opc_str[opc];
 }
 
+/**
+ * @brief 从字符串获取ARM操作码
+ *
+ * @param opc_str 操作码的字符串表示
+ * @return ARMOpcode 对应的ARM操作码枚举值
+ */
 static ARMOpcode get_arm_opcode(char *opc_str)
 {
     int i;
@@ -271,6 +365,12 @@ static ARMOpcode get_arm_opcode(char *opc_str)
     return ARM_OPC_INVALID;
 }
 
+/**
+ * @brief 从字符串获取ARM寄存器
+ *
+ * @param reg_str 寄存器的字符串表示
+ * @return ARMRegister 对应的ARM寄存器枚举值
+ */
 static ARMRegister get_arm_register(char *reg_str)
 {
     int reg;
@@ -281,6 +381,12 @@ static ARMRegister get_arm_register(char *reg_str)
     return ARM_REG_INVALID;
 }
 
+/**
+ * @brief 从字符串获取ARM操作数的移位方向
+ *
+ * @param direct_str 移位方向的字符串表示
+ * @return ARMOperandScaleDirect 对应的移位方向枚举值
+ */
 static ARMOperandScaleDirect get_arm_direct(char *direct_str)
 {
     int direct;
@@ -291,6 +397,12 @@ static ARMOperandScaleDirect get_arm_direct(char *direct_str)
     return ARM_OPD_DIRECT_NONE;
 }
 
+/**
+ * @brief 从字符串获取ARM操作数的扩展类型
+ *
+ * @param extend_str 扩展类型的字符串表示
+ * @return ARMOperandScaleExtend 对应的扩展类型枚举值
+ */
 static ARMOperandScaleExtend get_arm_extend(char *extend_str)
 {
     int direct;
@@ -301,6 +413,12 @@ static ARMOperandScaleExtend get_arm_extend(char *extend_str)
     return ARM_OPD_EXTEND_NONE;
 }
 
+/**
+ * @brief 从操作码字符串获取条件码
+ *
+ * @param opc_str 操作码字符串
+ * @return ARMConditionCode 对应的条件码枚举值
+ */
 ARMConditionCode get_arm_cc(char *opc_str)
 {
     int i;
@@ -328,31 +446,56 @@ ARMConditionCode get_arm_cc(char *opc_str)
     return ARM_CC_AL;
 }
 
-/* set condition code of this instruction */
+/**
+ * @brief 设置ARM指令的条件码
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param cond 条件码值
+ */
 void set_arm_instr_cc(ARMInstruction *instr, uint32_t cond)
 {
     instr->cc = arm_cc_table[cond];
 }
 
-/* set the opcode of this instruction */
+/**
+ * @brief 设置ARM指令的操作码
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opc 操作码枚举值
+ */
 void set_arm_instr_opc(ARMInstruction *instr, ARMOpcode opc)
 {
     instr->opc = opc;
 }
 
-/* set the opcode of this instruction based on the given string */
+/**
+ * @brief 从字符串设置ARM指令的操作码
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opc_str 操作码的字符串表示
+ */
 void set_arm_instr_opc_str(ARMInstruction *instr, char *opc_str)
 {
     instr->cc = get_arm_cc(opc_str);
     instr->opc = get_arm_opcode(opc_str);
 }
 
-/* set the number of operands of this instruction */
+/**
+ * @brief 设置ARM指令的操作数数量
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param num 操作数的数量
+ */
 void set_arm_instr_opd_num(ARMInstruction *instr, size_t num)
 {
     instr->opd_num = num;
 }
 
+/**
+ * @brief 设置ARM指令的操作数大小
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ */
 void set_arm_instr_opd_size(ARMInstruction *instr)
 {
     if (instr->opc == ARM_OPC_LDRB || instr->opc == ARM_OPC_STRB)
@@ -363,11 +506,25 @@ void set_arm_instr_opd_size(ARMInstruction *instr)
       instr->OpSize = 4;
 }
 
+/**
+ * @brief 设置ARM指令特定操作数的类型
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param type 操作数的类型
+ */
 void set_arm_instr_opd_type(ARMInstruction *instr, int opd_index, ARMOperandType type)
 {
     set_arm_opd_type(&instr->opd[opd_index], type);
 }
 
+/**
+ * @brief 设置ARM指令特定操作数为立即数
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param val 立即数值
+ */
 void set_arm_instr_opd_imm(ARMInstruction *instr, int opd_index, uint32_t val)
 {
     ARMOperand *opd = &instr->opd[opd_index];
@@ -378,6 +535,13 @@ void set_arm_instr_opd_imm(ARMInstruction *instr, int opd_index, uint32_t val)
     opd->content.imm.content.val = val;
 }
 
+/**
+ * @brief 设置ARM指令特定操作数为寄存器
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param regno 寄存器编号
+ */
 void set_arm_instr_opd_reg(ARMInstruction *instr, int opd_index, int regno)
 {
     ARMOperand *opd = &instr->opd[opd_index];
@@ -386,12 +550,19 @@ void set_arm_instr_opd_reg(ARMInstruction *instr, int opd_index, int regno)
     opd->content.reg.num = arm_reg_table[regno];
 }
 
-/* Set register type operand using register string */
+/**
+ * @brief 从字符串设置ARM指令特定操作数为寄存器
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param reg_str 寄存器的字符串表示
+ */
 void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_str)
 {
     ARMOperand *opd = &instr->opd[opd_index];
     size_t len = strlen(reg_str);
 
+    // 处理不同类型的寄存器前缀和后缀，设置相应的操作数大小
     if (reg_str[0] == 'w' || (reg_str[0] == 'r' && reg_str[len-1] == 'w')) {
         if (!opd_index)
           instr->OpSize = 4;
@@ -408,6 +579,7 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
         reg_str[0] = 'v';
     }
     else if (!opd_index && len >= 5) {
+         // 处理向量寄存器的不同元素大小
         if (reg_str[len-3] == '1' && reg_str[len-2] == '6' && reg_str[len-1] == 'b') {
           instr->OpSize = 16;
           instr->ElementSize = 1;
@@ -438,6 +610,7 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
         }
     }
 
+    // 处理特定指令的元素索引
     if (len >= 5 && (instr->opc == ARM_OPC_UMOV || instr->opc == ARM_OPC_LD1 || instr->opc == ARM_OPC_INS)) {
         if (reg_str[len-4] == 'h' && reg_str[len-3] == '[' && reg_str[len-1] == ']') {
           instr->ElementSize = 2;
@@ -451,10 +624,12 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
         }
     }
 
+    // 移除寄存器名后的点和任何后缀
     char *dotPos = std::strchr(reg_str, '.');
     if (dotPos != nullptr)
         *dotPos = '\0';
 
+    // 处理零寄存器的特殊情况
     if (!strcmp("rzr", reg_str))
        reg_str = "zr";
 
@@ -462,6 +637,13 @@ void set_arm_instr_opd_reg_str(ARMInstruction *instr, int opd_index, char *reg_s
     opd->content.reg.num = get_arm_register(reg_str);
 }
 
+/**
+ * @brief 从字符串设置ARM指令操作数的比例因子
+ *
+ * @param pscale 指向ARMOperandScale结构的指针
+ * @param direct_str 移位或扩展操作的字符串表示
+ * @return bool 如果设置成功返回true，否则返回false
+ */
 bool set_arm_instr_opd_scale_str(ARMOperandScale *pscale, char *direct_str)
 {
     pscale->content.direct = get_arm_direct(direct_str);
@@ -474,6 +656,12 @@ bool set_arm_instr_opd_scale_str(ARMOperandScale *pscale, char *direct_str)
     return (pscale->content.direct == ARM_OPD_DIRECT_NONE && pscale->content.extend == ARM_OPD_EXTEND_NONE);
 }
 
+/**
+ * @brief 从字符串设置ARM指令操作数的比例因子立即数
+ *
+ * @param pscale 指向ARMOperandScale结构的指针
+ * @param scale_str 比例因子的字符串表示
+ */
 void set_arm_instr_opd_scale_imm_str(ARMOperandScale *pscale, char *scale_str)
 {
     if (strstr(scale_str, "imm")) { /* this is a symbol scale: imm_xxx */
@@ -485,6 +673,13 @@ void set_arm_instr_opd_scale_imm_str(ARMOperandScale *pscale, char *scale_str)
     }
 }
 
+/**
+ * @brief 设置ARM指令内存操作数的基址寄存器
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param regno 寄存器编号
+ */
 void set_arm_instr_opd_mem_base(ARMInstruction *instr, int opd_index, int regno)
 {
     ARMMemOperand *mopd = &(instr->opd[opd_index].content.mem);
@@ -492,6 +687,13 @@ void set_arm_instr_opd_mem_base(ARMInstruction *instr, int opd_index, int regno)
     mopd->base = arm_reg_table[regno];
 }
 
+/**
+ * @brief 从字符串设置ARM指令内存操作数的基址寄存器
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param reg_str 寄存器的字符串表示
+ */
 void set_arm_instr_opd_mem_base_str(ARMInstruction *instr, int opd_index, char *reg_str)
 {
     ARMMemOperand *mopd = &(instr->opd[opd_index].content.mem);
@@ -504,6 +706,13 @@ void set_arm_instr_opd_mem_base_str(ARMInstruction *instr, int opd_index, char *
 
 }
 
+/**
+ * @brief 设置ARM指令内存操作数的索引寄存器
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param regno 寄存器编号
+ */
 void set_arm_instr_opd_mem_index(ARMInstruction *instr, int opd_index, int regno)
 {
     ARMMemOperand *mopd = &(instr->opd[opd_index].content.mem);
@@ -511,6 +720,13 @@ void set_arm_instr_opd_mem_index(ARMInstruction *instr, int opd_index, int regno
     mopd->index = arm_reg_table[regno];
 }
 
+/**
+ * @brief 从字符串设置ARM指令内存操作数的索引寄存器
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param reg_str 寄存器的字符串表示
+ */
 void set_arm_instr_opd_mem_index_str(ARMInstruction *instr, int opd_index, char *reg_str)
 {
     ARMMemOperand *mopd = &(instr->opd[opd_index].content.mem);
@@ -518,6 +734,13 @@ void set_arm_instr_opd_mem_index_str(ARMInstruction *instr, int opd_index, char 
     mopd->index = get_arm_register(reg_str);
 }
 
+/**
+ * @brief 设置ARM指令内存操作数的索引类型（前索引或后索引）
+ *
+ * @param instr 指向ARMInstruction结构的指针
+ * @param opd_index 操作数的索引
+ * @param type 索引类型
+ */
 void set_arm_instr_opd_mem_index_type(ARMInstruction *instr, int opd_index, ARMMemIndexType type)
 {
     ARMMemOperand *mopd = &(instr->opd[opd_index].content.mem);
@@ -525,6 +748,12 @@ void set_arm_instr_opd_mem_index_type(ARMInstruction *instr, int opd_index, ARMM
     mopd->pre_post = type;
 }
 
+/**
+ * @brief 设置ARM操作数的类型
+ *
+ * @param opd 指向ARMOperand结构的指针
+ * @param type 操作数类型
+ */
 void set_arm_opd_type(ARMOperand *opd, ARMOperandType type)
 {
     ARMMemOperand *mopd;
@@ -553,6 +782,12 @@ void set_arm_opd_type(ARMOperand *opd, ARMOperandType type)
     opd->type = type;
 }
 
+/**
+ * @brief 从字符串设置ARM立即数操作数的值
+ *
+ * @param opd 指向ARMOperand结构的指针
+ * @param imm_str 立即数的字符串表示
+ */
 void set_arm_opd_imm_val_str(ARMOperand *opd, char *imm_str)
 {
     ARMImmOperand *iopd = &opd->content.imm;
@@ -561,6 +796,12 @@ void set_arm_opd_imm_val_str(ARMOperand *opd, char *imm_str)
     iopd->content.val = strtol(imm_str, NULL, 16);
 }
 
+/**
+ * @brief 从字符串设置ARM立即数操作数的符号
+ *
+ * @param opd 指向ARMOperand结构的指针
+ * @param imm_str 立即数的字符串表示
+ */
 void set_arm_opd_imm_sym_str(ARMOperand *opd, char *imm_str)
 {
     ARMImmOperand *iopd = &opd->content.imm;
@@ -569,6 +810,12 @@ void set_arm_opd_imm_sym_str(ARMOperand *opd, char *imm_str)
     strcpy(iopd->content.sym, imm_str);
 }
 
+/**
+ * @brief 从字符串设置ARM内存操作数的偏移量值
+ *
+ * @param opd 指向ARMOperand结构的指针
+ * @param off_str 偏移量的字符串表示
+ */
 void set_arm_opd_mem_off_val(ARMOperand *opd, char *off_str)
 {
     ARMMemOperand *mopd = &opd->content.mem;
@@ -577,6 +824,12 @@ void set_arm_opd_mem_off_val(ARMOperand *opd, char *off_str)
     mopd->offset.content.val = strtol(off_str, NULL, 16);
 }
 
+/**
+ * @brief 从字符串设置ARM内存操作数的偏移量符号
+ *
+ * @param opd 指向ARMOperand结构的指针
+ * @param off_str 偏移量的字符串表示
+ */
 void set_arm_opd_mem_off_str(ARMOperand *opd, char *off_str)
 {
     ARMMemOperand *mopd = &(opd->content.mem);
@@ -585,6 +838,12 @@ void set_arm_opd_mem_off_str(ARMOperand *opd, char *off_str)
     strcpy(mopd->offset.content.sym, off_str);
 }
 
+/**
+ * @brief 设置ARM内存操作数的索引寄存器
+ *
+ * @param opd 指向ARMOperand结构的指针
+ * @param regno 寄存器编号
+ */
 void set_arm_opd_mem_index_reg(ARMOperand *opd, int regno)
 {
     ARMMemOperand *mopd = &(opd->content.mem);
@@ -592,16 +851,37 @@ void set_arm_opd_mem_index_reg(ARMOperand *opd, int regno)
     mopd->index = arm_reg_table[regno];
 }
 
+/**
+ * @brief 获取ARM寄存器
+ *
+ * @param regno 寄存器编号
+ * @return ARMRegister 对应的ARM寄存器枚举值
+ */
 ARMRegister get_arm_reg(int regno)
 {
     return arm_reg_table[regno];
 }
 
+/**
+ * @brief 获取ARM寄存器的字符串表示
+ *
+ * @param reg ARM寄存器枚举值
+ * @return const char* 寄存器的字符串表示
+ */
 const char *get_arm_reg_str(ARMRegister reg)
 {
     return arm_reg_str[reg];
 }
 
+/**
+ * @brief 根据PC值获取ARM指令
+ *
+ * 在给定的指令序列中查找特定PC值对应的指令。
+ *
+ * @param insn_seq 指向ARMInstruction结构的指针，表示指令序列的起始
+ * @param pc 要查找的PC值
+ * @return ARMInstruction* 找到的指令指针，如果未找到则返回NULL
+ */
 ARMInstruction *get_arm_insn(ARMInstruction *insn_seq, uint64_t pc)
 {
     ARMInstruction *insn = insn_seq;

@@ -1,3 +1,12 @@
+/**
+ * @file x86-parse.cpp
+ * @brief X86指令解析器的实现
+ *
+ * 本文件包含了用于解析X86指令的各种函数和数据结构。
+ * 主要功能包括解析X86指令的操作码、操作数，以及整个X86代码序列。
+ * 这些功能主要用于解析转换规则中的X86代码部分。
+ */
+
 #include <FEXCore/Utils/LogManager.h>
 
 #include <cstdio>
@@ -8,11 +17,18 @@
 #include "x86-instr.h"
 #include "x86-parse.h"
 
+// X86指令缓冲区的最大长度
 #define RULE_X86_INSTR_BUF_LEN 1000000
 
+// X86指令缓冲区和当前索引
 static X86Instruction *rule_x86_instr_buf;
 static int rule_x86_instr_buf_index;
 
+/**
+ * @brief 初始化X86指令缓冲区
+ *
+ * 分配内存并初始化X86指令缓冲区。
+ */
 void rule_x86_instr_buf_init(void)
 {
     rule_x86_instr_buf = new X86Instruction[RULE_X86_INSTR_BUF_LEN];
@@ -22,6 +38,12 @@ void rule_x86_instr_buf_init(void)
     rule_x86_instr_buf_index = 0;
 }
 
+/**
+ * @brief 分配一个新的X86指令结构体
+ *
+ * @param pc 指令的程序计数器值
+ * @return X86Instruction* 新分配的X86指令结构体指针
+ */
 static X86Instruction *rule_x86_instr_alloc(uint64_t pc)
 {
     X86Instruction *instr = &rule_x86_instr_buf[rule_x86_instr_buf_index++];
@@ -33,6 +55,13 @@ static X86Instruction *rule_x86_instr_alloc(uint64_t pc)
     return instr;
 }
 
+/**
+ * @brief 解析X86指令的操作码
+ *
+ * @param line 包含指令的字符串
+ * @param instr 指向X86Instruction结构的指针
+ * @return int 解析后的字符串索引
+ */
 static int parse_rule_x86_opcode(char *line, X86Instruction *instr)
 {
     char opc_str[20] = "\0";
@@ -54,6 +83,13 @@ static int parse_rule_x86_opcode(char *line, X86Instruction *instr)
         return i;
 }
 
+/**
+ * @brief 检查操作数是否有后缀(如 al, ah, ax 等)
+ *
+ * @param line 包含操作数的字符串
+ * @param idx 当前检查的索引
+ * @return bool 如果有后缀返回true，否则返回false
+ */
 static bool HasSuffix(char *line, int idx) {
     if (line == NULL) {
         LogMan::Msg::EFmt( "line is NULL!");
@@ -67,9 +103,25 @@ static bool HasSuffix(char *line, int idx) {
         return false;
 }
 
-/* If x86 instruction has temp register, currently not supported */
+// 如果X86指令有临时寄存器，当前不支持
 static bool has_temp_register = false;
 
+/**
+ * @brief 解析X86指令的操作数
+ *
+ * 这个函数负责解析X86指令的单个操作数，包括立即数、寄存器和内存操作数。
+ * 函数首先检查操作数的第一个字符来确定其类型
+ * 1）'$' 表示立即数，函数解析其值或符号
+ * 2）'r', 'e' 或带有特定后缀的字符表示寄存器，函数解析寄存器名称
+ * 3）'b', 'w', 'd', 'q', 'x' 或 '[' 表示内存操作数，
+ *    函数解析基址寄存器、索引寄存器、比例因子和偏移量
+ *
+ * @param line 包含操作数的字符串
+ * @param idx 当前解析的起始索引
+ * @param instr 指向X86Instruction结构的指针
+ * @param opd_idx 操作数在指令中的索引
+ * @return int 解析后的字符串索引
+ */
 static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, int opd_idx)
 {
     X86Operand *opd = &instr->opd[opd_idx];
@@ -218,6 +270,13 @@ static int parse_rule_x86_operand(char *line, int idx, X86Instruction *instr, in
         return idx;
 }
 
+/**
+ * @brief 解析单条X86指令
+ *
+ * @param line 包含指令的字符串
+ * @param pc 指令的程序计数器值
+ * @return X86Instruction* 解析后的X86指令结构体指针
+ */
 static X86Instruction *parse_rule_x86_instruction(char *line, uint64_t pc)
 {
     X86Instruction *instr = rule_x86_instr_alloc(pc);
@@ -238,6 +297,12 @@ static X86Instruction *parse_rule_x86_instruction(char *line, uint64_t pc)
     return instr;
 }
 
+/**
+ * @brief 解析规则中的X86代码序列
+ *
+ * @param fp 指向规则文件的文件指针
+ * @param rule 指向TranslationRule结构的指针
+ */
 void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
 {
     uint64_t pc = 0;
@@ -265,10 +330,11 @@ void parse_rule_x86_code(FILE *fp, TranslationRule *rule)
             code_tail->next = cur;
             code_tail = cur;
         }
-        pc += 4;    // fake value
+        pc += 4;    // 假设的值，实际应根据指令长度调整
         rule->guest_instr_num++;
     }
 
+    // 以下注释掉的代码用于调试
     // LogMan::Msg::IFmt( "**** Guest {} ****", rule->index);
     // print_x86_instr_seq(code_head);
 

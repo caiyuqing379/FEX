@@ -40,12 +40,15 @@ void PatternMatcher::SetEpilogue(uint8_t *Code, size_t Size) {
   // 设置尾声代码
 }
 
+/**
+ * @brief 执行规则翻译
+ */
 size_t PatternMatcher::EmitCode() {
   // 根据规则生成Host指令
   // 1. 在CodeBuffer中写入指令
   // 2. 写入RIP
   // 3. 添加ret指令
-RuleRecord *rule_r = GetTranslationRule(BlockPC);;
+  RuleRecord *rule_r = GetTranslationRule(BlockPC);;
   TranslationRule *rule;
 
   if (!rule_r)
