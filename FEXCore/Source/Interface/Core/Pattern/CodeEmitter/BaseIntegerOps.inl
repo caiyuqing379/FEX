@@ -150,15 +150,20 @@ public:
     RISCVOperand *opd2   = &instr->opd[2];
 
     auto rvreg0 = GetRiscvReg(opd0->content.reg.num);
-    auto rvreg1 = GetRiscvReg(opd1->content.reg.num);
-
     auto rd = GetRiscvGPR(rvreg0);
-    auto rs1 = GetRiscvGPR(rvreg1);
+
+    if (instr->opd_num == 2) {
+        Opc_CMP(instr, rrule);
+        RVAssembler->MV(rd, GPRTempRes);
+        return;
+    }
 
     if (opd0->type == RISCV_OPD_TYPE_REG && opd1->type == RISCV_OPD_TYPE_REG && opd2->type == RISCV_OPD_TYPE_REG) {
 
       if (opd2->content.reg.num != RISCV_REG_INVALID) {
+        auto rvreg1 = GetRiscvReg(opd1->content.reg.num);
         auto rvreg2 = GetRiscvReg(opd2->content.reg.num);
+        auto rs1 = GetRiscvGPR(rvreg1);
         auto rs2 = GetRiscvGPR(rvreg2);
 
         // CF Flag?
@@ -1073,11 +1078,33 @@ public:
         }
 
         if (instr->opc == RISCV_OPC_LDAPS) {
-            if (rvreg0 == RISCV_REG_V1) {
-                RVAssembler->LD(biscuit::x25, imm - 8, rs1);
-                RVAssembler->LD(biscuit::x26, imm, rs1);
-                RVAssembler->SD(biscuit::x25, XMM1_OFFSET_LOW, biscuit::x9);
-                RVAssembler->SD(biscuit::x26, XMM1_OFFSET_HIGH, biscuit::x9);
+            RVAssembler->LD(biscuit::x25, imm+8, rs1);
+            RVAssembler->LD(biscuit::x26, imm, rs1);
+
+            if (rvreg0 == RISCV_REG_V0) {
+                RVAssembler->SD(biscuit::x26, XMM0_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM0_OFFSET_HIGH, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V1) {
+                RVAssembler->SD(biscuit::x26, XMM1_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM1_OFFSET_HIGH, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V2) {
+                RVAssembler->SD(biscuit::x26, XMM2_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM2_OFFSET_HIGH, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V3) {
+                RVAssembler->SD(biscuit::x26, XMM3_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM3_OFFSET_HIGH, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V4) {
+                RVAssembler->SD(biscuit::x26, XMM4_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM4_OFFSET_HIGH, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V5) {
+                RVAssembler->SD(biscuit::x26, XMM5_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM5_OFFSET_HIGH, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V6) {
+                RVAssembler->SD(biscuit::x26, XMM6_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM6_OFFSET_HIGH, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V1) {
+                RVAssembler->SD(biscuit::x26, XMM7_OFFSET_LOW, biscuit::x9);
+                RVAssembler->SD(biscuit::x25, XMM7_OFFSET_HIGH, biscuit::x9);
             } else
                 LogMan::Msg::EFmt("[RISC-V] Invalid srcreg for LoadAPS instr.");
         } else
@@ -1109,15 +1136,28 @@ public:
             if (rvreg0 == RISCV_REG_V0) {
                 RVAssembler->LD(biscuit::x5, XMM0_OFFSET_HIGH, biscuit::x9);
                 RVAssembler->LD(biscuit::x6, XMM0_OFFSET_LOW, biscuit::x9);
-                RVAssembler->SD(biscuit::x6, imm, rs1);
-                RVAssembler->SD(biscuit::x5, imm+8, rs1);
+            } else if (rvreg0 == RISCV_REG_V1) {
+                RVAssembler->LD(biscuit::x5, XMM1_OFFSET_HIGH, biscuit::x9);
+                RVAssembler->LD(biscuit::x6, XMM1_OFFSET_LOW, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V3) {
+                RVAssembler->LD(biscuit::x5, XMM3_OFFSET_HIGH, biscuit::x9);
+                RVAssembler->LD(biscuit::x6, XMM3_OFFSET_LOW, biscuit::x9);
             } else if (rvreg0 == RISCV_REG_V4) {
                 RVAssembler->LD(biscuit::x5, XMM4_OFFSET_HIGH, biscuit::x9);
                 RVAssembler->LD(biscuit::x6, XMM4_OFFSET_LOW, biscuit::x9);
-                RVAssembler->SD(biscuit::x6, imm, rs1);
-                RVAssembler->SD(biscuit::x5, imm+8, rs1);
+            } else if (rvreg0 == RISCV_REG_V5) {
+                RVAssembler->LD(biscuit::x5, XMM5_OFFSET_HIGH, biscuit::x9);
+                RVAssembler->LD(biscuit::x6, XMM5_OFFSET_LOW, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V6) {
+                RVAssembler->LD(biscuit::x5, XMM6_OFFSET_HIGH, biscuit::x9);
+                RVAssembler->LD(biscuit::x6, XMM6_OFFSET_LOW, biscuit::x9);
+            } else if (rvreg0 == RISCV_REG_V7) {
+                RVAssembler->LD(biscuit::x5, XMM7_OFFSET_HIGH, biscuit::x9);
+                RVAssembler->LD(biscuit::x6, XMM7_OFFSET_LOW, biscuit::x9);
             } else
                 LogMan::Msg::EFmt("[RISC-V] Invalid srcreg for StoreAPS instr.");
+            RVAssembler->SD(biscuit::x6, imm, rs1);
+            RVAssembler->SD(biscuit::x5, imm+8, rs1);
         } else
             LogMan::Msg::EFmt("[RISC-V] Invalid opcode for StoreAPS instr.");
     } else
