@@ -48,7 +48,7 @@ size_t PatternMatcher::EmitCode() {
   // 1. 在CodeBuffer中写入指令
   // 2. 写入RIP
   // 3. 添加ret指令
-  RuleRecord *rule_r = GetTranslationRule(BlockPC);;
+  RuleRecord *rule_r = GetTranslationRule(BlockPC);
   TranslationRule *rule;
 
   if (!rule_r)

@@ -1,0 +1,3762 @@
+1.Guest:
+    cmp reg0, $imm0
+    je $Label
+1.Host:
+    cmp reg0, #imm0
+    beqz x0, #Label
+2.Guest:
+    test reg0, reg1
+    je $Label
+2.Host:
+    test reg0, reg1
+    beqz x0, #Label
+3.Guest:
+    jmp $Label
+3.Host:
+    jal x0, #Label
+4.Guest:
+    mov reg0, reg1
+    call $Label
+4.Host:
+    mv reg0, reg1
+    call #Label
+5.Guest:
+    call $Label
+5.Host:
+    call #Label
+6.Guest:
+    test reg0, reg1
+    jne $Label
+6.Host:
+    test reg0, reg1
+    bnez x0, #Label
+7.Guest:
+    ret
+7.Host:
+    ld t6, #0(a7)
+    addi a7, a7, #8
+8.Guest:
+    mov reg0, qword [reg1 + imm0]
+    test reg2, reg3
+    je $Label
+8.Host:
+    ld reg0, #imm0(reg1)
+    test reg2, reg3
+    beqz x0, #Label
+9.Guest:
+    cmp reg0, $imm0
+    jne $Label
+9.Host:
+    cmp reg0, #imm0
+    bnez x0, #Label
+10.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    jne $Label
+10.Host:
+    lbu t3, #imm0(reg0)
+    cmpb t3, #imm0
+    li t0, #imm1
+    bne t3, t0, #Label
+11.Guest:
+    mov reg0, reg1
+    jmp $Label
+11.Host:
+    mv reg0, reg1
+    jal x0, #Label
+12.Guest:
+    test byte [reg0 + imm0], $imm1
+    je $Label
+12.Host:
+    lb t3, #imm0(reg0)
+    testb t3, #imm1
+    beqz t3, #Label
+13.Guest:
+    mov reg0, qword [rip + imm0]
+    lea reg1, qword [rip + imm1]
+    lea reg2, qword [rip + imm2]
+    call $Label
+13.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    addi reg1, t6, %pcrel_lo(#imm1)
+    addi reg2, t6, %pcrel_lo(#imm2)
+    call #Label
+14.Guest:
+    test byte [reg0 + imm0], $imm1
+    jne $Label
+14.Host:
+    lb t3, #imm0(reg0)
+    testb t3, #imm1
+    bne t3, x0, #Label
+15.Guest:
+    je $Label
+15.Host:
+    beqz x0, #Label
+16.Guest:
+    mov reg0, $imm0
+    call $Label
+16.Host:
+    li reg0, #imm0
+    call #Label
+17.Guest:
+    cmp qword [reg0 + imm0], $imm1
+    je $Label
+17.Host:
+    ld t3, #imm0(reg0)
+    cmpq t3, #imm1
+    beqz x0, #Label
+18.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    je $Label
+18.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    li t2, #imm1
+    beq t3, t2, #Label
+19.Guest:
+    mov reg0, $imm0
+    mov reg1, reg2
+    call $Label
+19.Host:
+    li reg0, #imm0
+    mv reg1, reg2
+    call #Label
+20.Guest:
+    mov reg0, reg1
+    mov reg2, reg3
+    call $Label
+20.Host:
+    mv reg0, reg1
+    mv reg2, reg3
+    call #Label
+21.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, $imm1
+    jbe $Label
+21.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, #imm1
+    li t1, #imm1
+    bgeu t1, reg2, #Label
+22.Guest:
+    mov reg0, qword [rip + imm0]
+    test reg1, reg2
+    je $Label
+22.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    test reg1, reg2
+    beqz x0, #Label
+23.Guest:
+    test reg0, $imm0
+    je $Label
+23.Host:
+    test reg0, #imm0
+    beqz t3, #Label
+24.Guest:
+    cmp reg0, reg1
+    je $Label
+24.Host:
+    cmp reg0, reg1
+    beq reg0, reg1, #Label
+25.Guest:
+    jmp qword [rip + imm0]
+25.Host:
+    ld t6, %pcrel_lo(#imm0)(x0)
+26.Guest:
+    push $imm0
+    jmp $Label
+26.Host:
+    li t1, #imm0
+    sd t1, #-8(a7)
+    jal x0, #Label
+27.Guest:
+    mov reg0, $imm0
+    jmp $Label
+27.Host:
+    li reg0, #imm0
+    jal x0, #Label
+28.Guest:
+    mov qword [rip + imm0], reg0
+    jmp $Label
+28.Host:
+    sd reg0, %pcrel_lo(#imm0)(x0)
+    jal x0, #Label
+29.Guest:
+    mov reg0, qword [reg1 + imm0]
+    call $Label
+29.Host:
+    ld reg0, #imm0(reg1)
+    call #Label
+30.Guest:
+    mov reg0, qword [reg1]
+    test reg2, reg3
+    je $Label
+30.Host:
+    ld reg0, #0x0(reg1)
+    test reg2, reg3
+    beqz x0, #Label
+31.Guest:
+    test reg0, $imm0
+    jne $Label
+31.Host:
+    test reg0, #imm0
+    bnez t3, #Label
+32.Guest:
+    jne $Label
+32.Host:
+    bnez x0, #Label
+33.Guest:
+    mov reg0, dword [reg1 + imm0]
+    test reg2, reg3
+    je $Label
+33.Host:
+    lw reg0, #imm0(reg1)
+    test reg2, reg3
+    beqz x0, #Label
+34.Guest:
+    mov reg0, dword [reg1 + imm0]
+    test reg2, reg3
+    jne $Label
+34.Host:
+    lw reg0, #imm0(reg1)
+    test reg2, reg3
+    bnez x0, #Label
+35.Guest:
+    mov reg0, qword [rip + imm0]
+    cmp qword [reg1 + imm1], $imm2
+    je $Label
+35.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    ld t3, #imm1(reg1)
+    cmpq t3, #imm2
+    li t2, #imm2
+    beq t3, t2, #Label
+36.Guest:
+    add reg0, $imm0
+    ret
+36.Host:
+    addi reg0, reg0, #imm0
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+37.Guest:
+    test byte [rip + imm0], $imm1
+    je $Label
+37.Host:
+    lb t3, %pcrel_lo(#imm0)(t1)
+    testb t3, #imm1
+    beqz t3, #Label
+38.Guest:
+    cmp qword [reg0 + imm0], $imm1
+    jne $Label
+38.Host:
+    ld t3, #imm0(reg0)
+    cmpq t3, #imm1
+    bnez x0, #Label
+39.Guest:
+    add reg0, $imm0
+    pop reg1
+    pop reg2
+    pop reg3
+    pop reg4
+    pop reg5
+    pop reg6
+    ret
+39.Host:
+    addi reg0, reg0, #imm0
+    ld reg1, #0(a7)
+    ld reg2, #8(a7)
+    ld reg3, #0x10(a7)
+    ld reg4, #0x18(a7)
+    ld reg5, #0x20(a7)
+    ld reg6, #0x28(a7)
+    ld t6, #0x30(a7)
+    addi a7, a7, #0x38
+40.Guest:
+    cmp reg0, $imm0
+    ja $Label
+40.Host:
+    cmp reg0, #imm0
+    li t1, #imm0
+    bgt reg0, t1, #Label
+41.Guest:
+    test reg0, reg1
+    mov reg2, reg3
+    je $Label
+41.Host:
+    test reg0, reg1
+    beqz x0, #Label
+    mv reg2, reg3
+42.Guest:
+    mov reg0, qword [reg1 + imm0]
+    test reg2, reg3
+    jne $Label
+42.Host:
+    ld reg0, #imm0(reg1)
+    test reg2, reg3
+    bnez x0, #Label
+43.Guest:
+    test reg0, reg1
+    js $Label
+43.Host:
+    test reg0, reg1
+    bltz x0, #Label
+44.Guest:
+    movzx reg0, byte [reg1 + imm0]
+    cmp reg2, $imm1
+    je $Label
+44.Host:
+    lbu reg0, #imm0(reg1)
+    cmp reg2, #imm1
+    beqz x0, #Label
+45.Guest:
+    pop reg0
+    ret
+45.Host:
+    ld reg0, #0(a7)
+    ld t6, #8(a7)
+    addi a7, a7, #0x10
+46.Guest:
+    mov reg0, dword [rip + imm0]
+    test reg1, reg2
+    jne $Label
+46.Host:
+    lw reg0, %pcrel_lo(#imm0)(x0)
+    and t1, reg1, reg2
+    bne t1, x0, #Label
+47.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, reg3
+    call $Label
+47.Host:
+    ld reg0, #imm0(reg1)
+    mv reg2, reg3
+    call #Label
+48.Guest:
+    add reg0, $imm0
+    mov reg1, reg2
+    pop reg3
+    pop reg4
+    pop reg5
+    pop reg6
+    pop reg7
+    pop reg8
+48.Host:
+    addi reg0, reg0, #imm0
+    mv reg1, reg2
+    ld reg3, #0(a7)
+    addi a7, a7, #8
+    ld reg4, #0(a7)
+    addi a7, a7, #8
+    ld reg5, #0(a7)
+    addi a7, a7, #8
+    ld reg6, #0(a7)
+    addi a7, a7, #8
+    ld reg7, #0(a7)
+    addi a7, a7, #8
+    ld reg8, #0(a7)
+    addi a7, a7, #8
+49.Guest:
+    mov reg0, reg1
+    test reg2, reg3
+    je $Label
+49.Host:
+    mv reg0, reg1
+    test reg2, reg3
+    beqz x0, #Label
+50.Guest:
+    mov reg0, dword [rip + imm0]
+    test reg1, reg2
+    je $Label
+50.Host:
+    lw reg0, %pcrel_lo(#imm0)(x0)
+    test reg1, reg2
+    beqz x0, #Label
+51.Guest:
+    cmp reg0, $imm0
+    jbe $Label
+51.Host:
+    cmp reg0, #imm0
+    li t1, #imm0
+    bgeu t1, reg0, #Label
+52.Guest:
+    cmp qword [rip + imm0], $imm1
+    je $Label
+52.Host:
+    ld t3, %pcrel_lo(#imm0)(t1)
+    cmpq t3, #imm1
+    beqz x0, #Label
+53.Guest:
+    lea reg0, qword [rip + imm0]
+    mov reg1, reg2
+    call $Label
+53.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    mv reg1, reg2
+    call #Label
+54.Guest:
+    cmp byte [reg0], $imm0
+    jne $Label
+54.Host:
+    lb t3, #0x0(reg0)
+    cmpb t3, #imm0
+    li t2, #imm0
+    bne t3, t2, #Label
+55.Guest:
+    mov qword [reg0 + imm0], reg1
+    jmp $Label
+55.Host:
+    sd reg1, #imm0(reg0)
+    jal x0, #Label
+56.Guest:
+    xor reg0, reg1
+    jmp $Label
+56.Host:
+    xor reg0, reg0, reg1
+    jal x0, #Label
+57.Guest:
+    mov reg0, qword [reg1 + imm0]
+    jmp $Label
+57.Host:
+    ld reg0, #imm0(reg1)
+    jal x0, #Label
+58.Guest:
+    mov reg0, qword [reg1]
+    call $Label
+58.Host:
+    ld reg0, #0x0(reg1)
+    call #Label
+59.Guest:
+    cmp reg0, reg1
+    jne $Label
+59.Host:
+    cmp reg0, reg1
+    bne reg0, reg1, #Label
+60.Guest:
+    mov reg0, dword [reg1 + imm0]
+    test reg2, $imm1
+    je $Label
+60.Host:
+    lw reg0, #imm0(reg1)
+    test reg2, #imm1
+    beqz t3, #Label
+61.Guest:
+    xor reg0, reg1
+    call $Label
+61.Host:
+    xor reg0, reg0, reg1
+    call #Label
+62.Guest:
+    movzx reg0, byte [reg1]
+    cmp reg2, $imm0
+    je $Label
+62.Host:
+    lbu reg0, #0x0(reg0)
+    cmp reg2, #imm0
+    li t1, #imm0
+    beq reg2, t1, #Label
+63.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    mov reg1, $imm2
+    jne $Label
+63.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    li t2, #imm1
+    bne t3, t2, #Label
+    li reg1, #imm2
+64.Guest:
+    ja $Label
+64.Host:
+    bgtz x0, #Label
+65.Guest:
+    mov reg0, qword [rip + imm0]
+    call $Label
+65.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    call #Label
+66.Guest:
+    cmp reg0, $imm0
+    jg $Label
+66.Host:
+    cmp reg0, #imm0
+    li t1, #imm0
+    bgt reg0, t1, #Label
+67.Guest:
+    and reg0, $imm0
+    je $Label
+67.Host:
+    andi reg0, reg0, #imm0
+    savefpz reg0
+    beqz reg0, #Label
+68.Guest:
+    cmp byte [reg0], $imm0
+    je $Label
+68.Host:
+    lb t3, #0x0(reg0)
+    cmpb t3, #imm0
+    li t2, #imm0
+    beq t3, t2, #Label
+69.Guest:
+    cmp dword [reg0 + imm0], $imm1
+    jne $Label
+69.Host:
+    lw t3, #imm0(reg0)
+    cmp t3, #imm1
+    bnez x0, #Label
+70.Guest:
+    mov reg0, qword [rip + imm0]
+    mov dword [rip + imm1], $imm2
+    mov dword [rip + imm3], $imm4
+    mov qword [rip + imm5], reg1
+    mov word [rip + imm6], $imm7
+    mov qword [rip + imm8], reg2
+    cmp byte [reg3], $imm9
+    je $Label
+70.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    li t3, #imm2
+    sw t3, %pcrel_lo(#imm1)(x0)
+    li t3, #imm4
+    sw t3, %pcrel_lo(#imm3)(x0)
+    sd reg1, %pcrel_lo(#imm5)(x0)
+    li t3, #imm7
+    sh t3, %pcrel_lo(#imm6)(x0)
+    sd reg2, %pcrel_lo(#imm8)(x0)
+    ld t3, #0(reg3)
+    cmpb t3, #imm9
+    li t2, #imm9
+    beq t3, t2, #Label
+71.Guest:
+    mov reg0, reg1
+    mov reg2, $imm0
+    mov reg3, $imm1
+    call $Label
+71.Host:
+    mv reg0, reg1
+    li reg2, #imm0
+    li reg3, #imm1
+    call #Label
+72.Guest:
+    cmp word [reg0 + imm0], $imm1
+    je $Label
+72.Host:
+    lhu t3, #imm0(reg0)
+    cmpw t3, #imm1
+    li t2, #imm1
+    beq t3, t2, #Label
+73.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, $imm1
+    ja $Label
+73.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, #imm1
+    bgtz x0, #Label
+74.Guest:
+    test reg0, reg1
+    jle $Label
+74.Host:
+    test reg0, reg1
+    blez x0, #Label
+75.Guest:
+    cmp dword [reg0 + imm0], $imm1
+    je $Label
+75.Host:
+    lwu t3, #imm0(reg0)
+    cmp t3, #imm1
+    beqz x0, #Label
+76.Guest:
+    cmp reg0, $imm0
+    jle $Label
+76.Host:
+    cmp reg0, #imm0
+    li t0, #imm0
+    bgeu t0, reg0, #Label
+77.Guest:
+    test byte [rip + imm0], $imm1
+    jne $Label
+77.Host:
+    lb t1, %pcrel_lo(#imm0)(x0)
+    test t1, #imm1
+    bnez t3, #Label
+78.Guest:
+    jbe $Label
+78.Host:
+    ble x0, x0, #Label
+79.Guest:
+    mov reg0, reg1
+    mov reg2, reg3
+    mov reg4, reg5
+    call $Label
+79.Host:
+    mv reg0, reg1
+    mv reg2, reg3
+    mv reg4, reg5
+    call #Label
+80.Guest:
+    mov reg0, dword [reg1 + imm0]
+    test reg2, $imm1
+    jne $Label
+80.Host:
+    lwu reg0, #imm0(reg1)
+    test reg2, #imm1
+    bnez t3, #Label
+81.Guest:
+    mov reg0, qword [reg1]
+    mov reg2, qword [reg3 + imm0]
+    test reg4, reg5
+    je $Label
+81.Host:
+    ld reg0, #0x0(reg1)
+    ld reg2, #imm0(reg3)
+    test reg4, reg5
+    beqz x0, #Label
+82.Guest:
+    add reg0, $imm0
+    pop reg1
+    pop reg2
+    ret
+82.Host:
+    addi t0, reg0, #imm0
+    saveflags t0, reg0, #imm0
+    ld reg1, #0x0(a7)
+    ld reg2, #0x8(a7)
+    ld t6, #0x10(a7)
+    addi a7, a7, #0x18
+83.Guest:
+    sub reg0, $imm0
+    call $Label
+83.Host:
+    li t3, #imm0
+    sub reg0, reg0, t3
+    call #Label
+84.Guest:
+    nop
+    jmp qword [rip + imm0]
+84.Host:
+    ld t6, %pcrel_lo(#imm0)(x0)
+85.Guest:
+    xor reg0, reg1
+    mov reg2, reg3
+    mov reg4, $imm0
+    call $Label
+85.Host:
+    xor reg0, reg0, reg1
+    mv reg2, reg3
+    li reg4, #imm0
+    call #Label
+86.Guest:
+    mov reg0, $imm0
+    mov reg1, $imm1
+    mov reg2, $imm2
+    call $Label
+86.Host:
+    li reg0, #imm0
+    li reg1, #imm1
+    li reg2, #imm2
+    call #Label
+87.Guest:
+    mov reg0, qword [rip + imm0]
+    cmp qword [reg1 + imm1], $imm2
+    jne $Label
+87.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    ld t3, #imm1(reg1)
+    cmpq t3, #imm2
+    bnez x0, #Label
+88.Guest:
+    pop reg0
+    pop reg1
+    pop reg2
+    ret
+88.Host:
+    ld reg0, #0(a7)
+    ld reg1, #8(a7)
+    ld reg2, #0x10(a7)
+    ld t6, #0x18(a7)
+    addi a7, a7, #0x20
+89.Guest:
+    sub reg0, $imm0
+    cmp reg1, $imm1
+    ja $Label
+89.Host:
+    li t0, #imm0
+    sub reg0, reg0, t0
+    cmp reg1, #imm1
+    bgtz x0, #Label
+90.Guest:
+    and reg0, $imm0
+    jne $Label
+90.Host:
+    andi reg0, reg0, #imm0
+    savefpz reg0
+    bne reg0, x0, #Label
+91.Guest:
+    shr reg0, reg1
+    shr reg2, reg3
+    sub reg4, reg5
+    jne $Label
+91.Host:
+    srl reg0, reg0, reg1
+    srl reg2, reg2, reg3
+    sub reg4, reg4, reg5
+    bne reg4, x0, #Label
+92.Guest:
+    mov reg0, qword [reg1]
+    jmp $Label
+92.Host:
+    ld reg0, #0x0(reg1)
+    jal x0, #Label
+93.Guest:
+    cmp reg0, reg1
+    jae $Label
+93.Host:
+    cmp reg0, reg1
+    bge reg0, reg1, #Label
+94.Guest:
+    cmp word [reg0 + imm0], $imm1
+    jne $Label
+94.Host:
+    lhu t3, #imm0(reg0)
+    cmpw t3, #imm1
+    li t2, #imm1
+    bne t3, t2, #Label
+95.Guest:
+    cmp byte [rip + imm0], $imm1
+    je $Label
+95.Host:
+    lb t3, %pcrel_lo(#imm0)(x0)
+    cmpb t3, #imm1
+    li t2, #imm1
+    beq t3, t2, #Label
+96.Guest:
+    mov reg0, qword [reg1]
+    test byte [reg2 + imm0], $imm1
+    je $Label
+96.Host:
+    ld reg0, #0x0(reg1)
+    lb t3, #imm0(reg2)
+    test t3, #imm1
+    beqz t3, #Label
+97.Guest:
+    jle $Label
+97.Host:
+    ble x0, x0, #Label
+98.Guest:
+    mov reg0, qword [reg1 + imm0]
+    test byte [reg2 + imm1], $imm2
+    je $Label
+98.Host:
+    ld reg0, #imm0(reg1)
+    lb t3, #imm1(reg2)
+    test t3, #imm2
+    beqz t3, #Label
+99.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp word [reg2], $imm1
+    jne $Label
+99.Host:
+    ld reg0, #imm0(reg1)
+    lhu t3, #0x0(reg2)
+    cmp t3, #imm1
+    li t2, #imm1
+    bne t3, t2, #Label
+100.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    test reg4, reg5
+    je $Label
+100.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    test reg4, reg5
+    beqz x0, #Label
+101.Guest:
+    jg $Label
+101.Host:
+    bgt x0, x0, #Label
+102.Guest:
+    lea reg0, qword [rip + imm0]
+    mov reg1, reg2
+    mov reg3, $imm1
+    call $Label
+102.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    mv reg1, reg2
+    li reg3, #imm1
+    call #Label
+103.Guest:
+    cmp reg0, reg1
+    jbe $Label
+103.Host:
+    cmp reg0, reg1
+    bgeu reg1, reg0, #Label
+104.Guest:
+    xor reg0, reg1
+    mov reg2, reg3
+    call $Label
+104.Host:
+    xor reg0, reg0, reg1
+    mv reg2, reg3
+    call #Label
+105.Guest:
+    cmp reg0, qword [rip + imm0]
+    je $Label
+105.Host:
+    ld t3, %pcrel_lo(#imm0)(x0)
+    cmp reg0, t3
+    beq reg0, t3, #Label
+106.Guest:
+    mov reg0, qword [reg1]
+    test byte [reg2 + imm0], $imm1
+    jne $Label
+106.Host:
+    ld reg0, #0x0(reg1)
+    lb t1, #imm0(reg2)
+    test t1, #imm1
+    bnez t3, #Label
+107.Guest:
+    mov reg0, qword [reg1]
+    test reg2, reg3
+    jne $Label
+107.Host:
+    ld reg0, #0x0(reg1)
+    test reg2, reg3
+    bnez x0, #Label
+108.Guest:
+    mov reg0, qword [rip + imm0]
+    test byte [reg1 + imm1], $imm2
+    jne $Label
+108.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    lb t1, #imm1(reg1)
+    test t1, #imm2
+    bnez t3, #Label
+109.Guest:
+    cmp byte [rip + imm0], $imm1
+    jne $Label
+109.Host:
+    lb t3, %pcrel_lo(#imm0)(x0)
+    cmpb t3, #imm1
+    li t2, #imm1
+    bne t3, t2, #Label
+110.Guest:
+    pop reg0
+    pop reg1
+    ret
+110.Host:
+    ld reg0, #0(a7)
+    ld reg1, #8(a7)
+    ld t6, #0x10(a7)
+    addi a7, a7, #0x18
+111.Guest:
+    cmp word [reg0], $imm0
+    jne $Label
+111.Host:
+    lh t3, #0x0(reg0)
+    cmp t3, #imm0
+    li t2, #imm0
+    bne t3, t2, #Label
+112.Guest:
+    nop
+    push reg0
+    push reg1
+    push reg2
+    push reg3
+    push reg4
+    push reg5
+    sub reg6, $imm0
+112.Host:
+    sd reg0, #-8(a7)
+    addi a7, a7, #-8
+    sd reg1, #-8(a7)
+    addi a7, a7, #-8
+    sd reg2, #-8(a7)
+    addi a7, a7, #-8
+    sd reg3, #-8(a7)
+    addi a7, a7, #-8
+    sd reg4, #-8(a7)
+    addi a7, a7, #-8
+    sd reg5, #-8(a7)
+    addi a7, a7, #-8
+    li t1, #imm0
+    sub reg6, reg6, t1
+113.Guest:
+    mov dword [reg0 + imm0], $imm1
+    jmp $Label
+113.Host:
+    li t1, #imm1
+    sw t1, #imm0(reg0)
+    jal x0, #Label
+114.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    mov reg1, $imm2
+    je $Label
+114.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    li t2, #imm1
+    beq t3, t2, #Label
+    li reg1, #imm2
+115.Guest:
+    lea reg0, qword [reg1 + imm0]
+    mov reg2, reg3
+    call $Label
+115.Host:
+    addi reg0, reg1, #imm0
+    mv reg2, reg3
+    call #Label
+116.Guest:
+    mov qword [reg0 + imm0], reg1
+    mov qword [reg2 + imm1], reg3
+    mov reg4, reg5
+    mov qword [reg6 + imm2], reg7
+    mov qword [reg8 + imm3], reg9
+    mov reg10, reg11
+    mov qword [reg12 + imm4], reg13
+    mov qword [reg14 + imm5], reg15
+116.Host:
+    sd reg1, #imm0(reg0)
+    sd reg3, #imm1(reg2)
+    mv reg4, reg5
+    sd reg7, #imm2(reg6)
+    sd reg9, #imm3(reg8)
+    mv reg10, reg11
+    sd reg13, #imm4(reg12)
+    sd reg15, #imm5(reg14)
+117.Guest:
+    mov reg0, dword [reg1 + imm0]
+    and reg2, $imm1
+    cmp reg3, $imm2
+    je $Label
+117.Host:
+    lwu reg0, #imm0(reg1)
+    andi reg2, reg2, #imm1
+    cmp reg3, #imm2
+    beqz x0, #Label
+118.Guest:
+    movzx reg0, byte [reg1]
+    lea reg2, qword [reg3 + imm0]
+    cmp reg4, $imm1
+    jbe $Label
+118.Host:
+    lbu reg0, #0x0(reg1)
+    addi reg2, reg3, #imm0
+    cmp reg4, #imm1
+    li t1, #imm1
+    bgeu t1, reg4, #Label
+119.Guest:
+    mov reg0, reg1
+    mov reg2, $imm0
+    call $Label
+119.Host:
+    mv reg0, reg1
+    li reg2, #imm0
+    call #Label
+120.Guest:
+    push reg0
+    push reg1
+    push reg2
+    push reg3
+    push reg4
+    push reg5
+    sub reg6, $imm0
+    mov reg7, qword [rip + imm1]
+120.Host:
+    sd reg0, #-8(a7)
+    addi a7, a7, #-8
+    sd reg1, #-8(a7)
+    addi a7, a7, #-8
+    sd reg2, #-8(a7)
+    addi a7, a7, #-8
+    sd reg3, #-8(a7)
+    addi a7, a7, #-8
+    sd reg4, #-8(a7)
+    addi a7, a7, #-8
+    sd reg5, #-8(a7)
+    addi a7, a7, #-8
+    li t1, #imm0
+    sub reg6, reg6, t1
+    ld reg7, %pcrel_lo(#imm1)(x0)
+121.Guest:
+    add reg0, $imm0
+    jmp $Label
+121.Host:
+    addi reg0, reg0, #imm0
+    jal x0, #Label
+122.Guest:
+    mov reg0, dword [reg1 + imm0]
+    test reg2, reg3
+    jle $Label
+122.Host:
+    lw reg0, #imm0(reg1)
+    test reg2, reg3
+    blez x0, #Label
+123.Guest:
+    psubb reg0, reg1
+    pmovmskb reg2, reg3
+    sub reg4, $imm0
+    jne $Label
+123.Host:
+    vsub.vv reg0, reg0, reg1
+    vmsbf.m vt0, reg3
+    vmv.x.s reg2, vt0
+    li t2, #imm0
+    sub t2, reg4, t2
+    bnez t2, #Label
+124.Guest:
+    mov reg0, $imm0
+    mov reg1, $imm1
+    call $Label
+124.Host:
+    li reg0, #imm0
+    li reg1, #imm1
+    call #Label
+125.Guest:
+    add reg0, $imm0
+    cmp reg1, reg2
+    jne $Label
+125.Host:
+    addi reg0, reg0, #imm0
+    cmp reg1, reg2
+    bne reg1, reg2, #Label
+126.Guest:
+    cmp word [reg0], $imm0
+    je $Label
+126.Host:
+    lh t3, #0x0(reg0)
+    cmp t3, #imm0
+    li t2, #imm0
+    beq t3, t2, #Label
+127.Guest:
+    test reg0, reg1
+    mov reg2, reg3
+    jne $Label
+127.Host:
+    test reg0, reg1
+    bnez x0, #Label
+    mv reg2, reg3
+128.Guest:
+    mov reg0, qword [reg1]
+    cmp qword [reg2 + imm0], $imm1
+    je $Label
+128.Host:
+    ld reg0, #0x0(reg1)
+    ld t3, #imm0(reg2)
+    cmpq t3, #imm1
+    beqz x0, #Label
+129.Guest:
+    lea reg0, qword [reg1 + imm0]
+    call $Label
+129.Host:
+    addi reg0, reg1, #imm0
+    call #Label
+130.Guest:
+    sub reg0, $imm0
+    test reg1, reg2
+    je $Label
+130.Host:
+    li t1, #imm0
+    sub reg0, reg0, t1
+    test reg1, reg2
+    beqz x0, #Label
+131.Guest:
+    cmp qword [reg0 + imm0], reg1
+    je $Label
+131.Host:
+    ld t3, #imm0(reg0)
+    cmpq t3, reg1
+    beqz x0, #Label
+132.Guest:
+    add reg0, $imm0
+    pop reg1
+    pop reg2
+    pop reg3
+    pop reg4
+    ret
+132.Host:
+    addi reg0, reg0, #imm0
+    ld reg1, #0(a7)
+    ld reg2, #8(a7)
+    ld reg3, #0x10(a7)
+    ld reg4, #0x18(a7)
+    ld t6, #0x20(a7)
+    addi a7, a7, #0x28
+133.Guest:
+    xor reg0, reg1
+    ret
+133.Host:
+    xor reg0, reg0, reg1
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+134.Guest:
+    cmp dword [rip + imm0], $imm1
+    je $Label
+134.Host:
+    lw t3, %pcrel_lo(#imm0)(x0)
+    cmp t3, #imm1
+    li t2, #imm1
+    beq t3, t2, #Label
+135.Guest:
+    test dword [reg0 + imm0], $imm1
+    je $Label
+135.Host:
+    lw t3, #imm0(reg0)
+    test t3, #imm1
+    beqz t3, #Label
+136.Guest:
+    mov qword [reg0 + imm0], reg1
+    mov qword [reg2 + imm1], reg3
+    mov qword [reg4 + imm2], reg5
+    mov qword [reg6 + imm3], reg7
+    mov qword [reg8 + imm4], reg9
+    mov qword [reg10 + imm5], reg11
+    sub reg12, $imm6
+    mov reg13, qword [rip + imm7]
+136.Host:
+    sd reg1, #imm0(reg0)
+    sd reg3, #imm1(reg2)
+    sd reg5, #imm2(reg4)
+    sd reg7, #imm3(reg6)
+    sd reg9, #imm4(reg8)
+    sd reg11, #imm5(reg10)
+    li t0, #imm6
+    sub reg12, reg12, t0
+    sd reg13, %pcrel_lo(#imm7)(x0)
+137.Guest:
+    movzx reg0, word [reg1 + imm0]
+    cmp reg2, $imm1
+    je $Label
+137.Host:
+    lhu reg0, #imm0(reg1)
+    cmp reg2, #imm1
+    li t1, #imm1
+    beq reg2, t1, #Label
+138.Guest:
+    mov reg0, reg1
+    ret
+138.Host:
+    mv reg0, reg1
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+139.Guest:
+    mov reg0, reg1
+    mov reg2, reg3
+    mov reg4, $imm0
+    call $Label
+139.Host:
+    mv reg0, reg1
+    mv reg2, reg3
+    li reg4, #imm0
+    call #Label
+140.Guest:
+    cmp qword [reg0], $imm0
+    je $Label
+140.Host:
+    ld t3, #0x0(reg0)
+    cmpq t3, #imm0
+    beqz x0, #Label
+141.Guest:
+    test reg0, reg1
+    jns $Label
+141.Host:
+    test reg0, reg1
+    bgez x0, #Label
+142.Guest:
+    cmp reg0, reg1
+    ja $Label
+142.Host:
+    cmp reg0, reg1
+    bgt reg0, reg1, #Label
+143.Guest:
+    mov qword [rip + imm0], reg0
+    call $Label
+143.Host:
+    sd reg0, %pcrel_lo(#imm0)(x0)
+    call #Label
+144.Guest:
+    mov reg0, $imm0
+    mov dword [rip + imm1], $imm2
+    mov qword [rip + imm3], reg1
+    jmp $Label
+144.Host:
+    li reg0, #imm0
+    li t3, #imm2
+    sw t3, %pcrel_lo(#imm1)(t0)
+    sd reg1, %pcrel_lo(#imm3)(t0)
+    jal x0, #Label
+145.Guest:
+    cmp reg0, reg1
+    jb $Label
+145.Host:
+    cmp reg0, reg1
+    blt reg0, reg1, #Label
+146.Guest:
+    cmp reg0, $imm0
+    jae $Label
+146.Host:
+    cmp reg0, #imm0
+    li t0, #imm0
+    bge reg0, t0, #Label
+147.Guest:
+    add reg0, $imm0
+    jg $Label
+147.Host:
+    addi reg0, reg0, #imm0
+    bgt reg0, x0, #Label
+148.Guest:
+    movdqa reg0, xmmword [reg1]
+    pxor reg2, reg3
+    mov reg4, $imm0
+    mov reg5, $imm1
+    lea reg6, qword [reg7 + imm2]
+    and reg8, $imm3
+    sub reg9, $imm4
+    nop
+148.Host:
+    ld reg0, #0x0(reg1)
+    xor reg2, reg2, reg3
+    li reg4, #imm0
+    li reg5, #imm1
+    addi reg6, reg7, #imm2
+    and reg8, reg8, #imm3
+    li t0, #imm4
+    sub reg9, reg9, t0
+149.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    mov reg4, qword [reg5 + imm2]
+    mov reg6, qword [reg7 + imm3]
+    mov reg8, qword [reg9 + imm4]
+    mov reg10, qword [reg11 + imm5]
+    add reg12, $imm6
+    ret
+149.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    ld reg4, #imm2(reg5)
+    ld reg6, #imm3(reg7)
+    ld reg8, #imm4(reg9)
+    ld reg10, #imm5(reg11)
+    addi reg12, reg12, #imm6
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+150.Guest:
+    mov qword [reg0], reg1
+    jmp $Label
+150.Host:
+    sd reg1, #0x0(reg0)
+    jal x0, #Label
+151.Guest:
+    mov reg0, qword [rip + imm0]
+    jmp $Label
+151.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    jal x0, #Label
+152.Guest:
+    mov reg0, $imm0
+    mov reg1, reg2
+    mov reg3, reg4
+    call $Label
+152.Host:
+    li reg0, #imm0
+    mv reg1, reg2
+    mv reg3, reg4
+    call #Label
+153.Guest:
+    pop reg0
+    pop reg1
+    pop reg2
+    pop reg3
+    pop reg4
+    ret
+153.Host:
+    ld reg0, #0(a7)
+    ld reg1, #8(a7)
+    ld reg2, #0x10(a7)
+    ld reg3, #0x18(a7)
+    ld reg4, #0x20(a7)
+    ld t6, #0x28(a7)
+    addi a7, a7, #0x30
+154.Guest:
+    nop
+    test reg0, reg1
+    je $Label
+154.Host:
+    test reg0, reg1
+    beqz x0, #Label
+155.Guest:
+    mov reg0, $imm0
+    mov dword [rip + imm1], $imm2
+    mov dword [rip + imm3], $imm4
+    mov qword [rip + imm5], reg1
+    jmp $Label
+155.Host:
+    li reg0, #imm0
+    li t3, #imm2
+    sw t3, %pcrel_lo(#imm1)(t0)
+    li t3, #imm4
+    sw t3, %pcrel_lo(#imm3)(t0)
+    sd reg1, %pcrel_lo(#imm5)(t0)
+    jal x0, #Label
+156.Guest:
+    add reg0, $imm0
+    cmp reg1, reg2
+    je $Label
+156.Host:
+    addi reg0, reg0, #imm0
+    cmp reg1, reg2
+    beq reg1, reg2, #Label
+157.Guest:
+    mov reg0, dword [reg1 + imm0]
+    jmp $Label
+157.Host:
+    lw reg0, #imm0(reg1)
+    jal x0, #Label
+158.Guest:
+    mov reg0, qword [rip + imm0]
+    mov reg1, dword [rip + imm1]
+    cmp dword [reg2 + imm2], reg3
+    jae $Label
+158.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    lw reg1, %pcrel_lo(#imm1)(t0)
+    lw t3, #imm2(reg2)
+    cmp t3, reg3
+    bge t3, reg3, #Label
+159.Guest:
+    mov dword [rip + imm0], $imm1
+    jmp $Label
+159.Host:
+    li t3, #imm1
+    sw t3, %pcrel_lo(#imm0)(x0)
+    jal x0, #Label
+160.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp reg2, reg3
+    je $Label
+160.Host:
+    ld reg0, #imm0(reg1)
+    cmp reg2, reg3
+    beq reg2, reg3, #Label
+161.Guest:
+    mov reg0, dword [rip + imm0]
+    jmp $Label
+161.Host:
+    sw reg0, %pcrel_lo(#imm0)(x0)
+    jal x0, #Label
+162.Guest:
+    mov reg0, dword [rip + imm0]
+    test reg1, $imm1
+    je $Label
+162.Host:
+    sw reg0, %pcrel_lo(#imm0)(x0)
+    test reg1, #imm1
+    beqz t3, #Label
+163.Guest:
+    mov reg0, reg1
+    sub reg2, qword [reg3 + imm0]
+    cmp reg4, $imm1
+    jl $Label
+163.Host:
+    mv reg0, reg1
+    ld t1, reg3, #imm0
+    sub reg2, reg2, t1
+    cmp reg4 #imm1
+    li t2, #imm1
+    blt reg4, t2, #Label
+164.Guest:
+    mov qword [reg0 + imm0], $imm1
+    jmp $Label
+164.Host:
+    li t1, #imm1
+    sd t1, #imm0(reg0)
+    jal x0, #Label
+165.Guest:
+    cmp qword [reg0 + imm0], reg1
+    jne $Label
+165.Host:
+    ld s9, #imm0(reg0)
+    cmpq s9, reg1
+    bnez x0, #Label
+166.Guest:
+    movzx reg0, word [reg1]
+    cmp reg2, $imm0
+    je $Label
+166.Host:
+    lhu reg0, #0x0(reg1)
+    cmp reg2, #imm0
+    li t1, #imm0
+    beq reg2, t1, #Label
+167.Guest:
+    mov reg0, dword [reg1 + imm0]
+    test reg2, reg3
+    js $Label
+167.Host:
+    lw reg0, #imm0(reg1)
+    test reg2, reg3
+    bltz x0, #Label
+168.Guest:
+    xor reg0, reg1
+    test reg2, reg3
+    je $Label
+168.Host:
+    xor reg0, reg0, reg1
+    test reg2, reg3
+    beqz x0, #Label
+169.Guest:
+    lea reg0, qword [rip + imm0]
+    mov reg1, reg2
+    mov reg3, reg4
+    call $Label
+169.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    mv reg1, reg2
+    mv reg3, reg4
+    call #Label
+170.Guest:
+    mov qword [reg0 + imm0], reg1
+    call $Label
+170.Host:
+    sd reg1, #imm0(reg0)
+    call #Label
+171.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp byte [reg2], $imm1
+    je $Label
+171.Host:
+    ld reg0, #imm0(reg1)
+    lb t3, #0x0(reg2)
+    cmpb t3, #imm0
+    li t2, #imm1
+    beq t3, t2, #Label
+172.Guest:
+    add reg0, $imm0
+    mov reg1, reg2
+    pop reg3
+    pop reg4
+    ret
+172.Host:
+    addi reg0, reg0, #imm0
+    mv reg1, reg2
+    ld reg3, #0(a7)
+    ld reg4, #8(a7)
+    ld t6, #0x10(a7)
+    addi a7, a7, #0x18
+173.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    call $Label
+173.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    call #Label
+174.Guest:
+    mov reg0, reg1
+    xor reg2, reg3
+    call $Label
+174.Host:
+    mv reg0, reg1
+    xor reg2, reg2, reg3
+    call #Label
+175.Guest:
+    mov reg0, $imm0
+    mov reg1, $imm1
+    mov reg2, reg3
+    call $Label
+175.Host:
+    li reg0, #imm0
+    li reg1, #imm1
+    mv reg2, reg3
+    call #Label
+176.Guest:
+    mov reg0, qword [reg1]
+    mov qword [rip + imm0], reg2
+    jmp $Label
+176.Host:
+    ld reg0, #0x0(reg1)
+    sd reg2, %pcrel_lo(#imm0)(x0)
+    sd reg2, #0x0(t1)
+    jal x0, #Label
+177.Guest:
+    cmp reg0, qword [reg1 + imm0]
+    je $Label
+177.Host:
+    ld t3, #imm0(reg1)
+    cmpq reg0, t3
+    beqz x0, #Label
+178.Guest:
+    mov qword [rip + imm0], $imm1
+    jmp $Label
+178.Host:
+    li t3, #imm1
+    sd t3, %pcrel_lo(#imm0)(x0)
+    jal x0, #Label
+179.Guest:
+    lea reg0, qword [reg1 + imm0]
+    jmp $Label
+179.Host:
+    addi reg0, reg1, #imm0
+    jal x0, #Label
+180.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp word [reg2 + imm1], $imm2
+    jne $Label
+180.Host:
+    ld reg0, #imm0(reg1)
+    lhu t3, #imm1(reg2)
+    cmp t3, #imm2
+    li t2, #imm2
+    bne t3, t2, #Label
+181.Guest:
+    lea reg0, qword [rip + imm0]
+    call $Label
+181.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    call #Label
+182.Guest:
+    mov reg0, qword [rip + imm0]
+    sub reg1, reg2
+    cmp reg3, $imm1
+    jle $Label
+182.Host:
+    sd reg0, %pcrel_lo(#imm0)(x0)
+    sub reg1, reg1, reg2
+    cmp reg3, #imm1
+    li t1, #imm1
+    bgeu t1, reg3, #Label
+183.Guest:
+    movzx reg0, byte [reg1]
+    test reg2, reg3
+    je $Label
+183.Host:
+    lbu reg0, #0x0(reg1)
+    test reg2, reg3
+    beqz x0, #Label
+184.Guest:
+    mov qword [reg0 + imm0], reg1
+    test reg2, reg3
+    je $Label
+184.Host:
+    sd reg1, #imm0(reg0)
+    test reg2, reg3
+    beqz x0, #Label
+185.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    mov reg4, qword [reg5 + imm2]
+    add reg6, $imm3
+    ret
+185.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    ld reg4, #imm2(reg5)
+    addi reg6, reg6, #imm3
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+186.Guest:
+    sub reg0, $imm0
+    je $Label
+186.Host:
+    li t1, #imm0
+    sub reg0, reg0, t1
+    beqz reg0, #Label
+187.Guest:
+    cmp byte [reg0 + reg1 * 1], $imm0
+    jne $Label
+187.Host:
+    add t1, reg0, reg1
+    lbu t2, #0x0(t1)
+    cmpb t3, #imm0
+    li t2, #imm0
+    bne t3, t2, #Label
+188.Guest:
+    pop reg0
+    pop reg1
+    pop reg2
+    pop reg3
+    ret
+188.Host:
+    ld reg0, #0(a7)
+    ld reg1, #8(a7)
+    ld reg2, #0x10(a7)
+    ld reg3, #0x18(a7)
+    ld t6, #0x20(a7)
+    addi a7, a7, #0x28
+189.Guest:
+    cmp reg0, reg1
+    jle $Label
+189.Host:
+    cmp reg0, reg1
+    ble reg0, reg1, #Label
+190.Guest:
+    mov qword [reg0], $imm0
+    jmp $Label
+190.Host:
+    li t3, #imm0
+    sd t3, #0x0(reg0)
+    jal x0, #Label
+191.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, reg3
+    movaps reg4, xmmword [reg5 + imm1]
+    jb $Label
+191.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, reg3
+    ldaps reg4, #imm1(reg5)
+    bltu reg2, reg3, #Label
+192.Guest:
+    mov reg0, qword [reg1 + imm0]
+    add reg2, $imm1
+    ret
+192.Host:
+    ld reg0, #imm0(reg1)
+    addi reg2, reg2, #imm1
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+193.Guest:
+    mov reg0, dword [reg1 + imm0]
+    mov reg2, reg3
+    call $Label
+193.Host:
+    lw reg0, #imm0(reg1)
+    mv reg2, reg3
+    call #Label
+194.Guest:
+    cmp reg0, qword [reg1 + imm0]
+    jne $Label
+194.Host:
+    ld t3, #imm0(reg1)
+    cmpq reg0, t3
+    bnez x0, #Label
+195.Guest:
+    mov reg0, qword [reg1]
+    mov reg2, qword [reg3 + imm0]
+    call $Label
+195.Host:
+    ld reg0, #0x0(reg1)
+    ld reg2, #imm0(reg3)
+    call #Label
+196.Guest:
+    lea reg0, qword [reg1 + imm0]
+    jmp reg2
+196.Host:
+    addi reg0, reg1, #imm0
+    mv t6, reg2
+197.Guest:
+    push reg0
+    cmp qword [rip + imm0], $imm1
+    mov reg1, reg2
+    je $Label
+197.Host:
+    addi a7, a7, #-8
+    sd reg0, #0(a7)
+    ld t3, %pcrel_lo(#imm0)(x0)
+    cmpq t3, #imm1
+    beqz x0, #Label
+    mv reg1, reg2
+198.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, $imm1
+    mov reg3, reg4
+    call $Label
+198.Host:
+    ld reg0, #imm0(reg1)
+    li reg2, #imm1
+    mv reg3, reg4
+    call #Label
+199.Guest:
+    mov reg0, reg1
+    cmp reg2, $imm0
+    je $Label
+199.Host:
+    mv reg0, reg1
+    cmp reg2, #imm0
+    li t1, #imm0
+    beq reg2, t1, #Label
+200.Guest:
+    mov reg0, reg1
+    test reg2, reg3
+    jne $Label
+200.Host:
+    mv reg0, reg1
+    test reg2, reg3
+    bnez x0, #Label
+201.Guest:
+    cmp qword [rip + imm0], $imm1
+    jne $Label
+201.Host:
+    ld t3, %pcrel_lo(#imm0)(x0)
+    cmpq t3, #imm1
+    bnez x0, #Label
+202.Guest:
+    mov reg0, $imm0
+    mov reg1, reg2
+    mov reg3, $imm1
+    call $Label
+202.Host:
+    li reg0, #imm0
+    mv reg1, reg2
+    li reg3, #imm1
+    call #Label
+203.Guest:
+    cmp reg0, $imm0
+    mov reg1, $imm1
+    je $Label
+203.Host:
+    cmp reg0, #imm0
+    li reg1, #imm1
+    beqz x0, #Label
+204.Guest:
+    mov reg0, reg1
+    mov reg2, qword [reg3 + imm0]
+    mov reg4, qword [reg5 + imm1]
+    mov reg6, qword [reg7 + imm2]
+    mov reg8, qword [reg9 + imm3]
+    mov reg10, qword [reg11 + imm4]
+    mov reg12, qword [reg13 + imm5]
+    add reg14, $imm6
+204.Host:
+    mv reg0, reg1
+    ld reg2, #imm0(reg3)
+    ld reg4, #imm0(reg5)
+    ld reg6, #imm0(reg7)
+    ld reg8, #imm0(reg9)
+    ld reg10, #imm0(reg11)
+    ld reg12, #imm0(reg13)
+    addi reg14, reg14, #imm6
+205.Guest:
+    mov reg0, reg1
+    pop reg2
+    ret
+205.Host:
+    mv reg0, reg1
+    ld reg2, #0x0(a7)
+    ld t6, #0x8(a7)
+    addi a7, a7, #0x10
+206.Guest:
+    nop
+    mov reg0, qword [rip + imm0]
+    lea reg1, qword [rip + imm1]
+    mov reg2, dword [reg3 + imm2]
+    mov reg4, reg5
+    and reg6, $imm3
+    cmp reg7, $imm4
+    je $Label
+206.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    addi reg1, t6, %pcrel_lo(#imm1)
+    lw reg2, #imm2(reg3)
+    mv reg4, reg5
+    andi reg6, reg6, #imm3
+    cmp reg7, #imm4
+    beqz x0, #Label
+207.Guest:
+    test byte [reg0 + imm0], $imm1
+    lea reg1, qword [rip + imm2]
+    lea reg2, qword [rip + imm3]
+    cmovne reg3, reg4
+    ret
+207.Host:
+    lb t3, #imm0(reg0)
+    testb t3, #imm1
+    addi reg1, t1, %pcrel_lo(#imm2)
+    addi reg2, t1, %pcrel_lo(#imm3)
+    beqz t3, #0x8
+    mv reg3, reg4
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+208.Guest:
+    sub reg0, $imm0
+    mov reg1, qword [rip + imm1]
+    test reg2, reg3
+    je $Label
+208.Host:
+    li t1, #imm0
+    sub reg0, reg0, t1
+    sd reg1, %pcrel_lo(#imm1)(x0)
+    test reg2, reg3
+    beqz x0, #Label
+209.Guest:
+    add reg0, $imm0
+    pop reg1
+    pop reg2
+    pop reg3
+    ret
+209.Host:
+    addi reg0, reg0, #imm0
+    ld reg1, #0(a7)
+    ld reg2, #0x8(a7)
+    ld reg3, #0x10(a7)
+    ld t6, #0x18(a7)
+    addi a7, a7, #0x20
+210.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp word [reg2], $imm1
+    je $Label
+210.Host:
+    ld reg0, #imm0(reg1)
+    lhu t3, #0x0(reg2)
+    cmp t3, #imm1
+    beqz x0, #Label
+211.Guest:
+    xor reg0, reg1
+    cmp reg2, $imm0
+    je $Label
+211.Host:
+    xor reg0, reg0, reg1
+    cmp reg2, #imm0
+    beqz x0, #Label
+212.Guest:
+    mov reg0, reg1
+    mov qword [reg2 + imm0], reg3
+    call $Label
+212.Host:
+    mv reg0, reg1
+    sd reg3, #imm0(reg2)
+    call #Label
+213.Guest:
+    xor reg0, reg1
+    mov reg2, $imm0
+    call $Label
+213.Host:
+    xor reg0, reg0, reg1
+    li reg2, #imm0
+    call #Label
+214.Guest:
+    mov reg0, qword [reg1 + imm0]
+    movzx reg2, word [reg3]
+    cmp reg4, $imm1
+    je $Label
+214.Host:
+    ld reg0, #imm0(reg1)
+    lh reg2, #0x0(reg3)
+    cmp reg4, #imm1
+    beqz x0, #Label
+215.Guest:
+    mov reg0, reg1
+    call qword [rip + imm0]
+215.Host:
+    mv reg0, reg1
+    call %pcrel_lo(#imm0)(x0)
+216.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3]
+    lea reg4, qword [reg5 + imm1]
+    test byte [reg6 + imm2], $imm3
+    je $Label
+216.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #0x0(reg3)
+    addi reg4, t1, %pcrel_lo(#imm1)
+    lb t3, #imm2(reg6)
+    test t3, #imm3
+    beqz t3, #Label
+217.Guest:
+    add reg0, $imm0
+    mov reg1, reg2
+    pop reg3
+    pop reg4
+    pop reg5
+    pop reg6
+    ret
+217.Host:
+    addi reg0, reg0, #imm0
+    mv reg1, reg2
+    ld reg3, #0x0(a7)
+    ld reg4, #0x8(a7)
+    ld reg5, #0x10(a7)
+    ld reg6, #0x18(a7)
+    ld t6, #0x20(a7)
+    addi a7, a7, #0x28
+218.Guest:
+    mov reg0, qword [rip + imm0]
+    test reg1, reg2
+    jne $Label
+218.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    test reg1, reg2
+    bnez x0, #Label
+219.Guest:
+    mov reg0, $imm0
+    mov qword [reg1 + imm1], reg2
+    call $Label
+219.Host:
+    li reg0, #imm0
+    sd reg2, #imm1(reg1)
+    call #Label
+220.Guest:
+    mov dword [reg0 + imm0], reg1
+    jmp $Label
+220.Host:
+    sw reg1, #imm0(reg0)
+    jal x0, #Label
+221.Guest:
+    jb $Label
+221.Host:
+    bltz x0, #Label
+222.Guest:
+    movzx reg0, byte [reg1]
+    sub reg2, $imm0
+    cmp reg3, $imm1
+    ja $Label
+222.Host:
+    lbu reg0, #0x0(reg1)
+    sub reg2, reg2, #imm0
+    cmp reg3, #imm1
+    li t1, #imm1
+    bgt reg3, t1, #Label
+223.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, $imm1
+    call $Label
+223.Host:
+    ld reg0, #imm0(reg1)
+    li reg2, #imm1
+    call #Label
+224.Guest:
+    js $Label
+224.Host:
+    bltz x0, #Label
+225.Guest:
+    cmp reg0, dword [reg1 + imm0]
+    je $Label
+225.Host:
+    lw t3, #imm0(reg1)
+    cmp reg0, t3
+    beqz x0, #Label
+226.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp reg2, $imm1
+    je $Label
+226.Host:
+    ld reg0, #imm0(reg1)
+    cmp reg2, #imm1
+    beqz x0, #Label
+227.Guest:
+    mov reg0, dword [reg1 + imm0]
+    cmp reg2, $imm1
+    je $Label
+227.Host:
+    lwu reg0, #imm0(reg1)
+    cmp reg2, #imm1
+    beqz x0, #Label
+228.Guest:
+    xor reg0, reg1
+    mov reg2, $imm0
+    mov reg3, $imm1
+    call $Label
+228.Host:
+    xor reg0, reg0, reg1
+    li reg2, #imm0
+    li reg3, #imm1
+    call #Label
+229.Guest:
+    movzx reg0, byte [rip + imm0]
+    cmp reg1, byte [reg2 + imm1]
+    jne $Label
+229.Host:
+    lbu reg0, %pcrel_lo(#imm0)(x0)
+    lb t3, #imm1(reg2)
+    cmp reg1, t3
+    bnez x0, #Label
+230.Guest:
+    mov qword [reg0 + imm0], reg1
+    mov qword [reg2 + imm1], reg3
+    mov reg4, reg5
+    mov qword [reg6 + imm2], reg7
+    mov qword [reg8 + imm3], reg9
+    mov reg10, reg11
+    mov qword [reg12 + imm4], reg13
+    sub reg14, $imm5
+230.Host:
+    sd reg1, #imm0(reg0)
+    sd reg3, #imm1(reg2)
+    mv reg4, reg5
+    sd reg7, #imm2(reg6)
+    sd reg9, #imm3(reg8)
+    mv reg10, reg11
+    sd reg13, #imm4(reg12)
+    sub reg14, reg14, #imm5
+231.Guest:
+    mov reg0, reg1
+    and reg2, $imm0
+    cmp reg3, $imm1
+    je $Label
+231.Host:
+    mv reg0, reg1
+    and reg2, reg2, #imm0
+    cmp reg3, #imm1
+    beqz x0, #Label
+232.Guest:
+    add reg0, $imm0
+    cmp reg1, reg2
+    mov qword [reg3 + imm1], reg4
+    ja $Label
+232.Host:
+    addi reg0, reg0, #imm0
+    cmp reg1, reg2
+    sd reg4, #imm1(reg3)
+    bgt reg1, reg2, #Label
+233.Guest:
+    jae $Label
+233.Host:
+    bge x0, #Label
+234.Guest:
+    mov reg0, qword [reg1 + imm0]
+    test byte [reg2 + imm1], $imm2
+    jne $Label
+234.Host:
+    ld reg0, #imm0(reg1)
+    lb t3, #imm1(reg2)
+    test t3, #imm2
+    bnez t3, #Label
+235.Guest:
+    mov reg0, qword [rip + imm0]
+    test byte [reg1 + imm1], $imm2
+    je $Label
+235.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    lb t3, #imm1(reg1)
+    test t3, #imm2
+    beqz t3, x0, #Label
+236.Guest:
+    mov reg0, qword [reg1]
+    cmp qword [reg2 + imm0], $imm1
+    jne $Label
+236.Host:
+    ld reg0, #0x0(reg1)
+    ld t3, #imm0(reg2)
+    cmpq t3, #imm1
+    bnez x0, #Label
+237.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp reg2, $imm1
+    jbe $Label
+237.Host:
+    ld reg0, #imm0(reg1)
+    cmp reg2, #imm1
+    li t3, #imm1
+    bgeu t3, reg2, #Label
+238.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, reg3
+    mov reg4, reg5
+    call $Label
+238.Host:
+    ld reg0, #imm0(reg1)
+    mv reg2, reg3
+    mv reg4, reg5
+    call #Label
+239.Guest:
+    test dword [reg0 + imm0], $imm1
+    jne $Label
+239.Host:
+    lw t3, #imm0(reg0)
+    test t3, #imm1
+    bnez t3, #Label
+240.Guest:
+    add reg0, $imm0
+    cmp reg1, $imm1
+    je $Label
+240.Host:
+    addi reg0, reg0, #imm0
+    cmp reg1, #imm1
+    beqz x0, #Label
+241.Guest:
+    cmp reg0, reg1
+    jge $Label
+241.Host:
+    cmp reg0, reg1
+    bgez x0, #Label
+242.Guest:
+    call reg0
+242.Host:
+    call reg0
+243.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp reg2, reg3
+    jne $Label
+243.Host:
+    ld reg0, #imm0(reg1)
+    cmp reg2, reg3
+    bnez x0, #Label
+244.Guest:
+    and reg0, $imm0
+    cmp reg1, $imm1
+    je $Label
+244.Host:
+    andi reg0, reg0, #imm0
+    cmp reg1, #imm1
+    beqz x0, #Label
+245.Guest:
+    pop reg0
+    jmp $Label
+245.Host:
+    ld reg0, #0(a7)
+    addi a7, a7, #0x8
+    jal x0, #Label
+246.Guest:
+    cmp qword [rip + imm0], $imm1
+    mov reg0, qword [reg1 + imm2]
+    mov reg2, qword [rip + imm3]
+    mov reg3, qword [reg4 + reg5 * 8]
+    jne $Label
+246.Host:
+    ld t3, %pcrel_lo(#imm0)(x0)
+    cmpq t3, #imm1
+    ld reg0, #imm2(reg1)
+    ld reg2, %pcrel_lo(#imm3)(x0)
+    slli reg5, reg5, #0x3
+    add t3, reg4, reg5
+    ld reg3, #0x0(t3)
+    bnez x0, #Label
+247.Guest:
+    lea reg0, qword [rip + imm0]
+    movzx reg1, reg2
+    movsxd reg3, qword [reg4 + reg5 * 4]
+    add reg6, reg7
+    jmp reg8
+247.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    zext reg1, reg2
+    slli reg5, reg5, #0x2
+    add t3, reg4, reg5
+    lw reg3, #0x0(t3)
+    add t0, reg6, reg7
+    saveflags t0, reg6, reg7
+    mv t6, reg8
+248.Guest:
+    add reg0, $imm0
+    cmp reg1, reg2
+    jbe $Label
+248.Host:
+    addi reg0, reg0, #imm0
+    cmp reg1, reg2
+    bgeu reg2, reg1, #Label
+249.Guest:
+    and reg0, $imm0
+    lea reg1, qword [rip + imm1]
+    lea reg2, qword [rip + imm2]
+    cmovne reg3, reg4
+    ret
+249.Host:
+    andi reg0, reg0, #imm0
+    savefpz reg0
+    addi reg1, t6, %pcrel_lo(#imm1)
+    addi reg1, t6, %pcrel_lo(#imm1)
+    beqz reg0, #0x8
+    mv reg3, reg4
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+250.Guest:
+    mov reg0, qword [reg1 + imm0]
+    add reg2, $imm1
+    pop reg3
+    pop reg4
+    pop reg5
+    pop reg6
+    pop reg7
+    pop reg8
+250.Host:
+    ld reg0, #imm0(reg1)
+    addi reg2, reg2, #imm1
+    ld reg3, #0x0(a7)
+    ld reg4, #0x8(a7)
+    ld reg5, #0x10(a7)
+    ld reg6, #0x18(a7)
+    ld reg7, #0x20(a7)
+    ld reg8, #0x28(a7)
+    addi a7, a7, #0x30
+251.Guest:
+    and reg0, $imm0
+    sub reg1, reg2
+    test reg3, reg4
+    jne $Label
+251.Host:
+    andi reg0, reg0, #imm0
+    sub reg1, reg1, reg2
+    test reg3, reg4
+    bnez x0, #Label
+252.Guest:
+    or qword [reg0 + reg1 * 1 + imm0], $imm1
+    jmp $Label
+252.Host:
+    add t1, reg0, reg1
+    ld t2, #imm0(t1)
+    li t3, #imm1
+    or t3, t2, t3
+    sd t3, #imm0(t1)
+    jal x0, #Label
+253.Guest:
+    push qword [rip + imm0]
+    jmp qword [rip + imm1]
+253.Host:
+    ld t3, %pcrel_lo(#imm0)(x0)
+    addi a7, a7, #-8
+    sd t3, #0(a7)
+    ld t6, %pcrel_lo(#imm1)(x0)
+254.Guest:
+    xor reg0, reg1
+    mov reg2, reg3
+    mov reg4, reg5
+    call $Label
+254.Host:
+    xor reg0, reg0, reg1
+    mv reg2, reg3
+    mv reg4, reg5
+    call #Label
+255.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    add reg4, $imm2
+    ret
+255.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    addi reg4, reg4, #imm2
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+256.Guest:
+    lea reg0, qword [rip + imm0]
+    movsxd reg1, qword [reg2 + reg3 * 4]
+    add reg4, reg5
+    jmp reg6
+256.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    slli reg3, reg3, #0x2
+    add t3, reg2, reg3
+    lw reg1, #0x0(t3)
+    add t0, reg4, reg5
+    saveflags t0, reg4, reg5
+    mv t6, reg6
+257.Guest:
+    mov reg0, reg1
+    mov reg2, reg3
+    mov reg4, reg5
+    mov reg6, reg7
+    call $Label
+257.Host:
+    mv reg0, reg1
+    mv reg2, reg3
+    mv reg4, reg5
+    mv reg6, reg7
+    call #Label
+258.Guest:
+    add qword [reg0 + imm0], reg1
+    mov reg2, qword [reg3 + imm1]
+    test reg4, reg5
+    je $Label
+258.Host:
+    ld t1, #imm0(reg0)
+    add t1, t1, reg1
+    sd t1, #imm0(reg0)
+    ld reg2, #imm1(reg3)
+    test reg4, reg5
+    beqz x0, #Label
+259.Guest:
+    mov reg0, qword [reg1 + imm0]
+    movzx reg2, byte [reg3]
+    cmp reg4, $imm1
+    je $Label
+259.Host:
+    ld reg0, #imm0(reg1)
+    lbu reg2, #0x0(reg3)
+    cmp reg4, #imm1
+    beqz x0, #Label
+260.Guest:
+    mov reg0, qword [rip + imm0]
+    mov qword [reg1], reg2
+    lea reg3, qword [reg4 + imm1]
+    mov qword [rip + imm2], reg5
+    add reg6, $imm3
+    cmp reg7, reg8
+    mov qword [rip + imm4], reg9
+    jbe $Label
+260.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    sd reg2, #0x0(reg1)
+    addi reg3, reg4, #imm1
+    sd reg5, %pcrel_lo(#imm2)(x0)
+    addi reg6, reg6, #imm3
+    cmp reg7, reg8
+    sd reg9, %pcrel_lo(#imm4)(x0)
+    bgeu reg8, reg7, #Label
+261.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov qword [reg2 + imm1], reg3
+    jmp $Label
+261.Host:
+    ld reg0, #imm0(reg1)
+    sd reg3, #imm1(reg2)
+    jal x0, #Label
+262.Guest:
+    cmp reg0, dword [reg1 + imm0]
+    jne $Label
+262.Host:
+    lw t3, #imm0(reg1)
+    cmp reg0, t3
+    bnez x0, #Label
+263.Guest:
+    mov reg0, qword [reg1]
+    mov reg2, reg3
+    call $Label
+263.Host:
+    ld reg0, #0x0(reg1)
+    mv reg2, reg3
+    call #Label
+264.Guest:
+    mov reg0, reg1
+    and reg2, $imm0
+    je $Label
+264.Host:
+    mv reg0, reg1
+    andi reg2, reg2, #imm0
+    beqz reg2, #Label
+265.Guest:
+    lea reg0, qword [reg1 + imm0]
+    mov reg2, reg3
+    shl reg4, reg5
+    test reg6, reg7
+    je $Label
+265.Host:
+    addi reg0, reg1, #imm0
+    mv reg2, reg3
+    sll reg4, reg4, reg5
+    test reg6, reg7
+    beqz x0, #Label
+266.Guest:
+    lea reg0, qword [reg1 + imm0]
+    mov reg2, $imm1
+    mov reg3, reg4
+    call $Label
+266.Host:
+    addi reg0, reg1, #imm0
+    li reg2, #imm1
+    mv reg3, reg4
+    call #Label
+267.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    mov reg4, qword [reg5 + imm2]
+    mov reg6, qword [reg7 + imm3]
+    add reg8, $imm4
+    ret
+267.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    ld reg4, #imm2(reg5)
+    ld reg6, #imm3(reg7)
+    addi reg8, reg8, #imm4
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+268.Guest:
+    cmp reg0, $imm0
+    jb $Label
+268.Host:
+    cmp reg0, #imm0
+    bltz x0, #Label
+269.Guest:
+    nop
+    mov reg0, qword [rip + imm0]
+    lea reg1, qword [rip + imm1]
+    mov reg2, dword [reg3 + imm2]
+    test reg4, $imm3
+    jne $Label
+269.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    addi reg1, t6, %pcrel_lo(#imm1)
+    lw reg2, #imm2(reg3)
+    test reg4, #imm3
+    bnez t3, #Label
+270.Guest:
+    add qword [reg0 + imm0], reg1
+    mov reg2, qword [rip + imm1]
+    test reg3, reg4
+    je $Label
+270.Host:
+    ld t1, #imm0(reg0)
+    add t1, t1, reg1
+    sd t1, #imm0(reg0)
+    ld reg2, %pcrel_lo(#imm1)(x0)
+    test reg3, reg4
+    beqz x0, #Label
+271.Guest:
+    nop
+    mov reg0, qword [rip + imm0]
+    mov reg1, dword [reg2 + imm1]
+    mov reg3, dword [reg4 + imm2]
+    test reg5, $imm3
+    je $Label
+271.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    lw reg1, #imm1(reg2)
+    lw reg3, #imm2(reg4)
+    test reg5, #imm3
+    beqz x0, #Label
+272.Guest:
+    cmp byte [reg0 + reg1 * 1], $imm0
+    je $Label
+272.Host:
+    add t1, reg0, reg1
+    lbu t2, #0x0(t1)
+    cmpb t3, #imm0
+    li t2, #imm0
+    beq t3, t2, #Label
+273.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    jmp $Label
+273.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    jal x0, #Label
+274.Guest:
+    mov reg0, qword [reg1]
+    mov reg2, qword [reg3 + imm0]
+    mov reg4, qword [reg5 + imm1]
+    test reg6, reg7
+    je $Label
+274.Host:
+    ld reg0, #0x0(reg1)
+    ld reg2, #imm0(reg3)
+    ld reg4, #imm0(reg5)
+    test reg6, reg7
+    beqz x0, #Label
+275.Guest:
+    and reg0, $imm0
+    lea reg1, qword [rip + imm1]
+    jne $Label
+275.Host:
+    andi reg0, reg0, #imm0
+    addi reg1, t6, %pcrel_lo(#imm1)
+    bnez x0, #Label
+276.Guest:
+    jmp reg0
+276.Host:
+    mv t6, reg0
+277.Guest:
+    mov reg0, reg1
+    pop reg2
+    pop reg3
+    pop reg4
+    ret
+277.Host:
+    mv reg0, reg1
+    ld reg2, #0(a7)
+    ld reg3, #8(a7)
+    ld reg4, #10(a7)
+    ld t6, #0x18(a7)
+    addi a7, a7, #0x20
+278.Guest:
+    mov qword [reg0 + imm0], reg1
+    mov qword [reg2 + imm1], reg3
+    mov qword [reg4 + imm2], reg5
+    mov qword [reg6 + imm3], reg7
+    ret
+278.Host:
+    sd reg1, #imm0(reg0)
+    sd reg3, #imm1(reg2)
+    sd reg5, #imm2(reg4)
+    sd reg7, #imm3(reg6)
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+279.Guest:
+    mov reg0, reg1
+    mov reg2, $imm0
+    mov reg3, reg4
+    call $Label
+279.Host:
+    mv reg0, reg1
+    li reg2, #imm0
+    mv reg3, reg4
+    call #Label
+280.Guest:
+    mov reg0, $imm0
+    mov reg1, $imm1
+    jmp $Label
+280.Host:
+    li reg0, #imm0
+    li reg1, #imm1
+    jal x0, #Label
+281.Guest:
+    cmp qword [rip + imm0], reg0
+    je $Label
+281.Host:
+    ld t3, %pcrel_lo(#imm0)(x0)
+    cmpq t3, reg0
+    beqz x0, #Label
+282.Guest:
+    xor reg0, reg1
+    xor reg2, reg3
+    mov reg4, reg5
+    call $Label
+282.Host:
+    xor reg0, reg0, reg1
+    xor reg2, reg2, reg3
+    mv reg4, reg5
+    call #Label
+283.Guest:
+    mov reg0, dword [rip + imm0]
+    push reg1
+    mov reg2, reg3
+    add reg4, $imm1
+    cmp reg5, dword [rip + imm2]
+    jle $Label
+283.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    sd reg1, #-8(a7)
+    addi a7, a7, #-8
+    mv reg2, reg3
+    addi reg4, reg4, #imm1
+    lw t3, %pcrel_lo(#imm2)(x0)
+    cmp reg5, t3
+    ble reg5, t3, #Label
+284.Guest:
+    mov reg0, $imm0
+    mov dword [rip + imm1], reg1
+    mov dword [rip + imm2], $imm3
+    mov qword [rip + imm4], reg2
+    jmp $Label
+284.Host:
+    li reg0, #imm0
+    sw reg1, %pcrel_lo(#imm1)(x0)
+    li t3, #imm3
+    sw t3, %pcrel_lo(#imm2)(x0)
+    sd reg2, %pcrel_lo(#imm4)(x0)
+    jal x0, #Label
+285.Guest:
+    mov reg0, reg1
+    mov reg2, qword [reg3]
+    lea reg4, qword [rip + imm0]
+    mov dword [reg5 + imm1], $imm2
+    call $Label
+285.Host:
+    mv reg0, reg1
+    ld reg2, #0x0(reg3)
+    addi reg4, t6, %pcrel_lo(#imm0)
+    li t1, #imm2
+    sw t1, #imm1(reg5)
+    call #Label
+286.Guest:
+    movzx reg0, byte [reg1]
+    lea reg2, qword [reg3 + imm0]
+    cmp reg4, $imm1
+    ja $Label
+286.Host:
+    lbu reg0, #0x0(reg1)
+    addi reg2, reg3, #imm0
+    cmp reg4, #imm1
+    li t1, #imm1
+    bgt reg4, t1, #Label
+287.Guest:
+    mov reg0, qword [rip + imm0]
+    mov reg1, qword [rip + imm1]
+    mov reg2, qword [reg3]
+    mov reg4, qword [reg5]
+    mov reg6, qword [reg7]
+    movsxd reg8, qword [reg9]
+    sub reg10, $imm2
+    mov qword [reg11], reg12
+287.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    sd reg1, %pcrel_lo(#imm1)(x0)
+    ld reg2, #0x0(reg3)
+    ld reg4, #0x0(reg5)
+    ld reg6, #0x0(reg7)
+    lw reg8, #0x0(reg9)
+    li t1, #imm2
+    sub reg10, reg10, t2
+    sd reg12, #0x0(reg11)
+288.Guest:
+    mov reg0, dword [rip + imm0]
+    cmp reg1, $imm1
+    je $Label
+288.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    cmp reg1, #imm1
+    beqz x0, #Label
+289.Guest:
+    movzx reg0, byte [reg1 + imm0]
+    test reg2, $imm1
+    jne $Label
+289.Host:
+    lbu reg0, #imm0(reg1)
+    test reg2, #imm1
+    bnez x0, #Label
+290.Guest:
+    mov reg0, reg1
+    mov reg2, reg3
+    jmp $Label
+290.Host:
+    mv reg0, reg1
+    mv reg2, reg3
+    jal x0, #Label
+291.Guest:
+    lea reg0, qword [reg1 + imm0]
+    pop reg2
+    pop reg3
+    pop reg4
+    pop reg5
+    pop reg6
+    pop reg7
+    ret
+291.Host:
+    addi reg0, reg1, #imm0
+    ld reg2, #0x0(a7)
+    ld reg3, #0x8(a7)
+    ld reg4, #0x10(a7)
+    ld reg5, #0x18(a7)
+    ld reg6, #0x20(a7)
+    ld reg7, #0x28(a7)
+    ld t6, #0x30(a7)
+    addi a7, a7, #0x38
+292.Guest:
+    cmp reg0, reg1
+    jg $Label
+292.Host:
+    cmp reg0, reg1
+    bgt reg0, reg1, #Label
+293.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, reg3
+    jbe $Label
+293.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, reg3
+    bgeu reg3, reg2, #Label
+294.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, $imm1
+    je $Label
+294.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, #imm1
+    beqz x0, #Label
+295.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, reg3
+    je $Label
+295.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, reg3
+    beqz x0, #Label
+296.Guest:
+    mov reg0, qword [rip + imm0]
+    mov reg1, qword [reg2]
+    test reg3, reg4
+    jne $Label
+296.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    ld reg1, #0x0(reg2)
+    test reg3, reg4
+    bnez x0, #Label
+297.Guest:
+    push reg0
+    mov reg1, reg2
+    push reg3
+    sub reg4, $imm0
+    mov reg5, qword [rip + imm1]
+    cmp reg6, $imm2
+    je $Label
+297.Host:
+    addi a7, a7, #-8
+    sd reg0, #0(a7)
+    mv reg1, reg2
+    sd reg3, #-8(a7)
+    addi a7, a7, #-8
+    li t3, #imm0
+    sub reg4, reg4, t3
+    ld reg5, %pcrel_lo(#imm1)(x0)
+    cmp reg6, #imm2
+    beqz x0, #Label
+298.Guest:
+    movzx reg0, byte [reg1 + imm0]
+    sub reg2, $imm1
+    cmp reg3, $imm2
+    ja $Label
+298.Host:
+    lbu reg0, #imm0(reg1)
+    li t1, #imm1
+    sub reg2, reg2, t1
+    cmp reg3, #imm2
+    li t1, #imm1
+    bgt reg3, t1, #Label
+299.Guest:
+    cmp dword [rip + imm0], $imm1
+    jne $Label
+299.Host:
+    lw t3, %pcrel_lo(#imm0)(x0)
+    cmp t3, #imm1
+    bnez x0, #Label
+300.Guest:
+    sub reg0, $imm0
+    jne $Label
+300.Host:
+    sub reg0, #imm0
+    bnez x0, #Label
+301.Guest:
+    mov qword [reg0 + imm0], reg1
+    mov qword [reg2 + imm1], reg3
+    mov qword [reg4 + imm2], reg5
+    mov dword [reg6 + imm3], reg7
+    ret
+301.Host:
+    sd reg1, #imm0(reg0)
+    sd reg3, #imm1(reg2)
+    sd reg5, #imm2(reg4)
+    sd reg7, #imm3(reg6)
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+302.Guest:
+    cmp dword [reg0 + imm0], reg1
+    jne $Label
+302.Host:
+    lw t3, #imm0(reg0)
+    cmp t3, reg1
+    bnez x0, #Label
+303.Guest:
+    movzx reg0, byte [reg1 + imm0]
+    lea reg2, qword [reg3 + imm1]
+    cmp reg4, $imm2
+    jbe $Label
+303.Host:
+    lbu reg0, #imm0(reg1)
+    addi reg2, reg3, #imm1
+    cmp reg4, #imm2
+    li t3, #imm1
+    bgeu t3, reg4, #Label
+304.Guest:
+    mov reg0, dword [reg1]
+    test reg2, $imm0
+    jne $Label
+304.Host:
+    lwu reg0, #0x0(reg1)
+    test reg2, #imm0
+    bnez x0, #Label
+305.Guest:
+    mov dword [rip + imm0], reg0
+    mov dword [rip + imm1], $imm2
+    mov qword [rip + imm3], reg1
+    call $Label
+305.Host:
+    sw reg0, %pcrel_lo(#imm0)(x0)
+    li t3, #imm2
+    sw t3, %pcrel_lo(#imm1)(x0)
+    sd reg1, %pcrel_lo(#imm3)(x0)
+    call #Label
+306.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, reg3
+    jb $Label
+306.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, reg3
+    bltz x0, #Label
+307.Guest:
+    cmp word [reg0 + imm0], $imm1
+    js $Label
+307.Host:
+    lhu t3, #imm0(reg0)
+    cmpw t3, #imm1
+    bltz x0, #Label
+308.Guest:
+    mov reg0, qword [rip + imm0]
+    cmp reg1, reg2
+    je $Label
+308.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    cmp reg1, reg2
+    beqz x0, #Label
+309.Guest:
+    mov reg0, qword [reg1]
+    jle $Label
+309.Host:
+    ld reg0, #0x0(reg1)
+    blez x0, #Label
+310.Guest:
+    cmp reg0, $imm0
+    mov dword [reg1 + imm1], $imm2
+    je $Label
+310.Host:
+    cmp reg0, #imm0
+    li t3, #imm2
+    sw t3, #imm1(reg1)
+    beqz x0, #Label
+311.Guest:
+    mov reg0, qword [reg1]
+    sub reg2, reg3
+    sar reg4, $imm0
+    sub reg5, $imm1
+    mov reg6, qword [reg7 + imm2]
+    mov qword [reg8 + imm3], reg9
+    mov reg10, qword [reg11]
+    mov reg12, qword [reg13]
+311.Host:
+    ld reg0, #0x0(reg1)
+    sub reg2, reg2, reg3
+    srli reg4, reg4, #imm0
+    li t3, #imm1
+    sub reg5, reg5, t3
+    ld reg6, #imm0(reg7)
+    sd reg9, #imm3(reg8)
+    ld reg10, #0x0(reg11)
+    ld reg12, #0x0(reg13)
+312.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    jbe $Label
+312.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    li t2, #imm1
+    bgeu t2, t3, #Label
+313.Guest:
+    movzx reg0, byte [reg1 + imm0]
+    test reg2, reg3
+    je $Label
+313.Host:
+    lbu reg0, #imm0(reg1)
+    test reg2, reg3
+    beqz x0, #Label
+314.Guest:
+    push reg0
+    mov reg1, reg2
+    push reg3
+    sub reg4, $imm0
+    test reg5, reg6
+    je $Label
+314.Host:
+    addi a7, a7, #-8
+    sd reg0, #0(a7)
+    mv reg1, reg2
+    addi a7, a7, #-8
+    sd reg3, #0(a7)
+    li t3, #imm0
+    sub reg4, reg4, t3
+    test reg5, reg6
+    beqz x0, #Label
+315.Guest:
+    nop
+    cmp byte [rip + imm0], $imm1
+    jne $Label
+315.Host:
+    lb t3, %pcrel_lo(#imm0)(x0)
+    cmpb t3, #imm1
+    bnez x0, #Label
+316.Guest:
+    mov reg0, reg1
+    add reg2, $imm0
+    ret
+316.Host:
+    mv reg0, reg1
+    addi reg2, reg2, #imm0
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+317.Guest:
+    nop
+    push reg0
+    push reg1
+    push reg2
+    push reg3
+    push reg4
+    mov reg5, reg6
+    push reg7
+317.Host:
+    sd reg0, #-8(a7)
+    addi a7, a7, #-8
+    sd reg1, #-8(a7)
+    addi a7, a7, #-8
+    sd reg2, #-8(a7)
+    addi a7, a7, #-8
+    sd reg3, #-8(a7)
+    addi a7, a7, #-8
+    sd reg4, #-8(a7)
+    addi a7, a7, #-8
+    mv reg5, reg6
+    sd reg7, #-8(a7)
+    addi a7, a7, #-8
+318.Guest:
+    lea reg0, qword [rip + imm0]
+    cmp reg1, reg2
+    je $Label
+318.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    cmp reg1, reg2
+    beqz x0, #Label
+319.Guest:
+    mov reg0, qword [reg1 + imm0]
+    lea reg2, qword [rip + imm1]
+    lea reg3, qword [rip + imm2]
+    sub reg4, reg5
+    mov reg6, reg7
+    sub reg8, reg9
+    cmp reg10, reg11
+    jbe $Label
+319.Host:
+    ld reg0, #imm0(reg1)
+    addi reg2, t6, %pcrel_lo(#imm1)
+    addi reg3, t6, %pcrel_lo(#imm2)
+    sub reg4, reg4, reg5
+    mv reg6, reg7
+    sub reg8, reg8, reg9
+    cmp reg10, reg11
+    bgeu reg11, reg10, #Label
+320.Guest:
+    movzx reg0, byte [reg1 + imm0]
+    lea reg2, qword [reg3 + imm1]
+    cmp reg4, $imm2
+    je $Label
+320.Host:
+    lbu reg0, #imm0(reg1)
+    addi reg2, reg3, #imm1
+    cmp reg4, #imm2
+    beqz x0, #Label
+321.Guest:
+    mov reg0, qword [rip + imm0]
+    mov qword [rip + imm1], reg1
+    mov reg2, qword [reg3]
+    add reg4, $imm2
+    pop reg5
+    pop reg6
+    ret
+321.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    sd reg1, %pcrel_lo(#imm1)(x0)
+    ld reg2, #0x0(reg3)
+    addi reg4, reg4, #imm2
+    ld reg5, #0x0(a7)
+    ld reg6, #0x8(a7)
+    ld t6, #0x18(a7)
+    addi a7, a7, #0x20
+322.Guest:
+    mov reg0, reg1
+    mov reg2, qword [reg3 + imm0]
+    mov reg4, qword [reg5 + imm1]
+    add reg6, $imm2
+    ret
+322.Host:
+    mv reg0, reg1
+    ld reg2, #imm0(reg3)
+    ld reg4, #imm1(reg5)
+    addi reg6, reg6, #imm2
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+323.Guest:
+    lea reg0, qword [reg1 + imm0]
+    movsxd reg2, reg3
+    cmp byte [reg4 + reg5 * 1], $imm1
+    je $Label
+323.Host:
+    addi reg0, reg1, #imm0
+    mv reg2, reg3
+    add t2, reg4, reg5
+    lb t3, #imm1(t2)
+    cmpb t3, #imm1
+    beqz x0, #Label
+324.Guest:
+    add dword [reg0 + imm0], $imm1
+    jmp $Label
+324.Host:
+    lw t1, #imm0(reg0)
+    li t2, #imm1
+    add t3, t1, t2
+    sw t3, #imm0(reg0)
+    jal x0, #Label
+325.Guest:
+    movaps xmmword [reg0], reg1
+    lea reg2, qword [reg3 + imm0]
+    movdqu xmmword [reg4], reg5
+    lea reg6, qword [rip + imm1]
+    movsxd reg7, qword [reg8 + reg9 * 4]
+    lea reg10, qword [reg11 + reg12 * 1]
+    jmp reg13
+325.Host:
+    sdaps reg1, #0x0(reg0)
+    addi reg2, reg3, #imm0
+    sdaps reg5, #0x0(reg4)
+    addi reg6, t6, %pcrel_lo(#imm1)
+    slli t1, reg9, #0x2
+    add t2, reg8, t1
+    lw reg7, #0x0(t2)
+    add reg10, reg11, reg12
+    mv t6, reg13
+326.Guest:
+    add reg0, $imm0
+    pop reg1
+    ret
+326.Host:
+    addi reg0, reg0, #imm0
+    ld reg1, #0(a7)
+    ld t6, #0x8(a7)
+    addi a7, a7, #0x10
+327.Guest:
+    mov dword [rip + imm0], $imm1
+    mov qword [rip + imm2], reg0
+    jmp $Label
+327.Host:
+    li t3, #imm1
+    sw t3, %pcrel_lo(#imm0)(x0)
+    sd reg0, %pcrel_lo(#imm2)(x0)
+    jal x0, #Label
+328.Guest:
+    movaps reg0, xmmword [reg1 + imm0]
+    sub reg2, $imm1
+    movaps reg3, xmmword [reg4 + imm2]
+    movaps reg5, xmmword [reg6 + imm3]
+    movaps reg7, xmmword [reg8 + imm4]
+    lea reg9, qword [reg10 + imm5]
+    palignr reg11, reg12, $imm6
+    palignr reg13, reg14, $imm7
+328.Host:
+    ld reg0, #imm0(reg1)
+    li t1, #imm1
+    sub reg2, reg2, t1
+    ld reg3, #imm2(reg4)
+    ld reg5, #imm3(reg6)
+    ld reg7, #imm4(reg8)
+    addi reg9, reg10, #imm5
+329.Guest:
+    palignr reg0, reg1, $imm0
+    palignr reg2, reg3, $imm1
+    movaps xmmword [reg4 + imm2], reg5
+    movaps reg6, reg7
+    movaps xmmword [reg8 + imm3], reg9
+    lea reg10, qword [reg11 + imm4]
+    movaps xmmword [reg12 + imm5], reg13
+    jb $Label
+329.Host:
+    sd reg5, #imm2(reg4)
+    mv reg6, reg7
+    sd reg9, #imm3(reg8)
+    addi reg10, reg11, #imm4
+    sd reg13, #imm5(reg12)
+    bltz x0, #Label
+330.Guest:
+    mov reg0, qword [rip + imm0]
+    cmp qword [reg1 + imm1], reg2
+    jne $Label
+330.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    ld t1, #imm1(reg1)
+    cmp t1, reg2
+    bnez x0, #Label
+331.Guest:
+    mov reg0, $imm0
+    mov dword [rip + imm1], $imm2
+    mov dword [rip + imm3], $imm4
+    mov qword [rip + imm5], reg1
+    call $Label
+331.Host:
+    li reg0, #imm0
+    li t3, #imm2
+    sw t3, %pcrel_lo(#imm1)(x0)
+    li t3, #imm4
+    sw t3, %pcrel_lo(#imm3)(x0)
+    sd reg1, %pcrel_lo(#imm5)(t0)
+    call #Label
+332.Guest:
+    cmp byte [rip + imm0], $imm1
+    push reg0
+    mov reg1, reg2
+    jne $Label
+332.Host:
+    lb t3, %pcrel_lo(#imm0)(x0)
+    cmpb t3, #imm1
+    sd reg0, #-8(a7)
+    addi a7, a7, #-8
+    mv reg1, reg2
+    bnez x0, #Label
+333.Guest:
+    cmp byte [reg0 + reg1 * 1 + imm0], $imm1
+    lea reg2, qword [reg3 + imm2]
+    je $Label
+333.Host:
+    add t1, reg0, reg1
+    lb t3, #imm0(t1)
+    cmpb t3, #imm1
+    addi reg2, reg3, #imm2
+    beqz x0, #Label
+334.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    mov qword [reg4 + imm2], reg5
+    mov qword [reg6 + imm3], reg7
+    ret
+334.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    sd reg5, #imm2(reg4)
+    sd reg7, #imm3(reg6)
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+335.Guest:
+    lea reg0, qword [reg1 + imm0]
+    cmp reg2, reg3
+    jne $Label
+335.Host:
+    addi reg0, reg1, #imm0
+    cmp reg2, reg3
+    bnez x0, #Label
+336.Guest:
+    cmp reg0, dword [reg1 + reg2 * 4]
+    je $Label
+336.Host:
+    slli t3, reg2, #0x2
+    add t2, reg1, t3
+    lw t3, #0x0(t2)
+    cmp reg0, t3
+    beqz x0, #Label
+337.Guest:
+    nop
+    mov reg0, qword [rip + imm0]
+    lea reg1, qword [rip + imm1]
+    test byte [reg2 + imm2], $imm3
+    je $Label
+337.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    addi reg1, t6, %pcrel_lo(#imm1)
+    lb t3, #imm2(reg2)
+    test t3, #imm3
+    beqz x0, #Label
+338.Guest:
+    sub reg0, $imm0
+    cmp reg1, $imm1
+    je $Label
+338.Host:
+    li t1, #imm0
+    sub reg0, reg0, t1
+    cmp reg1, #imm1
+    beqz x0, #Label
+339.Guest:
+    or dword [reg0 + imm0], $imm1
+    jmp $Label
+339.Host:
+    lw t2, #imm0(reg0)
+    li t3, #imm1
+    or t3, t2, t3
+    sw t3, #imm0(reg0)
+    jal x0, #Label
+340.Guest:
+    or byte [reg0 + imm0], $imm1
+    jmp $Label
+340.Host:
+    lb t2, #imm0(reg0)
+    li t3, #imm1
+    or t3, t2, t3
+    sb t3, #imm0(reg0)
+    jal x0, #Label
+341.Guest:
+    add reg0, $imm0
+    cmp reg1, $imm1
+    jne $Label
+341.Host:
+    addi reg0, reg0, #imm0
+    cmp reg1, #imm1
+    bnez x0, #Label
+342.Guest:
+    add reg0, $imm0
+    cmp reg1, $imm1
+    jg $Label
+342.Host:
+    addi reg0, reg0, #imm0
+    cmp reg1, #imm1
+    li t3, #imm1
+    bgt reg1, t3, #Label
+343.Guest:
+    mov reg0, qword [reg1 + imm0]
+    xor reg2, reg3
+    mov reg4, reg5
+    call $Label
+343.Host:
+    ld reg0, #imm0(reg1)
+    xor reg2, reg2, reg3
+    mv reg4, reg5
+    call #Label
+344.Guest:
+    cmp byte [reg0], $imm0
+    mov reg1, reg2
+    je $Label
+344.Host:
+    lb t3, #0x0(reg0)
+    cmpb t3, #imm0
+    mv reg1, reg2
+    beqz x0, #Label
+345.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    lea reg1, qword [reg2 + imm2]
+    je $Label
+345.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    addi reg1, reg2, #imm2
+    beqz x0, #Label
+346.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    lea reg1, qword [reg2 + imm2]
+    jne $Label
+346.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    addi reg1, reg2, #imm2
+    li t0, #imm1
+    bne t3, t0, #Label
+347.Guest:
+    cmp dword [reg0], $imm0
+    jne $Label
+347.Host:
+    lw t3, #0x0(reg0)
+    cmp t3, #imm0
+    bnez x0, #Label
+348.Guest:
+    add reg0, $imm0
+    pop reg1
+    pop reg2
+    pop reg3
+    pop reg4
+    pop reg5
+    ret
+348.Host:
+    addi reg0, reg0, #imm0
+    ld reg1, #0(a7)
+    ld reg2, #8(a7)
+    ld reg3, #0x10(a7)
+    ld reg4, #0x18(a7)
+    ld reg5, #0x20(a7)
+    ld t6, #0x28(a7)
+    addi a7, a7, #0x30
+349.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp qword [reg2 + imm1], reg3
+    je $Label
+349.Host:
+    ld reg0, #imm0(reg1)
+    ld t3, #imm1(reg2)
+    cmp t3, reg3
+    beqz x0, #Label
+350.Guest:
+    mov reg0, reg1
+    mov reg2, reg3
+    xor reg4, reg5
+    mov reg6, $imm0
+    call $Label
+350.Host:
+    mv reg0, reg1
+    mv reg2, reg3
+    xor reg4, reg4, reg5
+    li reg6, #imm0
+    call #Label
+351.Guest:
+    cmp reg0, reg1
+    jl $Label
+351.Host:
+    cmp reg0, reg1
+    blt reg0, reg1, #Label
+352.Guest:
+    mov reg0, reg1
+    mov reg2, qword [rip + imm0]
+    test byte [reg3 + imm1], $imm2
+    jne $Label
+352.Host:
+    mv reg0, reg1
+    ld reg2, %pcrel_lo(#imm0)(x0)
+    lb t3, #imm1(reg3)
+    testb t3, #imm2
+    bnez x0, #Label
+353.Guest:
+    mov byte [reg0 + imm0], $imm1
+    jmp $Label
+353.Host:
+    li t1, #imm1
+    sb t1, #imm0(reg0)
+    jal x0, #Label
+354.Guest:
+    mov qword [reg0 + imm0], reg1
+    mov qword [reg2 + imm1], reg3
+    mov reg4, reg5
+    mov qword [reg6 + imm2], reg7
+    mov qword [reg8 + imm3], reg9
+    mov qword [reg10 + imm4], reg11
+    mov qword [reg12 + imm5], reg13
+    sub reg14, $imm6
+354.Host:
+    sd reg1, #imm0(reg0)
+    sd reg3, #imm1(reg2)
+    mv reg4, reg5
+    sd reg7, #imm2(reg6)
+    sd reg9, #imm3(reg8)
+    sd reg11, #imm4(reg10)
+    sd reg13, #imm5(reg12)
+    li t1, #imm6
+    sub reg14, reg14, t1
+355.Guest:
+    mov reg0, $imm0
+    test reg1, reg2
+    je $Label
+355.Host:
+    li reg0, #imm0
+    test reg1, reg2
+    beqz x0, #Label
+356.Guest:
+    test reg0, reg1
+    jg $Label
+356.Host:
+    test reg0, reg1
+    bgtz x0, #Label
+357.Guest:
+    push reg0
+    push reg1
+    sub reg2, $imm0
+    cmp qword [rip + imm1], $imm2
+    mov reg3, qword [rip + imm3]
+    je $Label
+357.Host:
+    sd reg0, #-8(a7)
+    addi a7, a7, #-8
+    sd reg1, #-8(a7)
+    addi a7, a7, #-8
+    li t1, #imm0
+    sub reg2, reg2, t1
+    sd t3, %pcrel_lo(#imm1)(x0)
+    cmp t3, #imm2
+    ld reg3, %pcrel_lo(#imm3)(x0)
+    beqz x0, #Label
+358.Guest:
+    mov reg0, dword [reg1 + imm0]
+    and reg2, $imm1
+    cmp reg3, $imm2
+    jne $Label
+358.Host:
+    lw reg0, #imm0(reg1)
+    andi reg2, reg2, #imm1
+    cmp reg3, #imm2
+    bnez x0, #Label
+359.Guest:
+    test reg0, reg1
+    push reg2
+    mov reg3, reg4
+    je $Label
+359.Host:
+    test reg0, reg1
+    sd reg2, #-8(a7)
+    addi a7, a7, #-8
+    mv reg3, reg4
+    beqz x0, #Label
+360.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp qword [reg2 + imm1], reg3
+    jne $Label
+360.Host:
+    ld reg0, #imm0(reg1)
+    ld t3, #imm1(reg2)
+    cmp t3, reg3
+    bnez x0, #Label
+361.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3]
+    lea reg4, qword [reg5 + imm1]
+    test byte [reg6 + imm2], $imm3
+    jne $Label
+361.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #0x0(reg3)
+    addi reg4, t1, %pcrel_lo(#imm1)
+    lb t3, #imm2(reg6)
+    test t3, #imm3
+    bnez x0, #Label
+362.Guest:
+    mov reg0, qword [reg1]
+    mov reg2, qword [reg3 + imm0]
+    mov reg4, qword [reg5 + imm1]
+    mov reg6, qword [reg7 + imm2]
+    mov reg8, qword [reg9 + imm3]
+    add reg10, $imm4
+    ret
+362.Host:
+    ld reg0, #0x0(reg1)
+    ld reg2, #imm0(reg3)
+    ld reg4, #imm1(reg5)
+    ld reg6, #imm2(reg7)
+    ld reg8, #imm3(reg9)
+    addi reg10, reg10, #imm4
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+363.Guest:
+    mov reg0, qword [reg1]
+    mov reg2, qword [reg3 + imm0]
+    jmp $Label
+363.Host:
+    ld reg0, #0x0(reg1)
+    ld reg2, #imm0(reg3)
+    jal x0, #Label
+364.Guest:
+    mov qword [rip + imm0], reg0
+    test reg1, reg2
+    je $Label
+364.Host:
+    sd reg0, %pcrel_lo(#imm0)(x0)
+    test reg1, reg2
+    beqz x0, #Label
+365.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    js $Label
+365.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    bltz x0, #Label
+366.Guest:
+    mov reg0, qword [rip + imm0]
+    mov reg1, reg2
+    call $Label
+366.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    mv reg1, reg2
+    call #Label
+367.Guest:
+    mov reg0, dword [rip + imm0]
+    and reg1, $imm1
+    cmp reg2, $imm2
+    je $Label
+367.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    andi reg1, reg1, #imm1
+    cmp reg2, #imm2
+    beqz x0, #Label
+368.Guest:
+    cmp reg0, $imm0
+    jl $Label
+368.Host:
+    cmp reg0, #imm0
+    bltz x0, #Label
+369.Guest:
+    mov reg0, qword [reg1]
+    mov reg2, dword [reg3 + imm0]
+    test reg4, $imm1
+    jne $Label
+369.Host:
+    ld reg0, #0x0(reg1)
+    ld reg2, #imm0(reg3)
+    test reg4, #imm1
+    bnez x0, #Label
+370.Guest:
+    mov reg0, reg1
+    call qword [reg2 + imm0]
+370.Host:
+    mv reg0, reg1
+    call #imm0(reg2)
+371.Guest:
+    mov reg0, qword [reg1 + imm0]
+    cmp byte [reg2 + imm1], $imm2
+    jne $Label
+371.Host:
+    ld reg0, #imm0(reg1)
+    lb t3, #imm0(reg2)
+    cmpb t3, #imm2
+    bnez x0, #Label
+372.Guest:
+    mov reg0, reg1
+    xor reg2, reg3
+    mov reg4, $imm0
+    call $Label
+372.Host:
+    mv reg0, reg1
+    xor reg2, reg2, reg3
+    li reg4, #imm0
+    call #Label
+373.Guest:
+    nop
+    push reg0
+    mov reg1, reg2
+    push reg3
+    push reg4
+    push reg5
+    push reg6
+    push reg7
+373.Host:
+    sd reg0, #-8(a7)
+    addi a7, a7, #-8
+    mv reg1, reg2
+    sd reg3, #-8(a7)
+    addi a7, a7, #-8
+    sd reg4, #-8(a7)
+    addi a7, a7, #-8
+    sd reg5, #-8(a7)
+    addi a7, a7, #-8
+    sd reg6, #-8(a7)
+    addi a7, a7, #-8
+    sd reg7, #-8(a7)
+    addi a7, a7, #-8
+374.Guest:
+    mov reg0, reg1
+    mov reg2, $imm0
+    jmp $Label
+374.Host:
+    mv reg0, reg1
+    li reg2, #imm0
+    jal x0, #Label
+375.Guest:
+    mov reg0, qword [reg1 + imm0]
+    test reg2, reg3
+    js $Label
+375.Host:
+    ld reg0, #imm0(reg1)
+    test reg2, reg3
+    bltz x0, #Label
+376.Guest:
+    movzx reg0, byte [reg1]
+    test reg2, reg3
+    jne $Label
+376.Host:
+    lbu reg0, #0x0(reg1)
+    test reg2, reg3
+    bnez x0, #Label
+377.Guest:
+    movzx reg0, word [reg1]
+    cmp reg2, $imm0
+    jne $Label
+377.Host:
+    lh reg0, #0x0(reg1)
+    cmp reg2, #imm0
+    bnez x0, #Label
+378.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, dword [reg3 + imm1]
+    mov qword [reg4 + imm2], reg5
+    mov dword [reg6 + imm3], reg7
+    ret
+378.Host:
+    ld reg0, #imm0(reg1)
+    lw reg2, #imm1(reg3)
+    sd reg5, #imm2(reg4)
+    sw reg7, #imm3(reg6)
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+379.Guest:
+    mov reg0, qword [rip + imm0]
+    mov qword [rip + imm1], reg1
+    mov reg2, qword [reg3]
+    jmp $Label
+379.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    sd reg1, %pcrel_lo(#imm1)(x0)
+    ld reg2, #0x0(reg3)
+    jal x0, #Label
+380.Guest:
+    add reg0, $imm0
+    xor reg1, reg2
+    pop reg3
+    pop reg4
+    ret
+380.Host:
+    addi reg0, reg0, #imm0
+    xor reg1, reg1, reg2
+    ld reg3, #0(a7)
+    ld reg4, #8(a7)
+    ld t6, #0x10(a7)
+    addi a7, a7, #0x18
+381.Guest:
+    and dword [reg0 + imm0], $imm1
+    jmp $Label
+381.Host:
+    lw t1, #imm0(reg0)
+    li t2, #imm1
+    and t3, t1, t2
+    sw t3, #imm0(reg0)
+    jal x0, #Label
+382.Guest:
+    mov reg0, dword [reg1 + imm0]
+    mov reg2, reg3
+    mov reg4, reg5
+    xor reg6, reg7
+    call $Label
+382.Host:
+    ld reg0, #imm0(reg1)
+    mv reg2, reg3
+    mv reg4, reg5
+    xor reg6, reg6, reg7
+    call #Label
+383.Guest:
+    mov reg0, qword [rip + imm0]
+    mov qword [rip + imm1], reg1
+    mov reg2, qword [reg3]
+    add reg4, $imm2
+    pop reg5
+    pop reg6
+    pop reg7
+    pop reg8
+383.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    sd reg1, %pcrel_lo(#imm1)(x0)
+    ld reg2, #0x0(reg3)
+    addi reg4, reg4, #imm2
+    ld reg5, #0x0(a7)
+    ld reg6, #0x8(a7)
+    ld reg7, #0x10(a7)
+    ld reg8, #0x18(a7)
+    addi a7, a7, #0x20
+384.Guest:
+    mov reg0, $imm0
+    mov reg1, $imm1
+    mov reg2, $imm2
+    mov reg3, reg4
+    call $Label
+384.Host:
+    li reg0, #imm0
+    li reg1, #imm1
+    li reg2, #imm2
+    mv reg3, reg4
+    call #Label
+385.Guest:
+    mov reg0, qword [reg1 + imm0]
+    mov reg2, qword [reg3 + imm1]
+    mov reg4, reg5
+    call $Label
+385.Host:
+    ld reg0, #imm0(reg1)
+    ld reg2, #imm1(reg3)
+    mv reg4, reg5
+    call #Label
+386.Guest:
+    mov reg0, reg1
+    mov reg2, qword [reg3]
+    mov reg4, qword [reg5 + imm0]
+    mov reg6, qword [reg7 + imm1]
+    add reg8, $imm2
+    ret
+386.Host:
+    mv reg0, reg1
+    ld reg2, #0x0(reg3)
+    ld reg4, #imm0(reg5)
+    ld reg6, #imm1(reg7)
+    addi reg8, reg8, #imm2
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+387.Guest:
+    mov reg0, qword [rip + imm0]
+    mov reg1, dword [reg2 + imm1]
+    mov reg3, $imm2
+    mov dword [rip + imm3], reg4
+    mov dword [rip + imm4], $imm5
+    mov qword [rip + imm6], reg5
+    jmp $Label
+387.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    lw reg1, #imm1(reg2)
+    li reg3, #imm2
+    sw reg4, %pcrel_lo(#imm3)(x0)
+    li t1, #imm5
+    sw t1, %pcrel_lo(#imm4)(x0)
+    sw reg5, %pcrel_lo(#imm6)(x0)
+    jal x0, #Label
+388.Guest:
+    nop
+    jmp $Label
+388.Host:
+    jal x0, #Label
+389.Guest:
+    mov reg0, qword [reg1]
+    xor reg2, reg3
+    mov reg4, qword [reg5 + reg6 * 1 + imm0]
+    test reg7, reg8
+    je $Label
+389.Host:
+    ld reg0, #0x0(reg1)
+    xor reg2, reg2, reg3
+    add t1, reg5, reg6
+    ld t1, #imm0(t1)
+    test reg7, reg8
+    beqz x0, #Label
+390.Guest:
+    lea reg0, qword [rip + imm0]
+    test byte [reg1 + imm1], $imm2
+    je $Label
+390.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    lb t1, #imm1(reg1)
+    test t1, #imm2
+    beqz x0, #Label
+391.Guest:
+    mov reg0, qword [rip + imm0]
+    cmp qword [rip + imm1], reg1
+    je $Label
+391.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    sd t3, %pcrel_lo(#imm1)(x0)
+    cmp t3, reg1
+    beqz x0, #Label
+392.Guest:
+    call qword [rip + imm0]
+392.Host:
+    ld t6, %pcrel_lo(#imm0)(x0)
+393.Guest:
+    mov reg0, dword [rip + imm0]
+    call $Label
+393.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    call #Label
+394.Guest:
+    mov reg0, qword [rip + imm0]
+    mov reg1, reg2
+    mov reg3, reg4
+    call $Label
+394.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    mv reg1, reg2
+    mv reg3, reg4
+    call #Label
+395.Guest:
+    and reg0, $imm0
+    sub reg1, reg2
+    test reg3, reg4
+    je $Label
+395.Host:
+    andi reg0, reg0, #imm0
+    sub reg1, reg1, reg2
+    test reg3, reg4
+    beqz x0, #Label
+396.Guest:
+    lea reg0, qword [rip + imm0]
+    jmp $Label
+396.Host:
+    addi reg0, t6, %pcrel_lo(#imm0)
+    jal x0, #Label
+397.Guest:
+    cmp byte [reg0 + imm0], $imm1
+    jns $Label
+397.Host:
+    lb t3, #imm0(reg0)
+    cmpb t3, #imm1
+    bgez x0, #Label
+398.Guest:
+    nop
+    mov reg0, qword [rip + imm0]
+    lea reg1, qword [rip + imm1]
+    test byte [reg2 + imm2], $imm3
+    lea reg3, qword [rip + imm4]
+    cmovne reg4, reg5
+    ret
+398.Host:
+    ld reg0, %pcrel_lo(#imm0)(x0)
+    addi reg1, t6, %pcrel_lo(#imm1)
+    lb t3, #imm2(reg2)
+    test t3, #imm3
+    addi reg3, %pcrel_lo(#imm4)
+    beqz t3, #0x8
+    mv reg4, reg5
+    ld t6, #0(a7)
+    addi a7, a7, #0x8
+399.Guest:
+    cmp dword [reg0 + imm0], $imm1
+    jle $Label
+399.Host:
+    lw t3, #imm0(reg0)
+    cmp t3, #imm1
+    li t2, #imm1
+    bgeu t3, t2, #Label
+400.Guest:
+    xor reg0, reg1
+    test reg2, reg3
+    jne $Label
+400.Host:
+    xor reg0, reg0, reg1
+    test reg2, reg3
+    bnez x0, #Label
